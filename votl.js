@@ -14,6 +14,25 @@ if (!String.prototype.format) {
     };
 }
 
+function filename() {
+    var name = window.location.pathname;
+    name = name.slice(name.lastIndexOf('/')+1);
+    name = name.slice(0, name.indexOf('.'));
+    return name;
+}
+
+function wikiWordSpaces(wikiWord) {
+    if (!wikiWord.match(/([A-Z][a-z0-9]+){2,}/)) {
+        return wikiWord;
+    }
+    var bits = wikiWord.split(/([A-Z])/);
+    var ret = bits[1] + bits[2];
+    for (var i = 3; i < bits.length; i += 2) {
+        ret += ' '+bits[i]+bits[i+1];
+    }
+    return ret;
+}
+
 function depth(line) {
     var i = 0;
     for (; line[i] == '\t'; i++) {}
@@ -89,6 +108,7 @@ function processLines(lines) {
     var ret = [];
     var currentBlockPrefix = null;
 
+    ret.push('<h1>'+wikiWordSpaces(filename())+'</h1>');
     ret.push('<ul style="list-style-type:none">');
     for (var i = 0; i < lines.length; i++) {
         var [lineDepth, line] = depth(lines[i]);
@@ -150,7 +170,8 @@ function processLines(lines) {
 
         if (line.match(/^\t*(([A-Z][a-z0-9]+){2,})$/)) {
             // Wiki caption, add an anchor.
-            line = '<h3 id="'+line.replace(/\s*/, '')+'">'+line+'</h3>';
+            line = line.replace(/\s*/, '');
+            line = '<strong id="'+line+'">'+wikiWordSpaces(line)+'</strong>';
             doNotFormat = true;
         }
 
@@ -162,7 +183,7 @@ function processLines(lines) {
         if (!linePrefix) {
             if (line.match(/ \*$/)) {
                 // Important item
-                line = '<strong>' + line.replace(/ \*$/, '') + '</strong>';
+                line = '<mark>' + line.replace(/ \*$/, '') + '</mark>';
             }
 
             line = '<li>' + line + '</li>';
@@ -187,6 +208,7 @@ function processLines(lines) {
 var lines = document.getElementsByTagName('body')[0].innerHTML.split(/\r?\n/);
 lines = processLines(lines);
 document.getElementsByTagName('body')[0].innerHTML = lines.join('\n');
+document.title = wikiWordSpaces(filename());
 
 // Replace the initial plaintext style with our own.
 document.styleSheets[0].disabled = true;

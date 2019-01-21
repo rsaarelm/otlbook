@@ -7,8 +7,10 @@ Then pipe your file through `./otlbook.py eval` and it will insert the script ou
 	<#j md5:45459934a386946e6f76a32587aac2d3
 	<    1 + 2
 	< 3 
+	The Vim command to pipe the whole file through the evaluator is something like
+		; :%!./otlbook.py eval
 What's going on there?
-	The hash digest is added to track what has been evaluated
+	The hash digest (not visible in the HTML-rendered version) is added to track what has been evaluated
 		The block will not get re-evaluated if the current code's digest is equal to the cached one
 		This means that expensive notebook computations don't need to be re-done every time the notebook is updated
 	The user input gets indented to three characters
@@ -30,5 +32,6 @@ You can also provide library code
 		<    prods =: , nums */ nums
 		<    >./ prods * is_palindrome prods
 		< 906609 
-	That's also slow to compute, so the hash keeps things
+	That's slow to compute
+	The hash digest keeps updates quick as long as nothing changes with the expensive computation or the libraries leading to it
  <style>body{white-space:pre;font-family:monospace}</style><script src="votl.js" charset="utf-8"></script><head><meta charset="utf-8"></head>
