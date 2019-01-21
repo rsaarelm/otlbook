@@ -1,0 +1,22 @@
+Otlbook turns VimOutliner files into static wiki webpages
+	https://github.com/vimoutliner/vimoutliner
+Write regular outline documents
+Use WikiWord-s to name important concepts
+	Define them either inline
+		WikiWord
+			WikiWord-s are the original way to create wiki structure
+			They're two or more words written in SnakeCase
+			OtlBook allows numbers in them: Test1234Word
+	Or in separate files, put `WikiWord.otl.html` somewhere in your project folder
+Run the otlbook tool to generate a tags file and a custom javascript file
+	; ./otlbook.py
+	The javascript file will contain link information of all your local wiki links
+Tips
+	Make git's pre-commit hook regenerate tags
+		; cat > .git/hooks/pre-commit <<EOF
+		; #!/bin/sh
+		; ./otlbook.py
+		; git add votl.js
+		; EOF
+		; chmod a+x .git/hooks/pre-commit
+ <style>body{white-space:pre;font-family:monospace}</style><script src="votl.js" charset="utf-8"></script>

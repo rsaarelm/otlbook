@@ -1,0 +1,34 @@
+Otlbook has an interactive notebook using the J programming language
+	http://jsoftware.com/
+Use the VimOutliner preformatted user block to add J code
+	<#j
+	< 1 + 2
+Then pipe your file through `./otlbook.py eval` and it will insert the script output
+	<#j md5:45459934a386946e6f76a32587aac2d3
+	<    1 + 2
+	< 3 
+What's going on there?
+	The hash digest is added to track what has been evaluated
+		The block will not get re-evaluated if the current code's digest is equal to the cached one
+		This means that expensive notebook computations don't need to be re-done every time the notebook is updated
+	The user input gets indented to three characters
+		J language REPL style is to have user input indentend relative to the runtime output
+	The result of the expression gets added to the block
+You can also provide library code
+	<#j-lib
+	< is_palindrome=: 3 : 0 "0
+	<  (|. 10 #.inv y) -: 10 #.inv y
+	< )
+	Library code blocks don't get evaluated locally
+	They do get added to all subsequent code blocks
+	So you can start the file by defining shared library functions, then write computations that use them
+	Here's a Project Euler solution using the library verb
+		: Find the largest palindrome made from the product of two 3-digit numbers.
+		<#j md5:40c1fd0c4390e001ee7d2351e80bf8e0
+		<    nums =: 100+i.900
+		<
+		<    prods =: , nums */ nums
+		<    >./ prods * is_palindrome prods
+		< 906609 
+	That's also slow to compute, so the hash keeps things
+ <style>body{white-space:pre;font-family:monospace}</style><script src="votl.js" charset="utf-8"></script>
