@@ -259,7 +259,7 @@ def file_tags(path):
             # WikiWord as the only content on a whole line, tag destination.
             name = re.match(r'^\t*(([A-Z][a-z0-9]+){2,})$', line)
             if name:
-                name = name[1]
+                name = name.group(1)
                 yield Tag(name, path, line)
 
 def build_tags():
