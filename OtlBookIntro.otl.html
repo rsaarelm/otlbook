@@ -17,12 +17,16 @@ New syntax
 		![icon](icon-journal.png)
 Tips
 	Make git's pre-commit hook regenerate tags
-		; cat > .git/hooks/pre-commit <<EOF
+		; cat > .git/hooks/pre-commit &lt;&lt;EOF
 		; #!/bin/sh
 		; ./otlbook.py
 		; git add votl.js
 		; EOF
 		; chmod a+x .git/hooks/pre-commit
+	The HTML layer hack isn't quite perfect
+		Things in text that look like they are opening a HTML tag, `&lt;likethis` and not closing it afterwards will break the browser's parser
+		Alphabetic characters immediately after the < are the problem
+		You need to use `&amp;lt;` in place of the `<` for them
 	Make Vim fill the preformatted otl block prefix
 		VimOutliner enables prefix filling by marking prefixes as comments
 		Tag the preformatted block prefix as comment
