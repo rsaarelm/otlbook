@@ -1,15 +1,18 @@
 Otlbook has an interactive notebook using the J programming language
 	http://jsoftware.com/
 Use the VimOutliner preformatted user block to add J code
-	<#j
-	< 1 + 2
+	; <.j
+	; < 1 + 2
 Then pipe your file through `./otlbook.py eval` and it will insert the script output
-	<#j md5:45459934a386946e6f76a32587aac2d3
+	<.j md5:45459934a386946e6f76a32587aac2d3
 	<    1 + 2
 	< 3 
 	The Vim command to pipe the whole file through the evaluator is something like
 		; :%!./otlbook.py eval
 What's going on there?
+	The tag is `<.j` instead of `&lt;j`
+		Writing the latter without escaping the < with `&amp;lt;` would break the HTML hack mode
+		You can drop the . and use `&lt;j` if you are writing regular otl and don't care about the HTML mode
 	The hash digest (not visible in the HTML-rendered version) is added to track what has been evaluated
 		The block will not get re-evaluated if the current code's digest is equal to the cached one
 		This means that expensive notebook computations don't need to be re-done every time the notebook is updated
@@ -17,7 +20,7 @@ What's going on there?
 		J language REPL style is to have user input indentend relative to the runtime output
 	The result of the expression gets added to the block
 You can also provide library code
-	<#j-lib
+	<.j-lib
 	< is_palindrome=: 3 : 0 "0
 	<  (|. 10 #.inv y) -: 10 #.inv y
 	< )
@@ -26,7 +29,7 @@ You can also provide library code
 	So you can start the file by defining shared library functions, then write computations that use them
 	Here's a Project Euler solution using the library verb
 		: Find the largest palindrome made from the product of two 3-digit numbers.
-		<#j md5:40c1fd0c4390e001ee7d2351e80bf8e0
+		<.j md5:40c1fd0c4390e001ee7d2351e80bf8e0
 		<    nums =: 100+i.900
 		<
 		<    prods =: , nums */ nums
