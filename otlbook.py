@@ -220,7 +220,9 @@ document.getElementsByTagName('body')[0].innerHTML = lines.join('\n');
 document.title = wikiWordSpaces(filename());
 
 // Replace the initial plaintext style with our own.
-document.styleSheets[0].disabled = true;
+if (document.styleSheets.length > 0) {
+    document.styleSheets[0].disabled = true;
+}
 var sheet = document.createElement('style')
 sheet.innerHTML = ".undefined-word {color: Red;}";
 document.body.appendChild(sheet);
