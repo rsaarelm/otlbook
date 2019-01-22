@@ -250,7 +250,7 @@ def otl_files(path='.'):
                 yield ret
 
 def file_tags(path):
-    basename = path.split('.')[0]
+    basename = path.split('/')[-1].split('.')[0]
     # File name is WikiWord, file itself is a tag destination for that word.
     if re.match(r'^(([A-Z][a-z0-9]+){2,})$', basename):
         yield Tag(basename, path, 0)
