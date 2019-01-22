@@ -87,9 +87,9 @@ function formatLineSegment(input) {
     }
 
     var match;
-    if (match = /`.*?`/.exec(input)) {
+    if (match = /`(.*?)`/.exec(input)) {
         // Escape formatting.
-        return splice(match, '<code>$0</code>');
+        return splice(match, '<code>$1</code>');
     }
     if (match = /\b(https?|ftp):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;()]*[-A-Z0-9+&@#\/%=~_|()]/i.exec(input)) {
         // Hyperlink
@@ -146,10 +146,10 @@ function processLines(lines) {
             // User block boundary.
             if (currentBlockPrefix) {
                 // Out from the previus one.
-                ret.push(isPreformattedBlock(currentBlockPrefix) ? '</pre></li>' : '</p></li>');
+                ret.push(isPreformattedBlock(currentBlockPrefix) ? '</li>' : '</p></li>');
             }
             if (linePrefix) {
-                ret.push(isPreformattedBlock(linePrefix) ? '<li><pre>' : '<li><p>');
+                ret.push(isPreformattedBlock(linePrefix) ? '<li>' : '<li><p>');
             }
             currentBlockPrefix = linePrefix;
         }
@@ -189,7 +189,9 @@ function processLines(lines) {
             line = formatLineSegment(line);
         }
 
-        if (!linePrefix) {
+        if (linePrefix && isPreformattedBlock(linePrefix)) {
+            line = '<code>' + line + '</code><br/>';
+        } else if (!linePrefix) {
             if (line.match(/ \*$/)) {
                 // Important item
                 line = '<mark>' + line.replace(/ \*$/, '') + '</mark>';
@@ -224,7 +226,16 @@ if (document.styleSheets.length > 0) {
     document.styleSheets[0].disabled = true;
 }
 var sheet = document.createElement('style')
-sheet.innerHTML = ".undefined-word {color: Red;}";
+sheet.innerHTML = `
+body{margin:auto;max-width:50em;
+ font-family:"Noto Sans",Verdana,sans-serif;}
+code{white-space:pre;}
+h1{text-align:center;}
+p{font-family: "Times New Roman",Times,serif;
+ margin-top:0.2em;margin-bottom:0.2em;color:#333}
+ul{padding-left:1em;line-height:1.3;}
+.undefined-word {color: Red;}
+`;
 document.body.appendChild(sheet);
 """
 
@@ -414,10 +425,10 @@ def eval_j_code(seq):
     for i in seq:
         if isinstance(i, SimpleNamespace):
             # Optional # padding to prevent HTML tag like formations
-            if re.match(r'^#?j-lib\b', i.name):
+            if re.match(r'^\.?j-lib\b', i.name):
                 # J-library code, append to trail for the code sectors.
                 trail.extend(i.text)
-            elif re.match(r'^#?j\b', i.name):
+            elif re.match(r'^\.?j\b', i.name):
                 # Executable code!
 
                 # Look for a hash of the previously evaluated code. If there
