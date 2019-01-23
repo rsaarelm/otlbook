@@ -118,7 +118,7 @@ function processLines(lines) {
     var currentBlockPrefix = null;
 
     ret.push('<h1>'+wikiWordSpaces(filename())+'</h1>');
-    ret.push('<ul style="list-style-type:none">');
+    ret.push('<ul>');
     for (var i = 0; i < lines.length; i++) {
         var [lineDepth, line] = depth(lines[i]);
         var depthChanged = false;
@@ -233,7 +233,8 @@ code{white-space:pre;}
 h1{text-align:center;}
 p{font-family: "Times New Roman",Times,serif;
  margin-top:0.2em;margin-bottom:0.2em;color:#333}
-ul{padding-left:1em;line-height:1.3;}
+ul{padding-left:0.5em;line-height:1.3;list-style-type:none;}
+ul ul{margin-left:0.5em;border-left:1px solid #CCC;}
 .undefined-word {color: Red;}
 `;
 document.body.appendChild(sheet);
