@@ -232,7 +232,7 @@ body{margin:auto;max-width:50em;
 code{white-space:pre;}
 h1{text-align:center;}
 p{font-family: "Times New Roman",Times,serif;
- margin-top:0.2em;margin-bottom:0.2em;color:#333}
+ text-indent:1em;margin-top:0.2em;margin-bottom:0.2em;color:#333}
 ul{padding-left:0.5em;line-height:1.3;list-style-type:none;}
 ul ul{margin-left:0.5em;border-left:1px solid #CCC;}
 .undefined-word {color: Red;}
