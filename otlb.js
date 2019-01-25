@@ -265,7 +265,10 @@ class Entity {
     if (this.title && !this.isToplevel) {
       // Title is derived from the topmost item in non-toplevel entities,
       // don't repeat it in the body.
-      doc.appendChild(this.doc.lastElementChild.cloneNode(true));
+      if (this.doc.lastElementChild
+          && this.doc.lastElementChild.tagName === 'UL') {
+        doc.appendChild(this.doc.lastElementChild.cloneNode(true));
+      }
     } else {
       doc.appendChild(this.doc.cloneNode(true));
     }
