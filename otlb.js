@@ -1,11 +1,7 @@
-function format(str, ...args) {
-  return str.replace(/\$(\d+)/g, (match, number) => {
-    if (typeof args[number] !== 'undefined') {
-      return args[number];
-    }
-    return match;
-  });
-}
+const configuration = {
+  // Replace [_] and [X] with unicode checkboxes
+  prettifyTodoBoxes: true,
+};
 
 function filename() {
   let name = window.location.pathname;
@@ -32,74 +28,6 @@ function wikiWordSpaces(wikiWord) {
   return ret;
 }
 
-function depth(line) {
-  let i = 0;
-  while (line[i] === '\t') { i += 1; }
-  return [i, line.slice(i)];
-}
-
-// Return [prefix or null, remaining line, remaining line is user block type]
-function blockPrefix(line) {
-  const line2 = line.replace(/^\t*/, '');
-
-  const rules = [
-    [/^:/, ':', 1, false],              // Wrapped text
-    [/^ /, ' ', 1, false],              // Wrapped text (leading space)
-    [/^;/, ';', 1, false],              // Preformatted text
-    [/^&gt;\S+/, '>', 4, true],         // User-defined wrapped text type
-    [/^&gt;( |$)/, '>', 5, false],      // User-defined wrapped text body
-    [/^&lt;\S+/, '<', 4, true],         // User preformatted text type
-    [/^&lt;( |$)/, '<', 5, false],      // User preformatted text body
-    [/^\|/, '|', 0, false],             // Table
-  ];
-  for (let i = 0; i < rules.length; i += 1) {
-    if (line2.match(rules[i][0])) {
-      return [rules[i][1], line2.slice(rules[i][2]), rules[i][3]];
-    }
-  }
-  return [null, line2, false];
-}
-
-function isPreformattedBlock(prefix) {
-  return prefix === ';' || prefix === '<' || prefix === '|';
-}
-
-function isWrappingBlock(prefix) {
-  return prefix === ' ' || prefix === '>' || prefix === ':';
-}
-
-function formatLineSegment(input, tags) {
-  function splice(match, replace) {
-    const head = input.slice(0, match.index);
-    const tail = input.slice(match.index + match[0].length);
-    return formatLineSegment(head, tags) + format(replace, ...match) + formatLineSegment(tail, tags);
-  }
-
-  let match;
-  if (match = /`(.*?)`/.exec(input)) {
-    // Escape formatting.
-    return splice(match, '<code>$1</code>');
-  }
-  if (match = /\b(https?|ftp):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;()]*[-A-Z0-9+&@#\/%=~_|()]/i.exec(input)) {
-    // Hyperlink
-    return splice(match, '<a href="$0">$0</a>');
-  }
-  if (match = /\b(([A-Z][a-z0-9]+){2,})\b/.exec(input)) {
-    // Wikiword
-    const wikiWord = match[1];
-    if (wikiWord in tags) {
-      return splice(match, `<a href="${tags[wikiWord]}">$0</a>`);
-    }
-    return splice(match, '<span class="undefined-word">$0</span>');
-  }
-  if (match = /!\[(.*?)\]\((.*?)\)/.exec(input)) {
-    // Inline image
-    return splice(match, `<img alt="${match[1]}" src="${match[2]}" />`);
-  }
-
-  return input;
-}
-
 function extractTags(lines) {
   let ret = {};
   for (let i = 0; i < lines.length; i += 1) {
@@ -111,127 +39,311 @@ function extractTags(lines) {
   return ret;
 }
 
-function processLines(lines, tags) {
-  let currentDepth = 0;
-  let ret = [];
-  let currentBlockPrefix = null;
+/**
+ * Partially parsed wrapper for lines in file.
+ *
+ * Can be constructed without knowledge of neighboring lines.
+ * */
+class Line {
+  constructor(text) {
+    this.depth = 0;
+    while (text[this.depth] === '\t') { this.depth += 1; }
 
-  ret.push(`<h1>${wikiWordSpaces(filename())}</h1>`);
-  ret.push('<ul>');
-  for (let i = 0; i < lines.length; i += 1) {
-    let [lineDepth, line] = depth(lines[i]);
-    let doNotFormat = false;
+    const bodyText = text.slice(this.depth);
 
-    if (lineDepth !== currentDepth && currentBlockPrefix) {
-      // Exit block when depth changes.
-      ret.push(isPreformattedBlock(currentBlockPrefix) ? '</pre></li>' : '</p></li>');
-      currentBlockPrefix = null;
-    }
-
-    while (lineDepth > currentDepth) {
-      ret.push('<ul style="list-style-type:none">');
-      currentDepth += 1;
-    }
-    while (lineDepth < currentDepth) {
-      ret.push('</ul>');
-      currentDepth -= 1;
-    }
-
-    const [linePrefix, lineText, isUserType] = blockPrefix(line);
-    if (linePrefix !== currentBlockPrefix) {
-      // User block boundary.
-      if (currentBlockPrefix) {
-        // Out from the previus one.
-        ret.push(isPreformattedBlock(currentBlockPrefix) ? '</li>' : '</p></li>');
+    const rules = [
+      [/^:/, ':', 1, false],              // Wrapped text
+      [/^ /, ' ', 1, false],              // Wrapped text (leading space)
+      [/^;/, ';', 1, false],              // Preformatted text
+      [/^&gt;\S+/, '>', 4, true],         // User-defined wrapped text type
+      [/^&gt;( |$)/, '>', 5, false],      // User-defined wrapped text body
+      [/^&lt;\S+/, '<', 4, true],         // User preformatted text type
+      [/^&lt;( |$)/, '<', 5, false],      // User preformatted text body
+      [/^\|/, '|', 0, false],             // Table
+    ];
+    for (let i = 0; i < rules.length; i += 1) {
+      if (bodyText.match(rules[i][0])) {
+        this.prefix = rules[i][1];
+        this.body = bodyText.slice(rules[i][2]);
+        this.isFirst = rules[i][3];
+        return;
       }
-      if (linePrefix) {
-        ret.push(isPreformattedBlock(linePrefix) ? '<li>' : '<li><p>');
-      }
-      currentBlockPrefix = linePrefix;
     }
-    line = lineText;
-    if (isUserType) {
-      // This is metadata for the block formatter, we don't want to show
-      // it.
-      continue;
+    // Normal outline lines
+    this.prefix = ''
+    this.body = bodyText;
+    this.isFirst = true;
+  }
+
+  isPreformatted() {
+    return this.prefix === ';' || this.prefix === '<' || this.prefix === '|';
+  }
+
+  isWrapping() {
+    return this.prefix === ' ' || this.prefix === '>' || this.prefix === ':';
+  }
+
+  // Can the next line be joined after this to make a single entity
+  joinsWith(nextLine) {
+    return typeof nextLine !== 'undefined'
+      && !nextLine.isFirst
+      && nextLine.depth === this.depth
+      && nextLine.prefix === this.prefix;
+  }
+
+  title() {
+    if (this.prefix !== '') {
+      return null;
+    }
+    return wikiWordSpaces(this.body);
+  }
+
+  /** Do in-place formatting */
+  format(tags) {
+    function formatLineSegment(input) {
+      function format(str, ...args) {
+        return str.replace(/\$(\d+)/g, (match, number) => {
+          if (typeof args[number] !== 'undefined') {
+            return args[number];
+          }
+          return match;
+        });
+      }
+
+      function splice(match, replace) {
+        const head = input.slice(0, match.index);
+        const tail = input.slice(match.index + match[0].length);
+        return formatLineSegment(head, tags)
+          + format(replace, ...match)
+          + formatLineSegment(tail, tags);
+      }
+
+      let match;
+      if (match = /`(.*?)`/.exec(input)) {
+        // Escape formatting.
+        return splice(match, '<code>$1</code>');
+      }
+      if (match = /\b(https?|ftp):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;()]*[-A-Z0-9+&@#\/%=~_|()]/i.exec(input)) {
+        // Hyperlink
+        return splice(match, '<a href="$0">$0</a>');
+      }
+      if (match = /\b(([A-Z][a-z0-9]+){2,})\b/.exec(input)) {
+        // Wikiword
+        const wikiWord = match[1];
+        if (tags && wikiWord in tags) {
+          return splice(match, `<a href="${tags[wikiWord]}">$0</a>`);
+        }
+        return splice(match, '<span class="undefined-word">$0</span>');
+      }
+      if (match = /!\[(.*?)\]/.exec(input)) {
+        // Inline image
+        return splice(match, `<img src="${match[1]}" />`);
+      }
+
+      return input;
+    }
+
+    if (this.isPreformatted()) {
+      // Treat preformatted boxes as verbatim text
+      if (this.isFirst) {
+        // Don't show the metadata line at all.
+        return '';
+      }
+      return `<code>${this.body}</code><br/>`;
+    }
+
+    let line = this.body;
+
+    if (this.isWrapping() && line.match(/^\s*$/)) {
+      // Paragraph break on empty line
+      return '</p><p>';
     }
 
     // Escape HTML.
     // (Don't do it for the ' ' block prefix that we use by convention on
     // the HTML footer so it'll stay invisible)
-    if (linePrefix !== ' ') {
+    if (this.prefix !== ' ') {
       line = line.replace(/<(.*?)>/g, '&lt;$1&gt;');
     }
 
     // Prettify votl todo boxes
-    line = line.replace(/^(\t*)\[_\] /, '$1☐');
-    line = line.replace(/^(\t*)\[X\] /, '$1☑');
-
-    if (isWrappingBlock(linePrefix) && line.match(/^\s*$/)) {
-      // Paragraph break on empty line
-      ret.push('</p><p>');
-      continue;
+    if (configuration.prettifyTodoBoxes) {
+      line = line.replace(/^\[_\] /, '☐');
+      line = line.replace(/^\[X\] /, '☑');
     }
 
-    if (line.match(/^\t*(([A-Z][a-z0-9]+){2,})$/)) {
-      // Wiki caption, add an anchor.
-      line = line.replace(/\s*/, '');
-      line = `<strong id="${line}">${wikiWordSpaces(line)}</strong>`;
-      doNotFormat = true;
+    if (line.match(/^(([A-Z][a-z0-9]+){2,})$/) || (tags && line in tags)) {
+      // Either a WikiWord or explicitly marked as heading.
+      return `<strong id="${line}">${this.title()}</strong>`;
     }
 
-    if (!doNotFormat) {
-      // Match wikiwords etc. items
-      line = formatLineSegment(line, tags);
+    line = formatLineSegment(line);
+
+    if (this.prefix === '' && line.match(/ \*$/)) {
+      // Important topic
+      line = `<mark>${line.replace(/ \*$/, '')}</mark>`;
     }
 
-    if (linePrefix && isPreformattedBlock(linePrefix)) {
-      line = `<code>${line}</code><br/>`;
-    } else if (!linePrefix) {
-      if (line.match(/ \*$/)) {
-        // Important item
-        line = `<mark>${line.replace(/ \*$/, '')}</mark>`;
+    return line;
+  }
+}
+
+class Entity {
+  // Return [parsedEntity, newIdx]
+  static parse(lines, startIdx, tags) {
+    let ret = new Entity();
+    let bodyLines;
+    let currentDepth;
+    let pos = 0;
+
+    if (startIdx === -1) {
+      // Special case, process the entire file.
+      bodyLines = [];
+      currentDepth = -1;
+    } else {
+      bodyLines = [lines[startIdx]];
+      currentDepth = bodyLines[0].depth;
+
+      for (pos = startIdx + 1; lines[pos - 1].joinsWith(lines[pos]); pos += 1) {
+        bodyLines.push(lines[pos]);
       }
-
-      line = `<li class="hanging">${line}</li>`;
     }
 
-    ret.push(line);
+    let children = [];
+    while (lines[pos] && lines[pos].depth > currentDepth) {
+      const [child, newPos] = Entity.parse(lines, pos, tags);
+      child.parent = ret;
+      pos = newPos;
+      children.push(child);
+    }
+
+    let doc = document.createDocumentFragment();
+
+    let doc2 = doc.appendChild(document.createElement('div'));
+
+    const html = bodyLines.map(x => x.format(tags)).join('\n');
+    if (bodyLines.length > 0 && bodyLines[0].isWrapping()) {
+      let p = doc2.appendChild(document.createElement('p'));
+      p.innerHTML = html;
+    } else {
+      doc2.innerHTML = html;
+    }
+
+    if (children.length > 0) {
+      let list = doc2.appendChild(document.createElement('ul'));
+      for (let i = 0; i < children.length; i += 1) {
+        let item = list.appendChild(document.createElement('li'));
+        item.appendChild(children[i].doc);
+        // Rebind
+        children[i].doc = item.children[0];
+      }
+      doc2.appendChild(list);
+    }
+
+    let title = '';
+    if (startIdx === -1) {
+      title = filename();
+    } else if (bodyLines.length === 1 && bodyLines[0].prefix === '') {
+      title = bodyLines[0].body;
+    }
+
+    ret.title = title;
+    ret.doc = doc;
+    ret.children = children;
+    ret.isToplevel = startIdx === -1;
+    ret.parent = null;
+    return [ret, pos];
   }
 
-  if (currentBlockPrefix) {
-    // Out from the previus one.
-    ret.push(isPreformattedBlock(currentBlockPrefix) ? '</pre>' : '</p>');
+  /// Show as titled article
+  asArticle() {
+    let doc = document.createDocumentFragment();
+    if (this.title) {
+      let h = doc.appendChild(document.createElement('h1'));
+      h.innerText = wikiWordSpaces(this.title);
+    }
+    if (this.title && !this.isToplevel) {
+      // Title is derived from the topmost item in non-toplevel entities,
+      // don't repeat it in the body.
+      doc.appendChild(this.doc.lastElementChild.cloneNode(true));
+    } else {
+      doc.appendChild(this.doc.cloneNode(true));
+    }
+    return doc;
   }
-  // XXX: If the file ends in deep nesting, there should be multiple
-  // list closings here. Though in practice we can just be sloppy and leave
-  // the end-of-document tags unclosed.
-  ret.push('</ul>');
 
-  return ret;
+  findTitle(title) {
+    if (!title) {
+      return null;
+    }
+
+    if (this.title === title) {
+      return this;
+    }
+    for (let i = 0; i < this.children.length; i += 1) {
+      const ret = this.children[i].findTitle(title);
+      if (ret) {
+        return ret;
+      }
+    }
+    return null;
+  }
 }
 
-// Split document to lines for processing.
-let lines = document.getElementsByTagName('body')[0].innerHTML.split(/\r?\n/);
-lines = processLines(lines, extractTags(lines));
-document.getElementsByTagName('body')[0].innerHTML = lines.join('\n');
-document.title = wikiWordSpaces(filename());
+function otlb(document) {
+  // Split document to lines for processing.
+  let lines = document.getElementsByTagName('body')[0].innerHTML.split(/\r?\n/);
+  let tags = extractTags(lines);
+  // Convert text lines to Line objects.
+  lines = lines.filter(x => !x.match(/^\s*$/)).map(x => new Line(x));
+  let topLevel = Entity.parse(lines, -1, tags)[0];
 
-// Replace the initial plaintext style with our own.
-if (document.styleSheets.length > 0) {
-  document.styleSheets[0].disabled = true;
+  function applyStyle() {
+    let sheet = document.createElement('style')
+    sheet.innerHTML = `
+    body{margin:auto;max-width:50em;
+    font-family:"Noto Sans",Verdana,sans-serif;}
+    code{white-space:pre;}
+    h1{text-align:center;}
+    p{font-family: "Times New Roman",Times,serif;
+    text-indent:1em;margin-top:0.2em;margin-bottom:0.2em;color:#333}
+    .hanging{text-indent:-1em;padding-left:1em;}
+    ul{padding-left:0.5em;line-height:1.3;list-style-type:none;list-style outside;}
+    ul ul{margin-left:0.5em;border-left:1px solid #CCC;}
+    .undefined-word {color: Red;}
+    `;
+    document.body.appendChild(sheet);
+  }
+
+  function onHashChanged() {
+    document.body.innerHTML = '';
+    const hash = window.location.hash.slice(1);
+    let article = topLevel.findTitle(hash);
+    if (hash === '/' || !topLevel.children) {
+      // Show the whole document with a blank fragment.
+      document.body.appendChild(topLevel.asArticle());
+      document.title = wikiWordSpaces(filename());
+    } else {
+      if (!article) {
+        article = topLevel.children[0];
+      }
+      document.body.appendChild(article.asArticle());
+      if (article.title) {
+        document.title = wikiWordSpaces(article.title);
+      }
+    }
+    applyStyle();
+  }
+
+  document.title = wikiWordSpaces(filename());
+
+  // Replace the initial plaintext style with our own.
+  if (document.styleSheets.length > 0) {
+    document.styleSheets[0].disabled = true;
+  }
+
+  window.onhashchange = onHashChanged;
+  onHashChanged();
 }
-let sheet = document.createElement('style')
-sheet.innerHTML = `
-body{margin:auto;max-width:50em;
- font-family:"Noto Sans",Verdana,sans-serif;}
-code{white-space:pre;}
-h1{text-align:center;}
-p{font-family: "Times New Roman",Times,serif;
- text-indent:1em;margin-top:0.2em;margin-bottom:0.2em;color:#333}
-.hanging{text-indent:-1em;padding-left:1em;}
-ul{padding-left:0.5em;line-height:1.3;list-style-type:none;list-style outside;}
-ul ul{margin-left:0.5em;border-left:1px solid #CCC;}
-.undefined-word {color: Red;}
-`;
-document.body.appendChild(sheet);
+
+otlb(document);
