@@ -1,5 +1,122 @@
-Otlbook tool
-	[OtlBookIntro]
-	[JayNotebook]
+Otlbook Introduction
+	This is the otlbook static single-file wiki front page
+	It's also the first node in the VimOutliner source file
+	(View the source of this webpage to see what's going on here)
+	The convention is that the first node of the VimOutliner file shows up as the display front page.
+	]AboutOtlbook
+	]SyntaxGallery
+	]InteractiveNotebook
+	]OtlbookTips
 	Github page: https://github.com/rsaarelm/otlbook
+	Copyright (C) Risto Saarelma 2019
+VimOutliner
+	https://github.com/vimoutliner/vimoutliner
+AboutOtlbook
+	Otlbook turns VimOutliner files into static wiki webpages
+		https://github.com/vimoutliner/vimoutliner
+	Write regular outline documents
+	Give the files `.otl.html` extension and add the OtlBoilerplate to the bottom of the file
+	Use WikiWord-s to name important concepts
+		Define a WikiWord by having it be the only text on a line:
+			WikiWord
+				WikiWord-s are the original way to create wiki structure
+				They're two or more words written in SnakeCase
+				OtlBook allows numbers in them: Test1234Word
+SyntaxGallery
+	Standard VimOutliner effects
+		Paragraphs of text prefixed with :
+			: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
+			: labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco
+			: laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in
+			: voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat
+			: non proident, sunt in culpa qui officia deserunt mollit anim id est laborum
+			:
+			: Omnes offendit duo ad, repudiare voluptatum theophrastus vim ne. Vel te facilis tacimates
+			: referrentur, partiendo deseruisse eam no, velit error melius ne vel. Duo postulant
+			: disputationi te, usu in liber putant assueverit. At autem mundi vel.
+		Tables with |
+			| Header1 | Header2 |
+			|---------|---------|
+			| 1       | 2       |
+			| 3       | 4       |
+			(Use https://github.com/dhruvasagar/vim-table-mode to work with tables in Vim)
+		Preformatted text with ;
+			; #include <stdio.h>
+			; int main() {
+			;     printf("Hello, world!\n");
+			;     return 0;
+			; }
+	Other stuff
+		Format otl todo items
+			[_] TODO
+			[X] DONE
+	Supported new syntax
+		Mark important nodes with trailing asterisk *
+		Add inline images with `![image path]`
+			![mandrill.jpeg]
+	Prospective new syntax
+		Not actually supported by the tool, but may be useful to adopt as convention
+		Topic tags affect their parent node
+			@new-otl-syntax @categorization @help
+			A line is considered a tag line if it contains only 1 or more whitespace-separated `@tags`
+OtlBoilerplate
+	Add the boilerplate line of HTML code to the bottom of the page
+	; &lt;style&gt;body{white-space:pre;font-family:monospace}&lt;/style&gt;&lt;script src="otlb.js" charset="utf-8"&gt;&lt;/script&gt;&lt;meta charset="utf-8"&gt;
+	(View page source on this page to see it on this page)
+	Add one leading space to stop VimOutliner from thinking it's an user-formatted text object
+	Run `otltool.py` to generate the votl.js file in your path
+InteractiveNotebook
+	The otlbook.py tool supports an offline interactive notebook using JayLanguage
+	Use the VimOutliner preformatted user block to add J code
+		; <.j
+		; < 1 + 2
+	Then pipe your file through `./otlbook.py eval` and it will insert the script output
+		<.j md5:45459934a386946e6f76a32587aac2d3
+		<    1 + 2
+		< 3 
+		The Vim command to pipe the whole file through the evaluator is something like
+			; :%!./otlbook.py eval
+	What's going on there?
+		The tag is `<.j` instead of `&lt;j`
+			Writing the latter without escaping the < with `&amp;lt;` would break the HTML hack mode
+			You can drop the . and use `&lt;j` if you are writing regular otl and don't care about the HTML mode
+		The hash digest (not visible in the HTML-rendered version) is added to track what has been evaluated
+			The block will not get re-evaluated if the current code's digest is equal to the cached one
+			This means that expensive notebook computations don't need to be re-done every time the notebook is updated
+		The user input gets indented to three characters
+			J language REPL style is to have user input indentend relative to the runtime output
+		The result of the expression gets added to the block
+	You can also provide library code
+		<.j-lib
+		< is_palindrome=: 3 : 0 "0
+		<  (|. 10 #.inv y) -: 10 #.inv y
+		< )
+		Library code blocks don't get evaluated locally
+		They do get added to all subsequent code blocks
+		So you can start the file by defining shared library functions, then write computations that use them
+		Here's a Project Euler solution using the library verb
+			: Find the largest palindrome made from the product of two 3-digit numbers.
+			<.j md5:40c1fd0c4390e001ee7d2351e80bf8e0
+			<    nums =: 100+i.900
+			<
+			<    prods =: , nums */ nums
+			<    >./ prods * is_palindrome prods
+			< 906609 
+		That's slow to compute
+		The hash digest keeps updates quick as long as nothing changes with the expensive computation or the libraries leading to it
+JayLanguage
+	http://jsoftware.com/
+	https://www.hillelwayne.com/post/handwriting-j/
+OtlbookTips
+	The HTML layer hack isn't quite perfect
+		Things in text that look like they are opening a HTML tag, `&lt;likethis` and not closing it afterwards will break the browser's parser
+		Alphabetic characters immediately after the < are the problem
+		You need to use `&amp;lt;` in place of the `<` for them
+	Make Vim fill the preformatted otl block prefix
+		VimOutliner enables prefix filling by marking prefixes as comments
+		Tag the preformatted block prefix as comment
+		; :se comments+=:<
+		Disable autowrapping in comment text
+		; :se formatoptions-=c
  <style>body{white-space:pre;font-family:monospace}</style><script src="otlb.js" charset="utf-8"></script><meta charset="utf-8">
+ <!-- vim: set filetype=votl : -->
