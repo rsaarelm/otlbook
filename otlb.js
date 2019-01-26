@@ -219,14 +219,20 @@ class Entity {
 
     let doc = document.createDocumentFragment();
 
+    ret.prefix = bodyLines.length > 0 ? bodyLines[0].prefix : null;
     let doc2 = doc.appendChild(document.createElement('div'));
+    let doc3 = doc2;
+    if (ret.prefix === '') {
+      doc3 = doc2.appendChild(document.createElement('div'));
+      doc3.setAttribute('class', 'hanging');
+    }
 
     const html = bodyLines.map(x => x.format(tags)).join('\n');
     if (bodyLines.length > 0 && bodyLines[0].isWrapping()) {
-      let p = doc2.appendChild(document.createElement('p'));
+      let p = doc3.appendChild(document.createElement('p'));
       p.innerHTML = html;
     } else {
-      doc2.innerHTML = html;
+      doc3.innerHTML = html;
     }
 
     if (children.length > 0) {
