@@ -127,6 +127,14 @@ class Line {
         // Hyperlink
         return splice(match, '<a href="$0">$0</a>');
       }
+      if (match = /!\[(.*?)\]/.exec(input)) {
+        // Inline image
+        return splice(match, `<img src="${match[1]}" />`);
+      }
+      if (match = /\[(\.\/.*?)\]/.exec(input)) {
+        // Local link
+        return splice(match, `<a href="${match[1]}">${match[1]}</a>`);
+      }
       if (match = /\b(([A-Z][a-z0-9]+){2,})\b/.exec(input)) {
         // Wikiword
         const wikiWord = match[1];
@@ -135,11 +143,6 @@ class Line {
         }
         return splice(match, '<span class="undefined-word">$0</span>');
       }
-      if (match = /!\[(.*?)\]/.exec(input)) {
-        // Inline image
-        return splice(match, `<img src="${match[1]}" />`);
-      }
-
       return input;
     }
 
@@ -314,7 +317,7 @@ function otlb(document) {
     font-family:"Noto Sans",Verdana,sans-serif;}
     code{white-space:pre;}
     h1{text-align:center;}
-    p{font-family: "Times New Roman",Times,serif;
+    p{font-family:"Times New Roman",Times,serif;
     text-indent:1em;margin-top:0.2em;margin-bottom:0.2em;color:#333}
     .hanging{text-indent:-1em;padding-left:1em;}
     .modlink{text-decoration:none;color:green;}
