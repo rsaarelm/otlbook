@@ -174,7 +174,7 @@ class Line {
 
     if (line.match(/^(([A-Z][a-z0-9]+){2,})$/) || (tags && line in tags)) {
       // Either a WikiWord or explicitly marked as heading.
-      return `<strong id="${line}">${this.title()}</strong>`;
+      return `<strong id="${line}"><a class="modlink" href="#${line}">${this.title()}</a></strong>`;
     }
 
     line = formatLineSegment(line);
@@ -266,7 +266,7 @@ class Entity {
     let doc = document.createDocumentFragment();
     if (this.title) {
       let h = doc.appendChild(document.createElement('h1'));
-      h.innerText = wikiWordSpaces(this.title);
+      h.innerHTML = `<a class="modlink" href="#/">/</a>${wikiWordSpaces(this.title)}`;
     }
     if (this.title && !this.isToplevel) {
       // Title is derived from the topmost item in non-toplevel entities,
@@ -317,6 +317,7 @@ function otlb(document) {
     p{font-family: "Times New Roman",Times,serif;
     text-indent:1em;margin-top:0.2em;margin-bottom:0.2em;color:#333}
     .hanging{text-indent:-1em;padding-left:1em;}
+    .modlink{text-decoration:none;color:green;}
     ul{padding-left:0.5em;line-height:1.3;list-style-type:none;list-style outside;}
     ul ul{margin-left:0.5em;border-left:1px solid #CCC;}
     .undefined-word {color: Red;}
