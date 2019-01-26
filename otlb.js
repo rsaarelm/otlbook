@@ -33,7 +33,7 @@ function extractTags(lines) {
   for (let i = 0; i < lines.length; i += 1) {
     if (lines[i].match(/^\t*(([A-Z][a-z0-9]+){2,})$/)) {
       const word = lines[i].replace(/\s*/, '');
-      ret[word] = `#${word}`;
+      ret[word] = `#/${word}`;
     }
   }
   return ret;
@@ -177,7 +177,7 @@ class Line {
 
     if (line.match(/^(([A-Z][a-z0-9]+){2,})$/) || (tags && line in tags)) {
       // Either a WikiWord or explicitly marked as heading.
-      return `<strong id="${line}"><a class="modlink" href="#${line}">${this.title()}</a></strong>`;
+      return `<strong id="${line}"><a class="modlink" href="#/${line}">${this.title()}</a></strong>`;
     }
 
     line = formatLineSegment(line);
@@ -264,12 +264,24 @@ class Entity {
     return [ret, pos];
   }
 
-  /// Show as titled article
+  // Does node have no children?
+  isStub() { return this.children.length === 0; }
+
+  // Non-stub with valid title
+  isGoodArticle() {
+    return !this.isStub() && this.title.match(/^([A-Z][a-z0-9]+){2,}$/);
+  }
+
+  // Show as titled article
   asArticle() {
     let doc = document.createDocumentFragment();
     if (this.title) {
       let h = doc.appendChild(document.createElement('h1'));
-      h.innerHTML = `<a class="modlink" href="#/">/</a>${wikiWordSpaces(this.title)}`;
+      if (this.isToplevel) {
+        h.innerText = wikiWordSpaces(this.title);
+      } else {
+        h.innerHTML = `<a class="modlink" href="#${this.title}">/</a>${wikiWordSpaces(this.title)}`;
+      }
     }
     if (this.title && !this.isToplevel) {
       // Title is derived from the topmost item in non-toplevel entities,
@@ -311,8 +323,7 @@ function otlb(document) {
   let topLevel = Entity.parse(lines, -1, tags)[0];
 
   function applyStyle() {
-    let sheet = document.createElement('style')
-    sheet.innerHTML = `
+    const style = `
     body{margin:auto;max-width:50em;
     font-family:"Noto Sans",Verdana,sans-serif;}
     code{white-space:pre;}
@@ -325,27 +336,56 @@ function otlb(document) {
     ul ul{margin-left:0.5em;border-left:1px solid #CCC;}
     .undefined-word {color: Red;}
     `;
-    document.body.appendChild(sheet);
+    let sheet = document.getElementsByTagName("style")[0];
+    if (!sheet) {
+      sheet = document.body.appendChild(document.createElement('style'));
+    }
+    sheet.innerHTML = style;
   }
 
   function onHashChanged() {
+    // #/: show entire document
+    // #/PageTitle: show subpage for PageTitle
+    // #PageTitle: show entire document scrolled to PageTitle
+    // default: show front page if there's a valid one, otherwise full page
     document.body.innerHTML = '';
     const hash = window.location.hash.slice(1);
-    let article = topLevel.findTitle(hash);
-    if (hash === '/' || !topLevel.children) {
-      // Show the whole document with a blank fragment.
-      document.body.appendChild(topLevel.asArticle());
-      document.title = wikiWordSpaces(filename());
-    } else {
-      if (!article) {
-        article = topLevel.children[0];
-      }
-      document.body.appendChild(article.asArticle());
-      if (article.title) {
-        document.title = wikiWordSpaces(article.title);
-      }
+
+    let frontPage = null;
+    if (topLevel.children.length > 0 && topLevel.children[0].isGoodArticle()) {
+      frontPage = topLevel.children[0];
     }
+
+    // If not hash and frontpage show frontpage
+    let fullPage = false;
+
+    let subPage = null;
+    if (hash[0] === '/') {
+      subPage = topLevel.findTitle(hash.slice(1));
+    }
+
+    let article;
+    if (subPage) {
+      article = subPage;
+    } else if (frontPage && hash === '') {
+      article = frontPage;
+    } else {
+      article = topLevel;
+    }
+
+    document.body.appendChild(article.asArticle());
+    if (article.title) {
+      document.title = wikiWordSpaces(article.title);
+    } else {
+      document.title = 'Otlbook';
+    }
+
     applyStyle();
+
+    if (hash[0] !== '/') {
+      const elt = document.getElementById(hash);
+      if (elt) { elt.scrollIntoView(); }
+    }
   }
 
   document.title = wikiWordSpaces(filename());
