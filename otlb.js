@@ -325,7 +325,8 @@ function otlb(document) {
   function applyStyle() {
     const style = `
     body{margin:auto;max-width:50em;
-    font-family:"Noto Sans",Verdana,sans-serif;}
+    white-space:normal !important;
+    font-family:"Noto Sans",Verdana,sans-serif !important;}
     code{white-space:pre;}
     h1{text-align:center;}
     p{font-family:"Times New Roman",Times,serif;
@@ -336,10 +337,7 @@ function otlb(document) {
     ul ul{margin-left:0.5em;border-left:1px solid #CCC;}
     .undefined-word {color: Red;}
     `;
-    let sheet = document.getElementsByTagName("style")[0];
-    if (!sheet) {
-      sheet = document.body.appendChild(document.createElement('style'));
-    }
+    let sheet = document.head.appendChild(document.createElement('style'));
     sheet.innerHTML = style;
   }
 
@@ -380,19 +378,12 @@ function otlb(document) {
       document.title = 'Otlbook';
     }
 
-    applyStyle();
-
     if (hash[0] !== '/') {
       const elt = document.getElementById(hash);
       if (elt) { elt.scrollIntoView(); }
     }
-  }
 
-  document.title = wikiWordSpaces(filename());
-
-  // Replace the initial plaintext style with our own.
-  if (document.styleSheets.length > 0) {
-    document.styleSheets[0].disabled = true;
+    applyStyle();
   }
 
   window.onhashchange = onHashChanged;
