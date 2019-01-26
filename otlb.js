@@ -131,7 +131,7 @@ class Line {
         // Inline image
         return splice(match, `<img src="${match[1]}" />`);
       }
-      if (match = /\[(\.\/.*?)\]/.exec(input)) {
+      if (match = /\[(\.\.?\/.*?)\]/.exec(input)) {
         // Local link
         return splice(match, `<a href="${match[1]}">${match[1]}</a>`);
       }
