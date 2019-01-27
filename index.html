@@ -1,3 +1,4 @@
+ <meta charset="utf-8">
 OtlbookIntroduction
 	In five seconds
 		Look at the source code of this page
@@ -59,9 +60,13 @@ SyntaxGallery
 		Add inline images with `![image path]`
 			![mandrill.jpeg]
 OtlBoilerplate
+	Add UTF-8 marker to the top of the page
+	; &lt;meta charset="utf-8"&gt;
 	Add the boilerplate line of HTML code to the bottom of the page
-	; &lt;style&gt;body{white-space:pre;font-family:monospace}&lt;/style&gt;&lt;script src="otlb.js" charset="utf-8"&gt;&lt;/script&gt;&lt;meta charset="utf-8"&gt;
+	; &lt;style&gt;body{white-space:pre;font-family:monospace}&lt;/style&gt;&lt;script src="otlb.js" charset="utf-8"&gt;&lt;/script&gt;
 	(View page source on this page to see it on this page)
+	Optionally add a modeline for Vim to show that it should use VimOutliner mode for the file
+	; &lt;!-- vim: set filetype=votl: --&gt;
 	Add one leading space to stop VimOutliner from thinking it's an user-formatted text object
 	Run `otltool.py` to generate the votl.js file in your path
 InteractiveNotebook
@@ -117,5 +122,5 @@ OtlbookTips
 		; :se comments+=:<
 		Disable autowrapping in comment text
 		; :se formatoptions-=c
- <style>body{white-space:pre;font-family:monospace}</style><script src="otlb.js" charset="utf-8"></script><meta charset="utf-8">
+ <style>body{white-space:pre;font-family:monospace}</style><script src="otlb.js" charset="utf-8"></script>
  <!-- vim: set filetype=votl: -->
