@@ -394,8 +394,8 @@ function otlb(document) {
   text-indent:1em;margin-top:0.2em;margin-bottom:0.2em;color:#333}
   .hanging{text-indent:-0.5em;padding-left:0.5em;}
   .modlink{text-decoration:none;color:green;}
-  ul{padding-left:0.5em;line-height:1.5;list-style-type:none;list-style outside;}
-  ul ul{margin-left:0.5em;border-left:1px solid #CCC;}
+  ul{padding-left:1em;line-height:1.5;list-style-type:none;list-style outside;}
+  ul ul{margin-left:1em;border-left:1px solid #CCC;}
   .undefined-word {color: Red;}
   `;
 
