@@ -52,14 +52,16 @@ class Line {
     const bodyText = text.slice(this.depth);
 
     const rules = [
-      [/^:/, ':', 1, false],              // Wrapped text
-      [/^ /, ' ', 1, false],              // Wrapped text (leading space)
-      [/^;/, ';', 1, false],              // Preformatted text
-      [/^&gt;\S+/, '>', 4, true],         // User-defined wrapped text type
-      [/^&gt;( |$)/, '>', 5, false],      // User-defined wrapped text body
-      [/^&lt;\S+/, '<', 4, true],         // User preformatted text type
-      [/^&lt;( |$)/, '<', 5, false],      // User preformatted text body
-      [/^\|/, '|', 0, false],             // Table
+      [/^ /,         ' ', 1, false],  // Wrapped text (leading space)
+      [/^:\S/,       ':', 1, true],   // Wrapped text type
+      [/^&gt;\S/,    '>', 4, true],
+      [/^:( |$)/,    ':', 2, false],  // Wrapped text body
+      [/^&gt;( |$)/, '>', 5, false],
+      [/^;\S/,       ';', 1, true],   // Preformatted text type
+      [/^&lt;\S/,    '<', 4, true],
+      [/^;( |$)/,    ';', 2, false],  // Preformatted text body
+      [/^&lt;( |$)/, '<', 5, false],
+      [/^\|/,        '|', 0, false],  // Table
     ];
     for (let i = 0; i < rules.length; i += 1) {
       if (bodyText.match(rules[i][0])) {
@@ -148,18 +150,18 @@ class Line {
 
     if (this.isPreformatted()) {
       // Treat preformatted boxes as verbatim text
-      if (this.isFirst) {
-        // Don't show the metadata line at all.
-        return '';
-      }
+      // Don't show the metadata line at all.
+      if (this.isFirst) { return ''; }
       return `<code>${this.body}</code><br/>`;
     }
 
     let line = this.body;
 
-    if (this.isWrapping() && line.match(/^\s*$/)) {
+    if (this.isWrapping()) {
+      // Metadata line again.
+      if (this.isFirst) { return ''; }
       // Paragraph break on empty line
-      return '</p><p>';
+      if (line.match(/^\s*$/)) { return '</p><p>'; }
     }
 
     // Escape HTML.
@@ -169,15 +171,17 @@ class Line {
       line = line.replace(/<(.*?)>/g, '&lt;$1&gt;');
     }
 
-    // Prettify votl todo boxes
-    if (configuration.prettifyTodoBoxes) {
-      line = line.replace(/^\[_\] /, '☐');
-      line = line.replace(/^\[X\] /, '☑');
-    }
+    if (!this.isWrapping()) {
+      // Prettify votl todo boxes
+      if (configuration.prettifyTodoBoxes) {
+        line = line.replace(/^\[_\] /, '☐');
+        line = line.replace(/^\[X\] /, '☑');
+      }
 
-    if (line.match(/^(([A-Z][a-z0-9]+){2,})$/)) {
-      // Only a WikiWord on a line, this is a heading.
-      return `<span id="${line}"><a class="modlink" href="#${line}">${this.title()}</a></span>`;
+      if (line.match(/^(([A-Z][a-z0-9]+){2,})$/)) {
+        // Only a WikiWord on a line, this is a heading.
+        return `<span id="${line}"><a class="modlink" href="#${line}">${this.title()}</a></span>`;
+      }
     }
 
     line = formatLineSegment(line);
