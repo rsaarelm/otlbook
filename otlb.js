@@ -299,9 +299,9 @@ class Entity {
   // Show as titled article
   asArticle() {
     let article = this;
-    let parent = this.parentArticle();
     if (this.isArticle() && this.isStub()) {
       // Reroute stubs to their parent article.
+      let parent = this.parentArticle();
       if (parent) {
         article = parent;
         parent = article.parentArticle();
@@ -311,13 +311,17 @@ class Entity {
     let doc = document.createDocumentFragment();
     if (article.title) {
       let h = doc.appendChild(document.createElement('h1'));
-      if (article.isToplevel) {
-        h.innerText = wikiWordSpaces(article.title);
-      } else {
-        const parentName = parent ? `#${parent.title}` : ''
-        // Navigate to home, parent
-        h.innerHTML = `<a class="modlink" href="${parentName}">/</a>${wikiWordSpaces(article.title)}`;
+
+      // Construct links to parent articles
+      let text = wikiWordSpaces(article.title);
+      for (let parent = article.parentArticle(); parent; parent = parent.parentArticle()) {
+        if (parent.isToplevel) {
+          text = `<a class="modlink" href="">/</a>${text}`;
+        } else {
+          text = `<a class="modlink" href="#${parent.title}">/</a>${text}`;
+        }
       }
+      h.innerHTML = text;
     }
     if (article.title && !article.isToplevel) {
       // Title is derived from the topmost item in non-toplevel entities,
