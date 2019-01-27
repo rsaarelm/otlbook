@@ -287,13 +287,9 @@ class Entity {
   }
 
   parentArticle() {
-    if (!this.parent) {
-      return null;
-    } else if (this.parent.isArticle()) {
-      return this.parent;
-    } else {
-      return this.parent.parentArticle();
-    }
+    if (!this.parent) { return null; }
+    if (this.parent.isArticle() || this.parent.isToplevel) { return this.parent; }
+    return this.parent.parentArticle();
   }
 
   // Show as titled article
