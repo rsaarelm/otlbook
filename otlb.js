@@ -267,31 +267,52 @@ class Entity {
   // Does node have no children?
   isStub() { return this.children.length === 0; }
 
+  isArticle() { return this.title.match(/^([A-Z][a-z0-9]+){2,}$/); }
+
   // Non-stub with valid title
   isGoodArticle() {
-    return !this.isStub() && this.title.match(/^([A-Z][a-z0-9]+){2,}$/);
+    return !this.isStub() && this.isArticle();
+  }
+
+  parentArticle() {
+    if (!this.parent) {
+      return null;
+    } else if (this.parent.isArticle()) {
+      return this.parent;
+    } else {
+      return this.parent.parentArticle();
+    }
   }
 
   // Show as titled article
   asArticle() {
-    let doc = document.createDocumentFragment();
-    if (this.title) {
-      let h = doc.appendChild(document.createElement('h1'));
-      if (this.isToplevel) {
-        h.innerText = wikiWordSpaces(this.title);
-      } else {
-        h.innerHTML = `<a class="modlink" href="#${this.title}">/</a>${wikiWordSpaces(this.title)}`;
+    let article = this;
+    if (this.isArticle() && this.isStub()) {
+      // Reroute stubs to their parent article.
+      let parent = this.parentArticle();
+      if (parent) {
+        article = parent;
       }
     }
-    if (this.title && !this.isToplevel) {
+
+    let doc = document.createDocumentFragment();
+    if (article.title) {
+      let h = doc.appendChild(document.createElement('h1'));
+      if (article.isToplevel) {
+        h.innerText = wikiWordSpaces(article.title);
+      } else {
+        h.innerHTML = `<a class="modlink" href="#${article.title}">/</a>${wikiWordSpaces(article.title)}`;
+      }
+    }
+    if (article.title && !article.isToplevel) {
       // Title is derived from the topmost item in non-toplevel entities,
       // don't repeat it in the body.
-      if (this.doc.lastElementChild
-          && this.doc.lastElementChild.tagName === 'UL') {
-        doc.appendChild(this.doc.lastElementChild.cloneNode(true));
+      if (article.doc.lastElementChild
+          && article.doc.lastElementChild.tagName === 'UL') {
+        doc.appendChild(article.doc.lastElementChild.cloneNode(true));
       }
     } else {
-      doc.appendChild(this.doc.cloneNode(true));
+      doc.appendChild(article.doc.cloneNode(true));
     }
     return doc;
   }
