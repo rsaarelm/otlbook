@@ -175,8 +175,8 @@ class Line {
       line = line.replace(/^\[X\] /, '☑');
     }
 
-    if (line.match(/^(([A-Z][a-z0-9]+){2,})$/) || (tags && line in tags)) {
-      // Either a WikiWord or explicitly marked as heading.
+    if (line.match(/^(([A-Z][a-z0-9]+){2,})$/)) {
+      // Only a WikiWord on a line, this is a heading.
       return `<strong id="${line}"><a class="modlink" href="#/${line}">${this.title()}</a></strong>`;
     }
 
