@@ -33,7 +33,7 @@ function extractTags(lines) {
   for (let i = 0; i < lines.length; i += 1) {
     if (lines[i].match(/^\t*(([A-Z][a-z0-9]+){2,})$/)) {
       const word = lines[i].replace(/\s*/, '');
-      ret[word] = `#/${word}`;
+      ret[word] = `#${word}`;
     }
   }
   return ret;
@@ -177,7 +177,7 @@ class Line {
 
     if (line.match(/^(([A-Z][a-z0-9]+){2,})$/)) {
       // Only a WikiWord on a line, this is a heading.
-      return `<strong id="${line}"><a class="modlink" href="#/${line}">${this.title()}</a></strong>`;
+      return `<strong id="${line}"><a class="modlink" href="#${line}">${this.title()}</a></strong>`;
     }
 
     line = formatLineSegment(line);
@@ -242,9 +242,21 @@ class Entity {
       let list = doc2.appendChild(document.createElement('ul'));
       for (let i = 0; i < children.length; i += 1) {
         let item = list.appendChild(document.createElement('li'));
-        item.appendChild(children[i].doc);
-        // Rebind
-        children[i].doc = item.children[0];
+        if (children[i].isGoodArticle()) {
+          // Non-stub article shown folded.
+          const title = children[i].title;
+          item.innerHTML = `<strong id="${title}">+<a class="modlink" href="#${title}">${title}</a></strong>`;
+
+          // XXX: Looks like you have to attach the element somewhere or it
+          // can't be displayed. Attaching it to a dummy element here.
+          const dummy = document.createElement('li');
+          dummy.appendChild(children[i].doc);
+          children[i].doc = dummy.children[0];
+        } else {
+          item.appendChild(children[i].doc);
+          // Rebind
+          children[i].doc = item.children[0];
+        }
       }
       doc2.appendChild(list);
     }
@@ -287,11 +299,12 @@ class Entity {
   // Show as titled article
   asArticle() {
     let article = this;
+    let parent = this.parentArticle();
     if (this.isArticle() && this.isStub()) {
       // Reroute stubs to their parent article.
-      let parent = this.parentArticle();
       if (parent) {
         article = parent;
+        parent = article.parentArticle();
       }
     }
 
@@ -301,7 +314,9 @@ class Entity {
       if (article.isToplevel) {
         h.innerText = wikiWordSpaces(article.title);
       } else {
-        h.innerHTML = `<a class="modlink" href="#${article.title}">/</a>${wikiWordSpaces(article.title)}`;
+        const parentName = parent ? `#${parent.title}` : ''
+        // Navigate to home, parent
+        h.innerHTML = `<a class="modlink" href="${parentName}">/</a>${wikiWordSpaces(article.title)}`;
       }
     }
     if (article.title && !article.isToplevel) {
@@ -344,34 +359,14 @@ function otlb(document) {
   let topLevel = Entity.parse(lines, -1, tags)[0];
 
   function onHashChanged() {
-    // #/: show entire document
-    // #/PageTitle: show subpage for PageTitle
-    // #PageTitle: show entire document scrolled to PageTitle
-    // default: show front page if there's a valid one, otherwise full page
     document.body.innerHTML = '';
-    document.body.appendChild(document.createElement('meta'))['charset'] = 'utf-8';
+
     const hash = window.location.hash.slice(1);
+    let subPage = topLevel.findTitle(hash);
 
-    let frontPage = null;
-    if (topLevel.children.length > 0 && topLevel.children[0].isGoodArticle()) {
-      frontPage = topLevel.children[0];
-    }
-
-    // If not hash and frontpage show frontpage
-    let fullPage = false;
-
-    let subPage = null;
-    if (hash[0] === '/') {
-      subPage = topLevel.findTitle(hash.slice(1));
-    }
-
-    let article;
+    let article = topLevel;
     if (subPage) {
       article = subPage;
-    } else if (frontPage && hash === '') {
-      article = frontPage;
-    } else {
-      article = topLevel;
     }
 
     document.body.appendChild(article.asArticle());
@@ -381,10 +376,8 @@ function otlb(document) {
       document.title = 'Otlbook';
     }
 
-    if (hash[0] !== '/') {
-      const elt = document.getElementById(hash);
-      if (elt) { elt.scrollIntoView(); }
-    }
+    const elt = document.getElementById(hash);
+    if (elt) { elt.scrollIntoView(); }
   }
 
   document.head.appendChild(document.createElement('style')).innerHTML = `
