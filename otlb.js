@@ -322,31 +322,13 @@ function otlb(document) {
   lines = lines.filter(x => !x.match(/^\s*$/)).map(x => new Line(x));
   let topLevel = Entity.parse(lines, -1, tags)[0];
 
-  function applyStyle() {
-    const style = `
-    body{margin:auto;max-width:50em;
-    white-space:normal !important;
-    font-family:"Noto Sans",Verdana,sans-serif !important;}
-    code{white-space:pre;}
-    h1{text-align:center;}
-    p{font-family:"Times New Roman",Times,serif;
-    text-indent:1em;margin-top:0.2em;margin-bottom:0.2em;color:#333}
-    .hanging{text-indent:-1em;padding-left:1em;}
-    .modlink{text-decoration:none;color:green;}
-    ul{padding-left:0.5em;line-height:1.3;list-style-type:none;list-style outside;}
-    ul ul{margin-left:0.5em;border-left:1px solid #CCC;}
-    .undefined-word {color: Red;}
-    `;
-    let sheet = document.head.appendChild(document.createElement('style'));
-    sheet.innerHTML = style;
-  }
-
   function onHashChanged() {
     // #/: show entire document
     // #/PageTitle: show subpage for PageTitle
     // #PageTitle: show entire document scrolled to PageTitle
     // default: show front page if there's a valid one, otherwise full page
     document.body.innerHTML = '';
+    document.body.appendChild(document.createElement('meta'))['charset'] = 'utf-8';
     const hash = window.location.hash.slice(1);
 
     let frontPage = null;
@@ -382,9 +364,22 @@ function otlb(document) {
       const elt = document.getElementById(hash);
       if (elt) { elt.scrollIntoView(); }
     }
-
-    applyStyle();
   }
+
+  document.head.appendChild(document.createElement('style')).innerHTML = `
+  body{margin:auto;max-width:50em;
+  white-space:normal !important;
+  font-family:"Noto Sans",Verdana,sans-serif !important;}
+  code{white-space:pre;}
+  h1{text-align:center;}
+  p{font-family:"Times New Roman",Times,serif;
+  text-indent:1em;margin-top:0.2em;margin-bottom:0.2em;color:#333}
+  .hanging{text-indent:-1em;padding-left:1em;}
+  .modlink{text-decoration:none;color:green;}
+  ul{padding-left:0.5em;line-height:1.3;list-style-type:none;list-style outside;}
+  ul ul{margin-left:0.5em;border-left:1px solid #CCC;}
+  .undefined-word {color: Red;}
+  `;
 
   window.onhashchange = onHashChanged;
   onHashChanged();
