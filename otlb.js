@@ -177,7 +177,7 @@ class Line {
 
     if (line.match(/^(([A-Z][a-z0-9]+){2,})$/)) {
       // Only a WikiWord on a line, this is a heading.
-      return `<strong id="${line}"><a class="modlink" href="#${line}">${this.title()}</a></strong>`;
+      return `<span id="${line}"><a class="modlink" href="#${line}">${this.title()}</a></span>`;
     }
 
     line = formatLineSegment(line);
