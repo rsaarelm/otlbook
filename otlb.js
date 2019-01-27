@@ -392,9 +392,9 @@ function otlb(document) {
   h1{text-align:center;}
   p{font-family:"Times New Roman",Times,serif;
   text-indent:1em;margin-top:0.2em;margin-bottom:0.2em;color:#333}
-  .hanging{text-indent:-1em;padding-left:1em;}
+  .hanging{text-indent:-0.5em;padding-left:0.5em;}
   .modlink{text-decoration:none;color:green;}
-  ul{padding-left:0.5em;line-height:1.3;list-style-type:none;list-style outside;}
+  ul{padding-left:0.5em;line-height:1.5;list-style-type:none;list-style outside;}
   ul ul{margin-left:0.5em;border-left:1px solid #CCC;}
   .undefined-word {color: Red;}
   `;
