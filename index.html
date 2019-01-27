@@ -20,11 +20,15 @@ TableOfContents
 		Write regular outline documents
 		Give the files `.otl.html` extension and add the OtlBoilerplate to the bottom of the file
 		Use WikiWord-s to name important concepts
+		An article is a part of the outliner tree that starts with a single WikiWord on a line
 			Define a WikiWord by having it be the only text on a line:
 				WikiWord
 					WikiWord-s are the original way to create wiki structure
 					They're two or more words written in SnakeCase
 					OtlBook allows numbers in them: Test1234Word
+					A StubWord has no content below it
+						If you are linked to one, you'll end up on the parent article
+					StubWord
 	SyntaxGallery
 		Standard VimOutliner effects
 			Paragraphs of text prefixed with :
@@ -122,5 +126,10 @@ TableOfContents
 			; :se comments+=:<
 			Disable autowrapping in comment text
 			; :se formatoptions-=c
+		You can use StubWord-s to create link redirects: EveningStar
+			The actual definition:
+			PlanetVenus
+				EveningStar
+				It's a planet
  <style>body{white-space:pre;font-family:monospace}</style><script src="otlb.js" charset="utf-8"></script>
  <!-- vim: set filetype=votl: -->
