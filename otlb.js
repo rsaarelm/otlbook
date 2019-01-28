@@ -1,6 +1,9 @@
 const configuration = {
   // Replace [_] and [X] with unicode checkboxes
   prettifyTodoBoxes: true,
+  // How large does a child page need to be to get folded.
+  // Set to 0 to fold all child articles.
+  foldThreshold: 8,
 };
 
 function filename() {
@@ -216,6 +219,8 @@ class Entity {
       }
     }
 
+    let numVisibleLines = bodyLines.length;
+
     let children = [];
     while (lines[pos] && lines[pos].depth > currentDepth) {
       const [child, newPos] = Entity.parse(lines, pos, tags);
@@ -246,7 +251,7 @@ class Entity {
       let list = doc2.appendChild(document.createElement('ul'));
       for (let i = 0; i < children.length; i += 1) {
         let item = list.appendChild(document.createElement('li'));
-        if (children[i].isGoodArticle()) {
+        if (children[i].isGoodArticle() && children[i].numVisibleLines > configuration.foldThreshold) {
           // Non-stub article shown folded.
           const title = children[i].title;
           item.innerHTML = `<strong id="${title}">+<a class="modlink" href="#${title}">${title}</a></strong>`;
@@ -256,10 +261,14 @@ class Entity {
           const dummy = document.createElement('li');
           dummy.appendChild(children[i].doc);
           children[i].doc = dummy.children[0];
+
+          numVisibleLines += 1;
         } else {
           item.appendChild(children[i].doc);
           // Rebind
           children[i].doc = item.children[0];
+
+          numVisibleLines += children[i].numVisibleLines;
         }
       }
       doc2.appendChild(list);
@@ -276,6 +285,7 @@ class Entity {
     ret.doc = doc;
     ret.children = children;
     ret.isToplevel = startIdx === -1;
+    ret.numVisibleLines = numVisibleLines;
     ret.parent = null;
     return [ret, pos];
   }
