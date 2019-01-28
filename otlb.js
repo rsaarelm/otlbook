@@ -167,6 +167,11 @@ class Line {
       if (line.match(/^\s*$/)) { return '</p><p>'; }
     }
 
+    if (!this.isWrapping() && line.match(/^\s*-{4,}\s*$/)) {
+      // hline
+      return '<hr/>'
+    }
+
     // Escape HTML.
     // (Don't do it for the ' ' block prefix that we use by convention on
     // the HTML footer so it'll stay invisible)
