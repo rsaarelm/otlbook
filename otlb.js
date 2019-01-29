@@ -259,7 +259,8 @@ class Entity {
         if (children[i].isGoodArticle() && children[i].numVisibleLines > configuration.foldThreshold) {
           // Non-stub article shown folded.
           const title = children[i].title;
-          item.innerHTML = `<strong id="${title}">+<a class="modlink" href="#${title}">${title}</a></strong>`;
+          item.innerHTML =
+            `<strong id="${title}">+<a class="modlink" href="#${title}">${wikiWordSpaces(title)}</a></strong>`;
 
           // XXX: Looks like you have to attach the element somewhere or it
           // can't be displayed. Attaching it to a dummy element here.
