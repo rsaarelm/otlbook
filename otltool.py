@@ -60,6 +60,7 @@ def write_tags():
     ctags = sorted(list({t.ctag_line() for t in tags}))
     with open('tags', 'w') as f:
         f.write('\n'.join(ctags))
+    print("Wrote tagfile %s/tags" % os.getcwd(), file=sys.stderr)
 
 def split_user_blocks(input):
     def line_depth(line):
