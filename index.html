@@ -148,6 +148,25 @@ Table of contents
 				; 906609 
 			That's slow to compute
 			The hash digest keeps updates quick as long as nothing changes with the expensive computation or the libraries leading to it
+	SpacedRepetitionSupport
+		You can embed Anki flashcard data in the outile files for SpacedRepetition
+		Flashcard items are marked by terminating the otl line with a period
+		As you can see from this file, normally otl lines never have a period in the end
+		Run `otltool.py anki` to generate Anki cards from otl files in your working directly
+			This loads the cards encoded in your otl files into your default Anki deck
+			If it finds cards with matching fronts but different backs, it rewrites the backs of the cards
+			If it finds cards with fronts not in your input set in the deck, it suspends these cards
+				The idea is that you maintain your entire deck in the otl files and can refactor the cards and have the old cards get removed from your review cycle
+			You need to have the Ankiconnect add-on installed for the command to work
+				https://ankiweb.net/shared/info/2055492159
+		Two formats are supported
+			Question and answer on separate lines
+				; The question ends in a question mark?
+				; 	The answer is the only child to the question and ends in a period.
+				This generates a card with the question on the front and the answer on the back
+			Cloze style
+				; Single leaf node ending in period with {cloze items} enclosed in {curly brackets}.
+				This generates one card for each cloze group with that group replaced with ellipsis on the card front
 	OtherTopics
 		OtlArticle
 			An article is a fragment of the VimOutliner file tree that starts with a solitary WikiWord
@@ -183,6 +202,10 @@ Table of contents
 		DiaryEntry19047
 			New folding outline view for Otlbook
 			Rewrote the documentation to use the new layout style
+		SpacedRepetition
+			https://ankiweb.net/
+			https://www.supermemo.com/en/articles/20rules
+			https://www.gwern.net/Spaced-repetition
 	ListOfReferences
 		VimOutliner
 			https://github.com/vimoutliner/vimoutliner

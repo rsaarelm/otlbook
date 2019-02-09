@@ -299,6 +299,7 @@ def generate_cards():
         print("Updating Anki deck with %s cards" % len(cards), file=sys.stderr)
         with AnkiConnection() as anki:
             anki.update_deck(cards)
+            anki.sync()
 
 class AnkiConnection:
     """Anki deck modification tool."""
