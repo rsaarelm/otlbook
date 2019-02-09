@@ -3,6 +3,9 @@
 # Tagfile generator and toolkit for wiki-like VimOutliner files.
 
 from collections import namedtuple
+from types import SimpleNamespace
+from urllib.error import URLError
+from urllib.request import urlopen
 import hashlib
 import json
 import os
@@ -10,7 +13,8 @@ import re
 import shutil
 import subprocess
 import sys
-from types import SimpleNamespace
+import time
+import urllib
 
 class Tag(namedtuple('Tag', 'name path line')):
     def ctag_line(self):
@@ -216,6 +220,134 @@ def eval_j_code(seq):
                 # Update the hash in the name.
                 i.name = ' '.join(x for x in i.name.split() if not x.startswith('md5:'))
                 i.name += ' md5:%s' % digest
+
+class AnkiConnection:
+    """Anki deck modification tool."""
+    class RestError(Exception):
+        def __init__(self, msg): super().__init__(msg)
+
+    class AnkiError(Exception):
+        def __init__(self, msg): super().__init__(msg)
+
+    def __init__(self, url='http://localhost:8765'):
+        self.url = url
+        self.p = None
+
+        # Start an anki process if one is needed.
+        try:
+            urlopen(self.url)
+            # Anki is already running, work with that.
+        except URLError:
+            # Run Anki just for you.
+            self.p = subprocess.Popen('anki')
+            # Let's check that it actually has the add-on
+            try:
+                time.sleep(3)
+                urlopen('http://localhost:8765')
+            except URLError:
+                raise AnkiConnection.AnkiError(
+                        "Can't connect to AnkiConnect. Do you have the AnkiConnect add-on installed?")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.p and self.p.kill()
+
+    def _anki_connect_call(self, name, **kwargs):
+        req_json = json.dumps({'version': 6, 'action': name, 'params': kwargs})
+        ret = json.load(urlopen(self.url, req_json.encode('utf-8')))
+        if ret.get('error'):
+            raise AnkiConnection.RestError(ret['error'])
+        else:
+            return ret['result']
+
+    def __getattr__(self, name):
+        # Turn unknown methods into REST calls to AnkiConnect
+        return lambda **kwargs : self._anki_connect_call(name, **kwargs)
+
+    def cards(self):
+        ids = self.findCards(query='deck:current')
+        suspends = self.areSuspended(cards=ids)
+        infos = self.cardsInfo(cards=ids)
+        assert(len(ids) == len(suspends) == len(infos))
+        for (id, suspended, info) in zip(ids, suspends, infos):
+            assert(info['cardId'] == id)
+            tags = set(self.notesInfo(notes=[info['note']])[0]['tags'])
+            yield SimpleNamespace(
+                    id=id,
+                    note_id=info['note'],
+                    is_suspended=suspended,
+                    tags=tags,
+                    front=info['fields']['Front']['value'],
+                    back=info['fields']['Back']['value'])
+
+    def update_deck(self, input_cards):
+        """Given input [{'front': question, 'back': answer}], make Anki deck consist of these cards.
+
+        Existing cards with fronts not in input will be suspended. Cards in
+        deck with the same front but different back will have their back
+        updated.
+        """
+
+        ids = self.findCards(query='deck:current')
+        info = self.cardsInfo(cards=ids)
+        fronts = [info[i]['fields']['Front']['value'] for i in range(len(ids))]
+
+        # Suspended existing cards by front text.
+        suspended = self.areSuspended(cards=ids)
+        suspended = {fronts[i] for i in range(len(fronts)) if suspended[i]}
+
+        # Existing cards indexed by front text.
+        deck = dict((info[i]['fields']['Front']['value'],
+            SimpleNamespace(
+                card_id=ids[i],
+                note_id=info[i]['note'],
+                back=info[i]['fields']['Back']['value'])) for i in range(len(ids)))
+
+        # Incoming new cards
+        suspend_fronts = set(fronts).difference(suspended)
+        unsuspend_ids = set()
+        for c in input_cards:
+            front, back = c['front'], c['back']
+
+            if front in suspended:
+                unsuspend_ids.add(deck[front].card_id)
+            if not front in deck:
+                # Add new note.
+                self.addNote(
+                        note={
+                            'deckName': 'Default',
+                            'modelName': 'Basic',
+                            'fields': {
+                                'Front': front,
+                                'Back': back
+                            },
+                            'options': {'allowDuplicate': False},
+                            'tags': []
+                        })
+            else:
+                if front in suspend_fronts:
+                    suspend_fronts.remove(front)
+                if deck[front].back != back:
+                    print("Updating card '%s' to have back '%s'" % (front, back), file=sys.stderr)
+                    # Note exists but the answer has changed.
+                    self.updateNoteFields(
+                            note={
+                                'id': deck[front].note_id,
+                                'fields': {
+                                    'Front': front,
+                                    'Back': back
+                                }
+                            })
+
+        # Suspend cards not in input, make sure cards in input are
+        # unsuspended.
+        for c in suspend_fronts:
+            print("Live card '%s' not found in input, suspending" % c, file=sys.stderr)
+        suspend_ids = {deck[front].card_id for front in suspend_fronts}
+        self.unsuspend(cards=list(unsuspend_ids))
+        self.suspend(cards=list(suspend_ids))
 
 if __name__ == '__main__':
     cmd = len(sys.argv) > 1 and sys.argv[1] or 'tags'
