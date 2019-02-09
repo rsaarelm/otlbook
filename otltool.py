@@ -6,6 +6,7 @@ from collections import namedtuple
 from types import SimpleNamespace
 from urllib.error import URLError
 from urllib.request import urlopen
+import argparse
 import hashlib
 import json
 import os
@@ -15,6 +16,8 @@ import subprocess
 import sys
 import time
 import urllib
+
+### Tagsfile generator #########################################
 
 class Tag(namedtuple('Tag', 'name path line')):
     def ctag_line(self):
@@ -65,6 +68,8 @@ def write_tags():
     with open('tags', 'w') as f:
         f.write('\n'.join(ctags))
     print("Wrote tagfile %s/tags" % os.getcwd(), file=sys.stderr)
+
+### Interactive J notebook #####################################
 
 def split_user_blocks(input):
     def line_depth(line):
@@ -221,6 +226,80 @@ def eval_j_code(seq):
                 i.name = ' '.join(x for x in i.name.split() if not x.startswith('md5:'))
                 i.name += ' md5:%s' % digest
 
+### Anki deck builder ##########################################
+
+class OtlNode:
+    def __init__(self, lines, line_idx=-1, parent=None):
+        def depth(line):
+            depth = 0
+            while line[0] == '\t':
+                depth += 1
+                line = line[1:]
+            return depth, line.rstrip()
+
+        self.line_number = line_idx + 1
+        self.parent = parent
+        self.children = []
+
+        if line_idx >= 0:
+            self.depth, self.text = depth(lines[line_idx])
+        else:
+            # Special case for whole file
+            self.text = None
+            self.depth = -1
+            assert(not self.parent)
+
+        i = line_idx + 1
+        while i < len(lines):
+            d, _ = depth(lines[i])
+            if d > self.depth:
+                child = OtlNode(lines, i, self)
+                self.children.append(child)
+                i += len(child)
+            else:
+                break
+
+    def __len__(self):
+        self_len = 0
+        if self.depth >= 0: self_len = 1
+        return self_len + sum(len(c) for c in self.children)
+
+    def anki_cards(self):
+        """If this node describes an Anki card, generate the card value."""
+        clozes = self.text and re.split(r'{(.*?)}', self.text)
+        is_item = self.text and self.text[0] not in (':', ';', '<', '>')
+
+        # Answers end with period, not ellipsis though (not endswith('..'))
+        if is_item and self.text and len(self.children) == 1 and self.text.endswith('?') \
+                and self.children[0].text.endswith('.') and not self.children[0].text.endswith('..'):
+            # Regular question-answer pairs.
+            yield {'front': self.text, 'back': self.children[0].text}
+        elif is_item and not self.children and clozes and len(clozes) > 1 \
+                and self.text.endswith('.') and not self.text.endswith('..'):
+            # Clozes.
+            assert(len(clozes) % 2 == 1)
+
+            for skip_idx in range(1, len(clozes), 2):
+                parts = clozes[:]
+                parts[skip_idx] = '...'
+                front = ''.join(parts)
+                front = re.sub('\.$', '?', front)
+                back = ''.join(clozes)
+                yield {'front': front, 'back': back}
+        else:
+            for c in self.children:
+                yield from c.anki_cards()
+
+def generate_cards():
+    cards = []
+    for path in otl_files():
+        with open(path) as f:
+            cards.extend(OtlNode(list(f)).anki_cards())
+    if cards:
+        print("Updating Anki deck with %s cards" % len(cards), file=sys.stderr)
+        with AnkiConnection() as anki:
+            anki.update_deck(cards)
+
 class AnkiConnection:
     """Anki deck modification tool."""
     class RestError(Exception):
@@ -349,15 +428,27 @@ class AnkiConnection:
         self.unsuspend(cards=list(unsuspend_ids))
         self.suspend(cards=list(suspend_ids))
 
-if __name__ == '__main__':
-    cmd = len(sys.argv) > 1 and sys.argv[1] or 'tags'
-    if cmd == 'eval':
+def main():
+    parser = argparse.ArgumentParser(description="Otlbook utility kit")
+    subparsers = parser.add_subparsers(dest='cmd')
+
+    tags = subparsers.add_parser('tags', help="Generate tags file")
+    j_eval = subparsers.add_parser('eval', help="Evaluate interactive J notebook")
+    anki = subparsers.add_parser('anki', help="Import embedded flashcards to Anki")
+
+    args = parser.parse_args()
+
+    if args.cmd == 'tags':
+        write_tags()
+    elif args.cmd == 'eval':
         blocks = split_user_blocks(sys.stdin)
         eval_j_code(blocks)
         print(join_user_blocks(blocks))
-        sys.exit(0)
-    elif cmd == 'tags':
-        write_tags()
+    elif args.cmd == 'anki':
+        generate_cards()
     else:
-        print('Usage %s (tags|eval)' % sys.argv[0])
+        parser.print_help()
         sys.exit(1)
+
+if __name__ == '__main__':
+    main()
