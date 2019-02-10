@@ -295,6 +295,9 @@ def generate_cards():
     for path in otl_files():
         with open(path) as f:
             cards.extend(OtlNode(list(f)).anki_cards())
+    return cards
+
+def upload_cards(cards):
     if cards:
         print("Updating Anki deck with %s cards" % len(cards), file=sys.stderr)
         with AnkiConnection() as anki:
@@ -435,7 +438,11 @@ def main():
 
     tags = subparsers.add_parser('tags', help="Generate tags file")
     j_eval = subparsers.add_parser('eval', help="Evaluate interactive J notebook")
+
     anki = subparsers.add_parser('anki', help="Import embedded flashcards to Anki")
+    anki.add_argument('--dump',
+            action='store_true',
+            help="Print tab-separated plaintext export instead of uploading to Anki")
 
     args = parser.parse_args()
 
@@ -446,7 +453,14 @@ def main():
         eval_j_code(blocks)
         print(join_user_blocks(blocks))
     elif args.cmd == 'anki':
-        generate_cards()
+        cards = generate_cards()
+        if args.dump:
+            for c in cards:
+                front = c['front'].replace('\t', ' ')
+                back = c['back'].replace('\t', ' ')
+                print("%s\t%s\t" % (front, back))
+        else:
+            upload_cards(cards)
     else:
         parser.print_help()
         sys.exit(1)
