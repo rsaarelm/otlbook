@@ -266,7 +266,7 @@ class OtlNode:
 
     def anki_cards(self):
         """If this node describes an Anki card, generate the card value."""
-        clozes = self.text and re.split(r'{(.*?)}', self.text)
+        clozes = self.text and re.split(r'{{(.*?)}}', self.text)
         is_item = self.text and self.text[0] not in (':', ';', '<', '>')
 
         # Answers end with period, not ellipsis though (not endswith('..'))
