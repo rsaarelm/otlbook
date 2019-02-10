@@ -283,7 +283,6 @@ class OtlNode:
                 parts = clozes[:]
                 parts[skip_idx] = '...'
                 front = ''.join(parts)
-                front = re.sub('\.$', '?', front)
                 back = ''.join(clozes)
                 yield {'front': front, 'back': back}
         else:
