@@ -240,7 +240,7 @@ def hash_j_code(lines):
         code.append(line)
     return hashlib.md5(bytes('\n'.join(code), 'utf-8')).hexdigest()
 
-def eval_j_code(seq):
+def eval_j_code(seq, force=False):
     def exec(code):
         """Execute J to get output lines for given program input"""
         p = None
@@ -307,7 +307,7 @@ def eval_j_code(seq):
                 if formatted and formatted[-1].strip() != ')':
                     code_lines.insert(-1, "echo '\u241E'")
 
-                if digest == cached_digest:
+                if not force and digest == cached_digest:
                     # Looks like we already evaluated this exact code here.
                     # Do nothing this time around.
                     continue
@@ -468,7 +468,11 @@ def main():
     subparsers = parser.add_subparsers(dest='cmd')
 
     tags = subparsers.add_parser('tags', help="Generate tags file")
+
     j_eval = subparsers.add_parser('eval', help="Evaluate interactive J notebook")
+    j_eval.add_argument('--force',
+            action='store_true',
+            help="Ignore cached checksums and re-evaluate everything")
 
     anki = subparsers.add_parser('anki', help="Import embedded flashcards to Anki")
     anki.add_argument('--dump',
@@ -481,7 +485,7 @@ def main():
         write_tags()
     elif args.cmd == 'eval':
         blocks = split_user_blocks(sys.stdin)
-        eval_j_code(blocks)
+        eval_j_code(blocks, force=args.force)
         print(join_user_blocks(blocks))
     elif args.cmd == 'anki':
         cards = generate_cards()
