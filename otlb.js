@@ -140,6 +140,14 @@ class Line {
         // Local link
         return splice(match, `<a href="${match[1]}">${match[1]}</a>`);
       }
+      if (match = /\[([^()\s]+?)\]/.exec(input)) {
+        // Alias link
+        const aliasWord = match[1];
+        if (tags && aliasWord in tags) {
+          return splice(match, `<a href="${tags[aliasWord]}">$1</a>`);
+        }
+        return splice(match, '<span class="undefined-word">$1</span>');
+      }
       if (match = /\b(([A-Z][a-z0-9]+){2,})\b/.exec(input)) {
         // Wikiword
         const wikiWord = match[1];
@@ -287,13 +295,42 @@ class Entity {
       title = bodyLines[0].body;
     }
 
+    // Alias name
+    let match = /^\(([^()\s]+)\)$/.exec(title);
+    if (match) {
+      ret.aliasName = match[1];
+    }
+
     ret.title = title;
+
+    // Valid alias identifiers must be first children of an article node.
+    let inHeaderBlock = ret.isArticle();
+    for (let i = 0; i < children.length; i += 1) {
+      if (children[i].aliasName) {
+        if (!inHeaderBlock) {
+          children[i].aliasName = null;
+        }
+      } else {
+        inHeaderBlock = false;
+      }
+    }
+
     ret.doc = doc;
     ret.children = children;
     ret.isToplevel = startIdx === -1;
     ret.numVisibleLines = numVisibleLines;
     ret.parent = null;
     return [ret, pos];
+  }
+
+  // Add aliases from children of this node to tags
+  aliasesToTags(tags) {
+    if (this.aliasName && this.parent && this.parent.isArticle()) {
+      tags[this.aliasName] = `#${this.parent.title}`;
+    }
+    for (let i = 0; i < this.children.length; i += 1) {
+      this.children[i].aliasesToTags(tags);
+    }
   }
 
   // Does node have no children?
@@ -377,6 +414,13 @@ function otlb(document) {
   // Convert text lines to Line objects.
   lines = lines.filter(x => !x.match(/^\s*$/)).map(x => new Line(x));
   let topLevel = Entity.parse(lines, -1, tags)[0];
+  // XXX: Okay, ran into trouble, need to parse the whole thing to get correct
+  // alias tags, but parsing also needs to know the tags to see how to link
+  // things...
+  topLevel.aliasesToTags(tags);
+  // XXX: So let's solve this the ugly way and just re-parse everything with
+  // the updated tag set.
+  topLevel = Entity.parse(lines, -1, tags)[0];
 
   function onHashChanged() {
     document.body.innerHTML = '';
