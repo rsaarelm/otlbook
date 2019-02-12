@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 import os
+import os.path
 import re
 import shutil
 import subprocess
@@ -17,18 +18,123 @@ import sys
 import time
 import urllib
 
-### Tagsfile generator #########################################
+class OtlNode:
+    @staticmethod
+    def from_file(path):
+        """Parse a file into a VimOutliner tree
 
-class Tag(namedtuple('Tag', 'name path line')):
-    def ctag_line(self):
-        # ctags format: http://ctags.sourceforge.net/FORMAT
-        if self.line == 0:
-            # Line 0 means the tag refers to the entire file,
-            # just point ctags to the start of the file
-            ex = '0'
+        The toplevel node will have the filename without an extension as
+        content."""
+        toplevel_name = os.path.basename(path).split('.')[0]
+        with open(path) as f:
+            result = OtlNode(list(f), name=toplevel_name)
+        return result
+
+    def __init__(self, lines, line_idx=-1, parent=None, name=None):
+        def depth(line):
+            depth = 0
+            while line[0] == '\t':
+                depth += 1
+                line = line[1:]
+            return depth, line.rstrip()
+
+        self.line_number = line_idx + 1
+        self.parent = parent
+        self.children = []
+
+        if line_idx >= 0:
+            self.depth, self.text = depth(lines[line_idx])
         else:
-            ex = r'/^\t\*%s$/' % self.name
-        return '%s\t%s\t%s' % (self.name, self.path, ex)
+            # Special case for whole file
+            self.text = None
+            self.depth = -1
+            assert(not self.parent)
+            if name is not None:
+                self.text = name
+
+        i = line_idx + 1
+        while i < len(lines):
+            d, _ = depth(lines[i])
+            if d > self.depth:
+                child = OtlNode(lines, i, self)
+                self.children.append(child)
+                i += len(child)
+            else:
+                break
+
+        # Only first children can describe aliases
+        # TODO: Allow @tags lines in header block too
+        in_header_block = True
+        for c in self.children:
+            if c.alias_name:
+                if not in_header_block:
+                    c.alias_name = None
+            else:
+                in_header_block = False
+
+        # Wikiword if this node describes that.
+        self.wiki_name = None
+        if self.text and re.match(r'^(([A-Z][a-z0-9]+){2,})$', self.text):
+            self.wiki_name = self.text
+
+        # Wiki alias if thes node describes that.
+        self.alias_name = None
+        match = self.text and re.match(r'\(([^()\s]+)\)$', self.text)
+        if match:
+            self.alias_name = match.group(1)
+
+    def __len__(self):
+        self_len = 0
+        if self.depth >= 0: self_len = 1
+        return self_len + sum(len(c) for c in self.children)
+
+    def anki_cards(self):
+        """If this node describes an Anki card, generate the card value."""
+        clozes = self.text and re.split(r'{{(.*?)}}', self.text)
+        is_item = self.text and self.text[0] not in (':', ';', '<', '>')
+
+        # Answers end with period, not ellipsis though (not endswith('..'))
+        if is_item and self.text and len(self.children) == 1 and self.text.endswith('?') \
+                and self.children[0].text.endswith('.') and not self.children[0].text.endswith('..'):
+            # Regular question-answer pairs.
+            yield {'front': self.text, 'back': self.children[0].text}
+        elif is_item and not self.children and clozes and len(clozes) > 1 \
+                and self.text.endswith('.') and not self.text.endswith('..'):
+            # Clozes.
+            assert(len(clozes) % 2 == 1)
+
+            for skip_idx in range(1, len(clozes), 2):
+                parts = clozes[:]
+                parts[skip_idx] = '...'
+                front = ''.join(parts)
+                back = ''.join(clozes)
+                yield {'front': front, 'back': back}
+        else:
+            for c in self.children:
+                yield from c.anki_cards()
+
+    def ctag_lines(self, path):
+        """Yield ctags lines for this entry and children."""
+        SEARCH_EX = r'/^\t\*%s$/'
+
+        if self.wiki_name:
+            if self.line_number == 0:
+                # Line 0 means the tag refers to the entire file,
+                # just point ctags to the start of the file
+                ex = '0'
+            else:
+                ex = SEARCH_EX % self.text
+            yield '%s\t%s\t%s' % (self.wiki_name,
+                    path,
+                    SEARCH_EX % self.wiki_name)
+        if self.alias_name and self.parent and self.parent.wiki_name:
+            # Redirect aliases to parent
+            yield '%s\t%s\t%s' % (self.alias_name,
+                    path,
+                    SEARCH_EX % self.parent.wiki_name)
+
+        for c in self.children:
+            yield from c.ctag_lines(path)
 
 def otl_files(path='.'):
     for root, dir, files in os.walk(path):
@@ -40,31 +146,18 @@ def otl_files(path='.'):
                     ret = ret[2:]
                 yield ret
 
-def file_tags(path):
-    basename = path.split('/')[-1].split('.')[0]
-    # File name is WikiWord, file itself is a tag destination for that word.
-    if re.match(r'^(([A-Z][a-z0-9]+){2,})$', basename):
-        yield Tag(basename, path, 0)
-
-    with open(path) as f:
-        for (i, line) in enumerate(f):
-            i += 1
-            # WikiWord as the only content on a whole line, tag destination.
-            name = re.match(r'^\t*(([A-Z][a-z0-9]+){2,})$', line)
-            if name:
-                name = name.group(1)
-                yield Tag(name, path, line)
+### Tagsfile generator #########################################
 
 def build_tags():
-    for f in otl_files():
-        for t in file_tags(f):
+    for path in otl_files():
+        for t in OtlNode.from_file(path).ctag_lines(path):
             yield t
 
 def write_tags():
     tags = list(build_tags())
 
     # Generate ctags
-    ctags = sorted(list({t.ctag_line() for t in tags}))
+    ctags = sorted(list(tags))
     with open('tags', 'w') as f:
         f.write('\n'.join(ctags))
     print("Wrote tagfile %s/tags" % os.getcwd(), file=sys.stderr)
@@ -227,67 +320,6 @@ def eval_j_code(seq):
                 i.name += ' md5:%s' % digest
 
 ### Anki deck builder ##########################################
-
-class OtlNode:
-    def __init__(self, lines, line_idx=-1, parent=None):
-        def depth(line):
-            depth = 0
-            while line[0] == '\t':
-                depth += 1
-                line = line[1:]
-            return depth, line.rstrip()
-
-        self.line_number = line_idx + 1
-        self.parent = parent
-        self.children = []
-
-        if line_idx >= 0:
-            self.depth, self.text = depth(lines[line_idx])
-        else:
-            # Special case for whole file
-            self.text = None
-            self.depth = -1
-            assert(not self.parent)
-
-        i = line_idx + 1
-        while i < len(lines):
-            d, _ = depth(lines[i])
-            if d > self.depth:
-                child = OtlNode(lines, i, self)
-                self.children.append(child)
-                i += len(child)
-            else:
-                break
-
-    def __len__(self):
-        self_len = 0
-        if self.depth >= 0: self_len = 1
-        return self_len + sum(len(c) for c in self.children)
-
-    def anki_cards(self):
-        """If this node describes an Anki card, generate the card value."""
-        clozes = self.text and re.split(r'{{(.*?)}}', self.text)
-        is_item = self.text and self.text[0] not in (':', ';', '<', '>')
-
-        # Answers end with period, not ellipsis though (not endswith('..'))
-        if is_item and self.text and len(self.children) == 1 and self.text.endswith('?') \
-                and self.children[0].text.endswith('.') and not self.children[0].text.endswith('..'):
-            # Regular question-answer pairs.
-            yield {'front': self.text, 'back': self.children[0].text}
-        elif is_item and not self.children and clozes and len(clozes) > 1 \
-                and self.text.endswith('.') and not self.text.endswith('..'):
-            # Clozes.
-            assert(len(clozes) % 2 == 1)
-
-            for skip_idx in range(1, len(clozes), 2):
-                parts = clozes[:]
-                parts[skip_idx] = '...'
-                front = ''.join(parts)
-                back = ''.join(clozes)
-                yield {'front': front, 'back': back}
-        else:
-            for c in self.children:
-                yield from c.anki_cards()
 
 def generate_cards():
     cards = []
