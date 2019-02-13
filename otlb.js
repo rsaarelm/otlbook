@@ -333,8 +333,13 @@ class Entity {
     }
   }
 
-  // Does node have no children?
-  isStub() { return this.children.length === 0; }
+  // Nodes that have no children other than alias names
+  isStub() {
+    for (let i = 0; i < this.children.length; i += 1) {
+      if (!this.children[i].aliasName) { return false; }
+    }
+    return true;
+  }
 
   isArticle() { return this.title.match(/^([A-Z][a-z0-9]+){2,}$/); }
 
