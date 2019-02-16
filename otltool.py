@@ -114,7 +114,7 @@ class OtlNode:
                 yield from c.anki_cards()
 
     def ctag_lines(self, path):
-        """Yield ctags lines for this entry and children."""
+        """Yield (tag, depth, ctags line) tuples for this entry and children."""
         SEARCH_EX = r'/^\t\*%s$/'
 
         if self.wiki_name:
@@ -124,14 +124,14 @@ class OtlNode:
                 ex = '0'
             else:
                 ex = SEARCH_EX % self.text
-            yield '%s\t%s\t%s' % (self.wiki_name,
+            yield (self.wiki_name, self.depth, '%s\t%s\t%s' % (self.wiki_name,
                     path,
-                    SEARCH_EX % self.wiki_name)
+                    SEARCH_EX % self.wiki_name))
         if self.alias_name and self.parent and self.parent.wiki_name:
             # Redirect aliases to parent
-            yield '%s\t%s\t%s' % (self.alias_name,
+            yield (self.alias_name, self.depth, '%s\t%s\t%s' % (self.alias_name,
                     path,
-                    SEARCH_EX % self.parent.wiki_name)
+                    SEARCH_EX % self.parent.wiki_name))
 
         for c in self.children:
             yield from c.ctag_lines(path)
@@ -157,7 +157,11 @@ def write_tags():
     tags = list(build_tags())
 
     # Generate ctags
-    ctags = sorted(list(tags))
+    # Sort by tagname, then by depth (lower depth comes later)
+    # The idea is that for multiple identical tags, the high-level nodes are
+    # considered primary and the low-level ones are special topics nested in
+    # some tree.
+    ctags = [c[2] for c in sorted(list(tags))]
     with open('tags', 'w') as f:
         f.write('\n'.join(ctags))
     print("Wrote tagfile %s/tags" % os.getcwd(), file=sys.stderr)
