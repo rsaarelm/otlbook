@@ -209,7 +209,12 @@ Table of contents
 				Start treating the year part as current year minus 2000, add a 1 to the front
 				2100-01-04 becomes 100011
 			How do I turn them back into yyyy-mm-dd dates?
-				I've no idea. Why would anyone want to do that?
+				Why would anyone want to do that?
+				Well fine, GNU date doesn't seem to be able to do it, but you can do this:
+				(Must have Python 3.6 or newer)
+				; $ alias weektoiso="python -c \"import sys;from datetime import datetime;print(str(datetime.strptime(str(2000000+int(sys.argv[1])),'%G%V%u')).split()[0])\""
+				;	$ weektoiso 19047
+				; 2019-01-27
 		DiaryEntry19047
 			New folding outline view for Otlbook
 			Rewrote the documentation to use the new layout style
