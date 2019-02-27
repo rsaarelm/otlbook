@@ -9,6 +9,9 @@ stdenv.mkDerivation {
 
     # Webassembly tools
     wabt binaryen
+
+    # Server
+    lighttpd
   ];
   shellHook = ''
     # Rust environment, use a local cargo dir
@@ -30,5 +33,8 @@ stdenv.mkDerivation {
     rustup component add rls-preview rust-analysis rust-src --toolchain nightly
     rustup component add rustfmt-preview clippy-preview --toolchain nightly
     NIX_ENFORCE_PURITY=0 cargo install cargo-outdated
+
+    # Dev commands
+    alias run-webserver="lighttpd -D -f lighttpd.conf"
   '';
 }
