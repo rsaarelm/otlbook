@@ -1,11 +1,5 @@
-use lazy_static::lazy_static;
-use regex::Regex;
-
-/// Describe the state of the text block object currently being processed.
-enum BlockSpec {
-    Indented { depth: i32, prefix: String },
-    Prefixed { depth: i32, prefix: String },
-}
+#![no_std]
+use nom::{self, alt, delimited, named, pair, preceded, recognize, tag, take_while};
 
 /// Receiver interface for parsed outline file text.
 ///
@@ -16,6 +10,9 @@ pub trait OutlineWriter: Sized {
             self.text("\t");
         }
     }
+
+    /// Write some regular text in the current element.
+    fn text(&mut self, text: &str);
 
     /// Called at the end of a regular line.
     fn end_line(&mut self) {
@@ -31,15 +28,15 @@ pub trait OutlineWriter: Sized {
     /// [ ][ ][ ][ ]Dropping out of deeper indention ends
     /// [ ][ ][ ]...
     /// ```
-    fn start_indent_block(&mut self, depth: i32, prefix: &str, syntax: &str) {
+    fn start_indent_block(
+        &mut self,
+        depth: i32,
+        prefix: &str,
+        block_type: BlockType,
+        syntax: &str,
+    ) {
         self.text(prefix);
         self.text(syntax);
-    }
-
-    fn indent_block_line(&mut self, depth: i32, prefix: &str, text: &str) {
-        self.start_line(depth);
-        self.text(text);
-        self.end_line();
     }
 
     /// Text block marked by a prefix.
@@ -55,29 +52,47 @@ pub trait OutlineWriter: Sized {
     /// [ ][ ][ ][ ][prefix] or there's a new syntax specifier line where
     /// [ ][ ][ ][ ][prefix] there is no space between prefix and text.
     /// ```
-    fn start_prefix_block_with_syntax(&mut self, depth: i32, prefix: &str, syntax: &str) {
-        self.start_line(depth);
-        self.text(prefix);
-        self.text(syntax);
+    fn start_prefix_block(
+        &mut self,
+        depth: i32,
+        prefix: &str,
+        block_type: BlockType,
+        syntax: Option<&str>,
+    ) {
+        if let Some(syntax) = syntax {
+            self.start_line(depth);
+            self.text(prefix);
+            self.text(syntax);
+            self.end_line();
+        }
+    }
+
+    fn text_block_line(&mut self, depth: i32, prefix: Option<&str>, text: &str) {
+        if !text.is_empty() || prefix.map_or(false, |s| !s.is_empty()) {
+            self.start_line(depth);
+            if let Some(prefix) = prefix {
+                self.text(prefix);
+                if !text.is_empty() {
+                    self.text(" ");
+                }
+            }
+            self.text(text);
+        }
+
         self.end_line();
     }
 
-    /// Called when there's no syntax specified to denote new block starting.
-    fn start_prefix_block(&mut self, depth: i32, prefix: &str) {}
-
-    fn prefix_block_line(&mut self, depth: i32, prefix: &str, text: &str) {
-        self.start_line(depth);
-        self.text(prefix);
-        self.text(" ");
-        self.text(text);
-        self.end_line();
-    }
-
-    /// Write some regular text in the current element.
-    fn text(&mut self, text: &str);
+    fn end_text_block(&mut self, prefix: &str, block_type: BlockType) {}
 
     /// Signal a paragraph break in a non-preformatted text block.
     fn paragraph_break(&mut self) {}
+
+    /// Called at the start of a highlighted line.
+    fn important_line(&mut self) {}
+
+    fn importance_marker(&mut self) {
+        self.text(" *");
+    }
 
     /// Handler for verbatim text.
     fn verbatim_text(&mut self, verbatim: &str) {
@@ -135,235 +150,523 @@ pub trait OutlineWriter: Sized {
         self.text(tag);
     }
 
-    /// Handler for WikiWord titles
-    fn wiki_title(&mut self, title: &str) {
-        self.text(title);
-    }
-
     fn parse(&mut self, input: &str) {
         use BlockSpec::*;
 
-        /// Tag fragments inside a line for markup.
-        fn parse_fragment<'a, W>(writer: &mut W, line: &'a str) -> &'a str
-        where
-            W: OutlineWriter + Sized,
-        {
-            lazy_static! {
-                static ref VERBATIM_TEXT: Regex = Regex::new(r"`([^`]+)`").unwrap();
-                static ref URL: Regex = Regex::new(
-                    r"\b(https?|ftp)://[-A-Za-z0-9+&@#/%?=~_|!:,.;()]*[-A-Za-z0-9+&@#/%=~_|()]"
-                )
-                .unwrap();
-                static ref INLINE_IMAGE: Regex = Regex::new(r"!\[(.*?)\]").unwrap();
-                static ref LOCAL_LINK: Regex = Regex::new(r"\[(\.\.?/.*?)\]").unwrap();
-                static ref ALIAS_LINK: Regex = Regex::new(r"\[([A-Z][A-Za-z0-9.-_]?)\]").unwrap();
-                static ref WIKI_WORD: Regex = Regex::new(r"\b([A-Z][a-z0-9]+){2,}\b").unwrap();
-            }
-
-            // Slice up the line based on regular expressions for the elements. The further up on
-            // the if-else chain an element is, the higher precedence it has.
-            if let Some(c) = VERBATIM_TEXT.captures(line) {
-                let (m, item) = (c.get(0).unwrap(), c.get(1).unwrap());
-                parse_fragment(writer, &line[..m.start()]);
-                writer.verbatim_text(&line[item.start()..item.end()]);
-                return &line[m.end()..];
-            } else if let Some(m) = URL.find(line) {
-                parse_fragment(writer, &line[..m.start()]);
-                writer.url(&line[m.start()..m.end()]);
-                return &line[m.end()..];
-            } else if let Some(c) = INLINE_IMAGE.captures(line) {
-                let (m, item) = (c.get(0).unwrap(), c.get(1).unwrap());
-                parse_fragment(writer, &line[..m.start()]);
-                writer.inline_image(&line[item.start()..item.end()]);
-                return &line[m.end()..];
-            } else if let Some(c) = LOCAL_LINK.captures(line) {
-                let (m, item) = (c.get(0).unwrap(), c.get(1).unwrap());
-                parse_fragment(writer, &line[..m.start()]);
-                writer.local_link(&line[item.start()..item.end()]);
-                return &line[m.end()..];
-            } else if let Some(c) = ALIAS_LINK.captures(line) {
-                let (m, item) = (c.get(0).unwrap(), c.get(1).unwrap());
-                parse_fragment(writer, &line[..m.start()]);
-                writer.alias_link(&line[item.start()..item.end()]);
-                return &line[m.end()..];
-            } else if let Some(m) = WIKI_WORD.find(line) {
-                parse_fragment(writer, &line[..m.start()]);
-                writer.wiki_word_link(&line[m.start()..m.end()]);
-                return &line[m.end()..];
-            } else {
-                writer.text(line);
-                return &"";
-            }
-        }
-
-        fn parse_tag_alias_line<'a, W>(writer: &mut W, line: &'a str) -> &'a str
-        where
-            W: OutlineWriter + Sized,
-        {
-            lazy_static! {
-                static ref ALIAS_DEF: Regex = Regex::new(r"\(([A-Z][A-Za-z0-9.-_]*)\)").unwrap();
-                static ref TAG: Regex = Regex::new(r"@([a-zA-Z0-9-]+)").unwrap();
-            }
-            if let Some(c) = ALIAS_DEF.captures(line) {
-                let (m, item) = (c.get(0).unwrap(), c.get(1).unwrap());
-                parse_fragment(writer, &line[..m.start()]);
-                writer.alias_definition(&line[item.start()..item.end()]);
-                return &line[m.end()..];
-            } else if let Some(c) = TAG.captures(line) {
-                let (m, item) = (c.get(0).unwrap(), c.get(1).unwrap());
-                parse_fragment(writer, &line[..m.start()]);
-                writer.tag_definition(&line[item.start()..item.end()]);
-                return &line[m.end()..];
-            } else {
-                writer.text(line);
-                return &"";
-            }
-        }
-
-        lazy_static! {
-            static ref WIKI_TITLE: Regex = Regex::new(r"^([A-Z][a-z0-9]+){2,}$").unwrap();
-            static ref ALIASES_LINE: Regex =
-                Regex::new(r"^(\(([A-Z][A-Za-z0-9.-_]*)\)\s*)+$").unwrap();
-            static ref TAGS_LINE: Regex = Regex::new(r"^((@[a-zA-Z0-9-]+)\s*)+$").unwrap();
-
-            static ref EMPTY_LINE: Regex = Regex::new(r"^\s*$").unwrap();
-
-            static ref INDENT_BLOCK: Regex = Regex::new(r"(>|;)$|('''|```)(.*)$").unwrap();
-            // NB: Space-prefix blocks can't have a syntax.
-            static ref PREFIX_BLOCK_SYNTAX: Regex = Regex::new(r"^(>|<|;|:)(\S.*)$").unwrap();
-            // NB: Space-prefix block is indicated by absence of the prefix match
-            static ref PREFIX_BLOCK: Regex = Regex::new(r"^(>|<|;|:)? (.*)$").unwrap();
-        }
-
-        // Set to Some(depth) when entering an indented block at that depth.
-        // A line with lower than block_indent depth will then exit the block.
         let mut block_indent = None;
-
-        // Header is the lines immediately after a wiki heading. It consists of alias declaration
-        // and tag declaration lines only, any other type of line ends the header. Alias or tag
-        // declarations are ignored outside of a header.
+        let mut prev_depth = -1;
         let mut in_header = true;
+
         for mut line in input.lines() {
             let depth = line.chars().take_while(|&c| c == '\t').count() as i32;
+            let is_empty = is_empty(line);
 
-            let is_empty = EMPTY_LINE.is_match(line);
+            if !is_empty {
+                if depth > prev_depth {
+                    in_header = true;
+                }
+                prev_depth = depth;
+            }
 
-            // Continuing an indent block?
+            // Indent block.
             if let Some(Indented { depth: d, prefix }) = &block_indent {
                 if depth < *d && !is_empty {
                     // Out of block, zero indent memory and return to normal logic.
+                    block_indent.map(|b| b.end(self));
                     block_indent = None;
                 } else {
-                    if is_empty && (prefix == ">" || prefix == "'''") {
+                    let cut_line = if is_empty { "" } else { &line[*d as usize..] };
+                    if is_empty && (prefix == &">" || prefix == &"'''") {
                         self.paragraph_break();
                     }
-                    let cut_line = if is_empty { "" } else { &line[*d as usize..] };
                     // Within block, push text as-is and continue
-                    self.indent_block_line(*d, &prefix, cut_line);
+                    self.text_block_line(*d, None, cut_line);
                     continue;
                 }
             }
 
-            // Starting a prefix block?
-            if let Some(c) = PREFIX_BLOCK_SYNTAX.captures(line) {
-                // New prefix block with syntax specifier, always starts a block.
-                let prefix = c.get(1).unwrap().as_str();
-                let syntax = c.get(2).unwrap().as_str();
-                block_indent = Some(Prefixed {
-                    depth,
-                    prefix: prefix.to_string(),
-                });
-                in_header = false;
-                self.start_prefix_block_with_syntax(depth, prefix, syntax);
-                continue;
-            }
+            line = &line[depth as usize..];
 
-            // Continuing or starting a prefix block?
-            if let Some(c) = PREFIX_BLOCK.captures(line) {
-                let prefix = c.get(1).map(|t| t.as_str()).unwrap_or(&"");
-                let body = c.get(2).unwrap().as_str();
+            // Prefix block
+            let space_prefix_block = line.starts_with(" ");
+            if space_prefix_block
+                || line.starts_with(";")
+                || line.starts_with(":")
+                || line.starts_with("<")
+                || line.starts_with(">")
+            {
+                in_header = false;
+
+                let prefix = if space_prefix_block || line.is_empty() {
+                    ""
+                } else {
+                    &line[..1]
+                };
+
+                let syntax = if !line.is_empty() { &line[1..] } else { "" };
+                let current_spec = Prefixed { depth, prefix };
+                let block_type = current_spec.block_type();
+
+                if !space_prefix_block
+                    && syntax.chars().next().map_or(false, |c| !c.is_whitespace())
+                {
+                    // Legit syntax line, start a new prefix block.
+                    block_indent.map(|b| b.end(self));
+                    block_indent = Some(current_spec);
+                    self.start_prefix_block(depth, prefix, block_type, Some(syntax));
+                    continue;
+                }
+
+                let body = if line.len() > prefix.len() {
+                    &line[prefix.len() + 1..]
+                } else {
+                    ""
+                };
+
+                // Do we add to a pre-existing block?
                 if let Some(Prefixed {
                     depth: d,
                     prefix: p,
                 }) = &block_indent
                 {
-                    if *d == depth && p == prefix {
-                        // Carry on.
-                        if EMPTY_LINE.is_match(body) && (p == ":" || p == ">") { self.paragraph_break() }
-                        self.prefix_block_line(depth, prefix, body);
+                    if *d == depth && *p == prefix {
+                        if body.is_empty() && block_type == BlockType::Paragraphs {
+                            self.paragraph_break();
+                        }
+                        self.text_block_line(depth, Some(prefix), body);
                         continue;
+                    } else {
                     }
                 }
-                // Starting a new block!
-                block_indent = Some(Prefixed {
-                    depth,
-                    prefix: prefix.to_string(),
-                });
-                in_header = false;
-                self.start_prefix_block(depth, prefix);
-                // Don't bother with paragraph break even if it's an empty line, nothing before to
-                // break against.
-                self.prefix_block_line(depth, prefix, body);
+                // Pre-existing block doesn't match, start a new one.
+                block_indent.map(|b| b.end(self));
+                block_indent = Some(current_spec);
+                self.start_prefix_block(depth, prefix, block_type, None);
+                self.text_block_line(depth, Some(prefix), body);
                 continue;
             }
 
-            // Special case, empty lines in the moddle of a space-prefixed block. Treat these as
-            // part of the block.
-            if let Some(Prefixed { depth: d, prefix: p }) = &block_indent {
-                if p.as_str() == "" && is_empty {
-                    self.paragraph_break();
-                    self.prefix_block_line(*d, "", "");
-                }
-            }
-
+            // If we got this far, we've fallen through all block processing so clear the cached
+            // block state.
+            block_indent.map(|b| b.end(self));
             block_indent = None;
 
-            line = &line[depth as usize..];
+            // Don't emit anything for an empty line.
+            if is_empty {
+                self.end_line();
+                continue;
+            }
 
+            // Regular line
             self.start_line(depth);
-            let mut syntax = String::new();
 
-            if let Some(c) = INDENT_BLOCK.captures(line) {
-                let m = c.get(0).unwrap();
-                line = &line[..m.start()];
+            let mut token_count = 0;
+            let mut is_header_line = true;
 
-                if let Some(prefix) = c.get(1) {
-                    // Single char at end prefix, this never has a syntax.
-                    block_indent = Some(Indented {
-                        depth: depth + 1,
-                        prefix: prefix.as_str().to_string(),
-                    });
-                } else if let Some(prefix) = c.get(2) {
-                    // Three chars prefix, may be followed by syntax.
-                    syntax = c.get(3).unwrap().as_str().to_string();
-                    block_indent = Some(Indented {
-                        depth: depth + 1,
-                        prefix: prefix.as_str().to_string(),
-                    });
+            for tok in Tokenizer::new(line) {
+                token_count += 1;
+                if !tok.is_tag_def() && !tok.is_alias_def() {
+                    is_header_line = false;
+                }
+                if tok == Token::ImportanceMarker {
+                    self.important_line();
                 }
             }
 
-            if WIKI_TITLE.is_match(line) {
-                self.wiki_title(line);
-                in_header = true;
-            } else if in_header && (ALIASES_LINE.is_match(line) || TAGS_LINE.is_match(line)) {
-                while !line.is_empty() {
-                    line = parse_tag_alias_line(self, line);
+            // Aliases and tags can only be defined at the start of a block (in_header)
+            if in_header && is_header_line {
+                for tok in Tokenizer::new(line) {
+                    match tok {
+                        Token::WhiteSpaceText(s) => self.text(s),
+                        Token::TagDefinition(s) => self.tag_definition(s),
+                        Token::AliasDefinition(s) => self.alias_definition(s),
+                        _ => panic!("Should not happen"),
+                    }
                 }
+                self.end_line();
+                continue;
             } else {
-                while !line.is_empty() {
-                    line = parse_fragment(self, line);
-                }
                 in_header = false;
             }
 
-            if let Some(Indented { depth, prefix }) = &block_indent {
-                // This was set but we didn't loop through the block processor earlier,
-                // the block was just started at this line.
-                self.start_indent_block(*depth, prefix, &syntax);
-            }
+            for tok in Tokenizer::new(line) {
+                match tok {
+                    Token::Text(s) => self.text(s),
+                    Token::WhiteSpaceText(s) => self.text(s),
+                    Token::Verbatim(s) => self.verbatim_text(s),
+                    Token::Url(s) => self.url(s),
+                    Token::WikiWord(s) => {
+                        if token_count == 1 {
+                            self.wiki_word_heading(s)
+                        } else {
+                            self.wiki_word_link(s)
+                        }
+                    }
+                    Token::FileLink(s) => self.local_link(s),
+                    Token::InlineImage(s) => self.inline_image(s),
+                    Token::AliasLink(s) => self.alias_link(s),
 
+                    // Just emit regular text if alias or tag definitions are lexed outside of
+                    // header lines.
+                    Token::AliasDefinition(s) => {
+                        self.text("(");
+                        self.text(s);
+                        self.text(")");
+                    }
+                    Token::TagDefinition(s) => {
+                        self.text("@");
+                        self.text(s);
+                    }
+
+                    Token::ImportanceMarker => {
+                        self.importance_marker();
+                    }
+
+                    Token::IndentBlock(prefix, syntax) => {
+                        block_indent = Some(Indented {
+                            depth: depth + 1,
+                            prefix,
+                        });
+                        self.start_indent_block(
+                            depth,
+                            prefix,
+                            block_indent.as_ref().unwrap().block_type(),
+                            syntax,
+                        );
+                    }
+                }
+            }
             self.end_line();
         }
+    }
+}
+
+/// Type of a text block.
+#[derive(Eq, PartialEq)]
+pub enum BlockType {
+    /// Block text should be formatted into paragraphs.
+    Paragraphs,
+
+    /// Block text's newlines and whitespace should be rendered as is.
+    Preformatted,
+}
+
+/// Describe the state of the text block object currently being processed.
+enum BlockSpec<'a> {
+    Indented { depth: i32, prefix: &'a str },
+    Prefixed { depth: i32, prefix: &'a str },
+}
+
+impl<'a> BlockSpec<'a> {
+    fn prefix(&self) -> &str {
+        match self {
+            BlockSpec::Indented { prefix, .. } => prefix,
+            BlockSpec::Prefixed { prefix, .. } => prefix,
+        }
+    }
+
+    fn block_type(&self) -> BlockType {
+        match self.prefix() {
+            "" | ":" | ">" | "'''" => BlockType::Paragraphs,
+            _ => BlockType::Preformatted,
+        }
+    }
+
+    fn end(&self, writer: &mut impl OutlineWriter) {
+        writer.end_text_block(self.prefix(), self.block_type());
+    }
+}
+
+/// Character that can show up in an URL.
+///
+/// See https://tools.ietf.org/html/rfc3986#appendix-A
+fn is_url_char(c: char) -> bool {
+    match c {
+        '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '[' | ']' | '@' | '!' | '$' | '&'
+        | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' => true,
+        c if c.is_alphanumeric() => true,
+        _ => false,
+    }
+}
+
+fn is_path_char(c: char) -> bool {
+    match c {
+        '-' | '.' | '_' | '/' => true,
+        c if c.is_alphanumeric() => true,
+        _ => false,
+    }
+}
+
+fn is_alias_char(c: char) -> bool {
+    match c {
+        '-' | '.' | '_' | '/' => true,
+        c if c.is_alphanumeric() => true,
+        _ => false,
+    }
+}
+
+fn is_tag_char(c: char) -> bool {
+    match c {
+        '-' | '_' => true,
+        c if c.is_alphanumeric() => true,
+        _ => false,
+    }
+}
+
+fn wiki_word(input: &str) -> nom::IResult<&str, &str> {
+    let mut parts = 0;
+    let mut at_part_start = false;
+    let mut pos = 0;
+    while let Some(c) = &input[pos..].chars().next() {
+        if c.is_uppercase() {
+            if !at_part_start {
+                at_part_start = true;
+            } else {
+                break;
+            }
+        } else if c.is_lowercase() || c.is_numeric() {
+            if !at_part_start && parts == 0 {
+                // Before the word started, error.
+                break;
+            } else if at_part_start {
+                parts += 1;
+                at_part_start = false;
+            }
+        } else {
+            break;
+        }
+
+        pos += c.len_utf8();
+    }
+
+    if parts >= 2 && !at_part_start {
+        Ok((&input[pos..], &input[..pos]))
+    } else {
+        // TODO: Is there a more concise way to declare your own errors?
+        Err(nom::Err::Error(nom::Context::Code(
+            input,
+            nom::ErrorKind::Custom(0),
+        )))
+    }
+}
+
+named!(
+    verbatim<&str, &str>,
+    delimited!(tag!("`"), take_while!(|c| c != '`'), tag!("`"))
+);
+
+named!(
+    url<&str, &str>,
+    recognize!(pair!(
+        alt!(tag!("https://") | tag!("http://") | tag!("ftp://")),
+        take_while!(is_url_char))));
+
+named!(
+    inline_image<&str, &str>,
+    delimited!(tag!("!["), take_while!(is_path_char), tag!("]"))
+);
+
+named!(
+    file_link<&str, &str>,
+    delimited!(
+        tag!("["),
+        recognize!(pair!(
+                alt!(tag!("./") | tag!("../")),
+                take_while!(is_path_char))),
+        tag!("]"))
+    );
+
+named!(alias_link<&str, &str>, delimited!(tag!("["), take_while!(is_alias_char), tag!("]")));
+
+named!(alias_definition<&str, &str>, delimited!(tag!("("), take_while!(is_alias_char), tag!(")")));
+
+named!(tag_definition<&str, &str>, preceded!(tag!("@"), take_while!(is_tag_char)));
+
+fn importance_marker(input: &str) -> nom::IResult<&str, &str> {
+    if input == " *" {
+        Ok(("", input))
+    } else {
+        Err(nom::Err::Error(nom::Context::Code(
+            input,
+            nom::ErrorKind::Custom(0),
+        )))
+    }
+}
+
+fn indent_block(input: &str) -> nom::IResult<&str, (&str, &str)> {
+    if input.len() == 1 {
+        if input.starts_with(";") || input.starts_with(">") {
+            return Ok(("", (input, "")));
+        }
+    } else if input.starts_with("```") || input.starts_with("'''") {
+        return Ok(("", (&input[..3], &input[3..])));
+    }
+
+    Err(nom::Err::Error(nom::Context::Code(
+        input,
+        nom::ErrorKind::Custom(0),
+    )))
+}
+
+fn is_empty(input: &str) -> bool {
+    for c in input.chars() {
+        if !c.is_whitespace() {
+            return false;
+        }
+    }
+    true
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+enum Token<'a> {
+    Text(&'a str),
+    WhiteSpaceText(&'a str),
+    Verbatim(&'a str),
+    Url(&'a str),
+    WikiWord(&'a str),
+    FileLink(&'a str),
+    InlineImage(&'a str),
+    AliasLink(&'a str),
+    AliasDefinition(&'a str),
+    TagDefinition(&'a str),
+    IndentBlock(&'a str, &'a str),
+    ImportanceMarker,
+}
+
+impl<'a> Token<'a> {
+    fn is_alias_def(&self) -> bool {
+        match self {
+            Token::WhiteSpaceText(_) => true,
+            Token::AliasDefinition(_) => true,
+            _ => false,
+        }
+    }
+
+    fn is_tag_def(&self) -> bool {
+        match self {
+            Token::WhiteSpaceText(_) => true,
+            Token::TagDefinition(_) => true,
+            _ => false,
+        }
+    }
+}
+
+struct Tokenizer<'a> {
+    text: &'a str,
+    current_pos: usize,
+    token_start: usize,
+    can_start_url: bool,
+    can_start_wiki_word: bool,
+    buffer: Option<Token<'a>>,
+}
+
+impl<'a> Tokenizer<'a> {
+    pub fn new(text: &'a str) -> Tokenizer<'a> {
+        Tokenizer {
+            text,
+            current_pos: 0,
+            token_start: 0,
+            can_start_url: true,
+            can_start_wiki_word: true,
+            buffer: None,
+        }
+    }
+
+    /// Flush pending text out as a token.
+    ///
+    /// This is called when a non-text token is detected.
+    fn flush_text(&mut self) -> Option<Token<'a>> {
+        if self.current_pos > self.token_start {
+            let text = &self.text[self.token_start..self.current_pos];
+            self.token_start = self.current_pos;
+            if text.chars().all(|c| c.is_whitespace()) {
+                Some(Token::WhiteSpaceText(text))
+            } else {
+                Some(Token::Text(text))
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Try a parser function against the current input.
+    fn test(&mut self, f: impl Fn(&str) -> nom::IResult<&str, &str>) -> Option<(&'a str, usize)> {
+        match f(&self.text[self.current_pos..]) {
+            Ok((rest, result)) => Some((result, self.text.len() - rest.len())),
+            _ => None,
+        }
+    }
+
+    /// Queue a new token, return either that or the pending text token.
+    fn queue(&mut self, tok: Token<'a>, new_pos: usize) -> Option<Token<'a>> {
+        debug_assert!(self.buffer.is_none());
+        let ret = if let Some(t) = self.flush_text() {
+            self.buffer = Some(tok);
+            Some(t)
+        } else {
+            Some(tok)
+        };
+        self.current_pos = new_pos;
+        self.token_start = new_pos;
+        ret
+    }
+}
+
+impl<'a> Iterator for Tokenizer<'a> {
+    type Item = Token<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Return item stored from previous call.
+        if let Some(t) = self.buffer {
+            self.buffer = None;
+            return Some(t);
+        }
+
+        while let Some(c) = &self.text[self.current_pos..].chars().next() {
+            if let Ok((rest, (prefix, syntax))) = indent_block(&self.text[self.current_pos..]) {
+                return self.queue(
+                    Token::IndentBlock(prefix, syntax),
+                    self.text.len() - rest.len(),
+                );
+            }
+            if let Some((inner, new_pos)) = self.test(verbatim) {
+                return self.queue(Token::Verbatim(inner), new_pos);
+            }
+            if self.can_start_url {
+                if let Some((inner, new_pos)) = self.test(url) {
+                    self.can_start_url = false;
+                    return self.queue(Token::Url(inner), new_pos);
+                }
+            }
+            if let Some((inner, new_pos)) = self.test(inline_image) {
+                return self.queue(Token::InlineImage(inner), new_pos);
+            }
+            if let Some((inner, new_pos)) = self.test(file_link) {
+                return self.queue(Token::FileLink(inner), new_pos);
+            }
+            if let Some((inner, new_pos)) = self.test(alias_link) {
+                return self.queue(Token::AliasLink(inner), new_pos);
+            }
+            if let Some((inner, new_pos)) = self.test(alias_definition) {
+                return self.queue(Token::AliasDefinition(inner), new_pos);
+            }
+            if let Some((inner, new_pos)) = self.test(tag_definition) {
+                return self.queue(Token::TagDefinition(inner), new_pos);
+            }
+            if let Some((_, new_pos)) = self.test(importance_marker) {
+                return self.queue(Token::ImportanceMarker, new_pos);
+            }
+            if self.can_start_wiki_word {
+                if let Some((inner, new_pos)) = self.test(wiki_word) {
+                    self.can_start_url = false;
+                    return self.queue(Token::WikiWord(inner), new_pos);
+                }
+            }
+            self.can_start_url = !is_url_char(*c);
+            self.can_start_wiki_word = !c.is_alphanumeric();
+            self.current_pos += c.len_utf8();
+        }
+
+        return self.flush_text();
     }
 }
