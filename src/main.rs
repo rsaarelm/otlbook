@@ -1,109 +1,88 @@
-use parser::OutlineWriter;
+use parser::{Lexer, Token};
 use std::io::{self, Read};
+use structopt::{self, StructOpt};
 
-struct StdoutWriter;
+#[derive(StructOpt)]
+#[structopt(name = "otltool", about = "Outline processing tool")]
+enum Otltool {
+    #[structopt(name = "echo", about = "Test by parsing and echoing stdin input")]
+    Echo,
 
-impl OutlineWriter for StdoutWriter {
-    fn text(&mut self, text: &str) {
-        print!("{}", text);
-    }
+    #[structopt(name = "tags", about = "Generate ctags file from local .otl files")]
+    Tags,
+
+    #[structopt(name = "jeval", about = "Pipe stdin outline through J evaluator")]
+    JEval,
+
+    #[structopt(
+        name = "anki",
+        about = "Extract and upload Anki cards from local .otl files"
+    )]
+    Anki,
 }
 
-#[derive(Default)]
-struct DebugWriter {
-    buf: String,
-}
+fn echo() {
+    let mut buf = String::new();
+    io::stdin().read_to_string(&mut buf).unwrap();
 
-impl DebugWriter {
-    fn flush(&mut self) {
-        if !self.buf.is_empty() {
-            print!("{:?} ", self.buf);
-            self.buf = String::new();
-        }
-    }
-}
-
-impl OutlineWriter for DebugWriter {
-    fn start_line(&mut self, depth: i32) {
-        for _ in 0..depth {
+    fn print_depth(d: usize) {
+        for _ in 0..(d - 1) {
             print!("\t");
         }
     }
 
-    fn end_line(&mut self) {
-        self.flush();
-        println!("");
-    }
-
-    fn text(&mut self, text: &str) {
-        self.buf.push_str(text);
-    }
-
-    fn text_block_line(&mut self, depth: i32, prefix: Option<&str>, text: &str) {
-        self.start_line(depth);
-        println!("[block-line {} {:?}]", prefix.unwrap_or(""), text);
-    }
-
-    fn paragraph_break(&mut self) {
-        self.flush();
-        print!("[para]");
-    }
-
-    fn important_line(&mut self) {
-        self.flush();
-        print!("[important!]");
-    }
-
-    fn importance_marker(&mut self) {}
-
-    fn verbatim_text(&mut self, verbatim: &str) {
-        self.flush();
-        print!("[verb {:?}]", verbatim);
-    }
-
-    fn wiki_word_link(&mut self, wiki_word: &str) {
-        self.flush();
-        print!("[wiki-word {}]", wiki_word);
-    }
-
-    fn wiki_word_heading(&mut self, wiki_word: &str) {
-        self.flush();
-        print!("[heading {}]", wiki_word);
-    }
-
-    fn alias_link(&mut self, wiki_alias: &str) {
-        self.flush();
-        print!("[link {}]", wiki_alias);
-    }
-
-    fn url(&mut self, url: &str) {
-        self.flush();
-        print!("[web-link {}]", url);
-    }
-
-    fn inline_image(&mut self, image_path: &str) {
-        self.flush();
-        print!("[img {}]", image_path);
-    }
-
-    fn local_link(&mut self, file_path: &str) {
-        self.flush();
-        print!("[file-link {}]", file_path);
-    }
-
-    fn alias_definition(&mut self, alias: &str) {
-        self.flush();
-        print!("[aka {}]", alias);
-    }
-
-    fn tag_definition(&mut self, tag: &str) {
-        self.flush();
-        print!("[tag {}]", tag);
+    for tok in Lexer::new(&buf) {
+        use Token::*;
+        match tok {
+            StartIndentBlock { prefix, syntax } => print!("{}{}", prefix, syntax),
+            StartPrefixBlock {
+                depth,
+                prefix,
+                syntax,
+            } => {
+                print_depth(depth);
+                print!("{}{}", prefix, syntax);
+            }
+            StartPrefixBlock2 {
+                depth,
+                prefix,
+                first_line,
+            } => {
+                print_depth(depth);
+                print!("{} {}", prefix, first_line);
+            }
+            BlockLine {
+                depth,
+                text,
+                prefix,
+            } => {
+                print_depth(depth);
+                if let Some(prefix) = prefix {
+                    print!("{} ", prefix);
+                }
+                print!("{}", text);
+            }
+            EndBlock(_) => {}
+            StartLine(depth) => print_depth(depth),
+            WikiTitle(t) => print!("{}", t),
+            AliasDefinition(t) => print!("({})", t),
+            TagDefinition(t) => print!("@{}", t),
+            TextFragment(t) | WhitespaceFragment(t) | UrlFragment(t) | WikiWordFragment(t) => {
+                print!("{}", t)
+            }
+            VerbatimFragment(t) => print!("`{}`", t),
+            FileLinkFragment(t) | AliasLinkFragment(t) => print!("[{}]", t),
+            InlineImageFragment(t) => print!("![{}]", t),
+            ImportanceMarkerFragment => print!(" *"),
+            NewLine => println!(),
+        }
     }
 }
 
 fn main() {
-    let mut buf = String::new();
-    io::stdin().read_to_string(&mut buf).unwrap();
-    DebugWriter::default().parse(&buf);
+    let opt = Otltool::from_args();
+    match opt {
+        Otltool::Echo => echo(),
+        _ => unimplemented!(),
+    }
 }

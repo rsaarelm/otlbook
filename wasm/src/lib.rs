@@ -2,7 +2,6 @@
 mod utils;
 
 use cfg_if::cfg_if;
-use parser::OutlineWriter;
 use wasm_bindgen::prelude::*;
 
 cfg_if! {
@@ -26,17 +25,10 @@ pub fn greet() {
     alert("Hello from Rust!");
 }
 
-struct JsWriter;
-
-impl OutlineWriter for JsWriter {
-    fn start_line(&mut self, depth: i32) {}
-
-    fn text(&mut self, text: &str) {
-        outlineLine(text);
-    }
-}
-
 #[wasm_bindgen]
-pub fn parse(input: &str) {
-    JsWriter.parse(input);
+pub fn parse(input: &str) -> usize {
+    // TODO: Put something useful here.
+    // Now there's just a code that forces the parser to get compiled so I can track the generated
+    // wasm size.
+    parser::Lexer::new(input).count()
 }
