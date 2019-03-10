@@ -4,6 +4,7 @@ use std::env;
 use std::fmt;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use structopt::{self, StructOpt};
 use walkdir::{DirEntry, WalkDir};
 
@@ -87,7 +88,7 @@ fn echo(debug: bool) {
 
 enum OutlineObject {
     WikiTitle(String),
-    // Line(Vec<Token<String>>),
+    Line(Vec<Token<String>>),
     Block {
         syntax: Option<String>,
         is_preformatted: bool,
@@ -95,8 +96,29 @@ enum OutlineObject {
     },
 }
 
+impl FromStr for Outline {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {}
+}
+
 struct Outline {
     children: Vec<Outline>,
+    aliases: Vec<String>,
+    tags: Vec<String>,
+    body: OutlineObject,
+}
+
+impl Outline {
+    fn parse<T: Deref<Target = str>>(
+        depth: usize,
+        tokens: &[Token<T>],
+    ) -> (&[Token<T>], Result<Outline, ()>) {
+        for (i, t) in tokens.iter().enumerate() {
+            match t {}
+        }
+        unimplemented!();
+    }
 }
 
 enum TagAddress {

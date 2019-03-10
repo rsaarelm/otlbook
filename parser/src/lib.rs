@@ -1,5 +1,6 @@
 #![cfg_attr(not(test), no_std)]
 use core::fmt;
+use core::ops::Deref;
 use nom::types::CompleteStr;
 use nom::{
     self, alt, count, delimited, do_parse, eof, line_ending, many1, map, named, not, one_of, opt,
@@ -47,7 +48,7 @@ pub fn is_preformatted_block(block_prefix: &str) -> bool {
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = Token<'a>;
+    type Item = Token<&'a str>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Emit a pending end of element tokens.
@@ -188,7 +189,7 @@ impl<'a> Iterator for Lexer<'a> {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum Token<'a> {
+pub enum Token<S> {
     /// Text block delimited by indention.
     ///
     /// ```notrust
@@ -196,8 +197,8 @@ pub enum Token<'a> {
     /// [ ][ ][ ][ ]Blocks of indented text follow...
     /// ```
     StartIndentBlock {
-        prefix: &'a str,
-        syntax: &'a str,
+        prefix: S,
+        syntax: S,
     },
 
     /// Syntax-specifying first line of a prefix delimited text block.
@@ -210,8 +211,8 @@ pub enum Token<'a> {
     /// ```
     StartPrefixBlock {
         depth: usize,
-        prefix: &'a str,
-        syntax: &'a str,
+        prefix: S,
+        syntax: S,
     },
 
     /// First line of a syntaxless prefix delimited block
@@ -221,40 +222,40 @@ pub enum Token<'a> {
     /// ```
     StartPrefixBlock2 {
         depth: usize,
-        prefix: &'a str,
-        first_line: &'a str,
+        prefix: S,
+        first_line: S,
     },
 
     /// Further line in a text block started earlier.
     BlockLine {
         depth: usize,
-        prefix: Option<&'a str>,
-        text: &'a str,
+        prefix: Option<S>,
+        text: S,
     },
 
     /// End block with the given prefix.
-    EndBlock(&'a str),
+    EndBlock(S),
 
     /// Start of a regular, non text block outline line at given depth.
     StartLine(usize),
 
-    WikiTitle(&'a str),
-    AliasDefinition(&'a str),
-    TagDefinition(&'a str),
+    WikiTitle(S),
+    AliasDefinition(S),
+    TagDefinition(S),
 
-    TextFragment(&'a str),
-    WhitespaceFragment(&'a str),
-    UrlFragment(&'a str),
-    WikiWordFragment(&'a str),
-    VerbatimFragment(&'a str),
-    FileLinkFragment(&'a str),
-    AliasLinkFragment(&'a str),
-    InlineImageFragment(&'a str),
+    TextFragment(S),
+    WhitespaceFragment(S),
+    UrlFragment(S),
+    WikiWordFragment(S),
+    VerbatimFragment(S),
+    FileLinkFragment(S),
+    AliasLinkFragment(S),
+    InlineImageFragment(S),
     ImportanceMarkerFragment,
     NewLine,
 }
 
-impl<'a> Token<'a> {
+impl<S> Token<S> {
     fn is_header_token(&self) -> bool {
         match self {
             Token::WhitespaceFragment(_) => true,
@@ -263,9 +264,65 @@ impl<'a> Token<'a> {
             _ => false,
         }
     }
+
+    pub fn map<T>(self, f: &impl Fn(S) -> T) -> Token<T> {
+        use Token::*;
+        match self {
+            StartIndentBlock { prefix, syntax } => StartIndentBlock {
+                prefix: f(prefix),
+                syntax: f(syntax),
+            },
+
+            StartPrefixBlock {
+                depth,
+                prefix,
+                syntax,
+            } => StartPrefixBlock {
+                depth,
+                prefix: f(prefix),
+                syntax: f(syntax),
+            },
+
+            StartPrefixBlock2 {
+                depth,
+                prefix,
+                first_line,
+            } => StartPrefixBlock2 {
+                depth,
+                prefix: f(prefix),
+                first_line: f(first_line),
+            },
+
+            BlockLine {
+                depth,
+                prefix,
+                text,
+            } => BlockLine {
+                depth,
+                prefix: prefix.map(f),
+                text: f(text),
+            },
+
+            StartLine(d) => StartLine(d),
+            EndBlock(s) => EndBlock(f(s)),
+            WikiTitle(s) => WikiTitle(f(s)),
+            AliasDefinition(s) => AliasDefinition(f(s)),
+            TagDefinition(s) => TagDefinition(f(s)),
+            TextFragment(s) => TextFragment(f(s)),
+            WhitespaceFragment(s) => WhitespaceFragment(f(s)),
+            UrlFragment(s) => UrlFragment(f(s)),
+            WikiWordFragment(s) => WikiWordFragment(f(s)),
+            VerbatimFragment(s) => VerbatimFragment(f(s)),
+            FileLinkFragment(s) => FileLinkFragment(f(s)),
+            AliasLinkFragment(s) => AliasLinkFragment(f(s)),
+            InlineImageFragment(s) => InlineImageFragment(f(s)),
+            ImportanceMarkerFragment => ImportanceMarkerFragment,
+            NewLine => NewLine,
+        }
+    }
 }
 
-impl<'a> fmt::Display for Token<'a> {
+impl<S: Deref<Target = str> + fmt::Display> fmt::Display for Token<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Token::*;
         match self {
@@ -275,7 +332,9 @@ impl<'a> fmt::Display for Token<'a> {
                 prefix,
                 syntax,
             } => {
-                for _ in 1..*depth { write!(f, "\t")?; }
+                for _ in 1..*depth {
+                    write!(f, "\t")?;
+                }
                 write!(f, "{}{}", prefix, syntax)
             }
             StartPrefixBlock2 {
@@ -283,7 +342,9 @@ impl<'a> fmt::Display for Token<'a> {
                 prefix,
                 first_line,
             } => {
-                for _ in 1..*depth { write!(f, "\t")?; }
+                for _ in 1..*depth {
+                    write!(f, "\t")?;
+                }
                 write!(f, "{} {}", prefix, first_line)
             }
             BlockLine {
@@ -291,14 +352,21 @@ impl<'a> fmt::Display for Token<'a> {
                 text,
                 prefix,
             } => {
-                for _ in 1..*depth { write!(f, "\t")?; }
+                for _ in 1..*depth {
+                    write!(f, "\t")?;
+                }
                 if let Some(prefix) = prefix {
                     write!(f, "{} ", prefix)?;
                 }
                 write!(f, "{}", text)
             }
-            EndBlock(_) => { Ok(()) }
-            StartLine(depth) => { for _ in 1..*depth { write!(f, "\t")?; } Ok(()) }
+            EndBlock(_) => Ok(()),
+            StartLine(depth) => {
+                for _ in 1..*depth {
+                    write!(f, "\t")?;
+                }
+                Ok(())
+            }
             WikiTitle(t) => write!(f, "{}", t),
             AliasDefinition(t) => write!(f, "({})", t),
             TagDefinition(t) => write!(f, "@{}", t),
@@ -474,7 +542,7 @@ struct LineTokenizer<'a> {
     can_start_url: bool,
     can_start_wiki_word: bool,
     header_mode: bool,
-    buffer: Option<Token<'a>>,
+    buffer: Option<Token<&'a str>>,
     is_first: bool,
 }
 
@@ -508,7 +576,7 @@ impl<'a> LineTokenizer<'a> {
     /// Flush pending text out as a token.
     ///
     /// This is called when a non-text token is detected.
-    fn flush_text(&mut self) -> Option<Token<'a>> {
+    fn flush_text(&mut self) -> Option<Token<&'a str>> {
         if self.current_pos > self.token_start {
             let text = &self.text[self.token_start..self.current_pos];
             self.token_start = self.current_pos;
@@ -534,7 +602,7 @@ impl<'a> LineTokenizer<'a> {
     }
 
     /// Queue a new token, return either that or the pending text token.
-    fn queue(&mut self, tok: Token<'a>, new_pos: usize) -> Option<Token<'a>> {
+    fn queue(&mut self, tok: Token<&'a str>, new_pos: usize) -> Option<Token<&'a str>> {
         debug_assert!(self.buffer.is_none());
         let ret = if let Some(t) = self.flush_text() {
             self.buffer = Some(tok);
@@ -558,7 +626,7 @@ impl<'a> LineTokenizer<'a> {
 }
 
 impl<'a> Iterator for LineTokenizer<'a> {
-    type Item = Token<'a>;
+    type Item = Token<&'a str>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Return item stored from previous call.
