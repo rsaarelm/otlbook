@@ -1,4 +1,5 @@
 #![cfg_attr(not(test), no_std)]
+use core::fmt;
 use nom::types::CompleteStr;
 use nom::{
     self, alt, count, delimited, do_parse, eof, line_ending, many1, map, named, not, one_of, opt,
@@ -260,6 +261,55 @@ impl<'a> Token<'a> {
             Token::AliasDefinition(_) => true,
             Token::TagDefinition(_) => true,
             _ => false,
+        }
+    }
+}
+
+impl<'a> fmt::Display for Token<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Token::*;
+        match self {
+            StartIndentBlock { prefix, syntax } => write!(f, "{}{}", prefix, syntax),
+            StartPrefixBlock {
+                depth,
+                prefix,
+                syntax,
+            } => {
+                for _ in 0..(depth - 1) { write!(f, "\t")?; }
+                write!(f, "{}{}", prefix, syntax)
+            }
+            StartPrefixBlock2 {
+                depth,
+                prefix,
+                first_line,
+            } => {
+                for _ in 0..(depth - 1) { write!(f, "\t")?; }
+                write!(f, "{} {}", prefix, first_line)
+            }
+            BlockLine {
+                depth,
+                text,
+                prefix,
+            } => {
+                for _ in 0..(depth - 1) { write!(f, "\t")?; }
+                if let Some(prefix) = prefix {
+                    write!(f, "{} ", prefix)?;
+                }
+                write!(f, "{}", text)
+            }
+            EndBlock(_) => { Ok(()) }
+            StartLine(depth) => { for _ in 0..(depth - 1) { write!(f, "\t")?; } Ok(()) }
+            WikiTitle(t) => write!(f, "{}", t),
+            AliasDefinition(t) => write!(f, "({})", t),
+            TagDefinition(t) => write!(f, "@{}", t),
+            TextFragment(t) | WhitespaceFragment(t) | UrlFragment(t) | WikiWordFragment(t) => {
+                write!(f, "{}", t)
+            }
+            VerbatimFragment(t) => write!(f, "`{}`", t),
+            FileLinkFragment(t) | AliasLinkFragment(t) => write!(f, "[{}]", t),
+            InlineImageFragment(t) => write!(f, "![{}]", t),
+            ImportanceMarkerFragment => write!(f, " *"),
+            NewLine => writeln!(f),
         }
     }
 }

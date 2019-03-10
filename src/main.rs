@@ -25,57 +25,8 @@ fn echo() {
     let mut buf = String::new();
     io::stdin().read_to_string(&mut buf).unwrap();
 
-    fn print_depth(d: usize) {
-        for _ in 0..(d - 1) {
-            print!("\t");
-        }
-    }
-
     for tok in Lexer::new(&buf) {
-        use Token::*;
-        match tok {
-            StartIndentBlock { prefix, syntax } => print!("{}{}", prefix, syntax),
-            StartPrefixBlock {
-                depth,
-                prefix,
-                syntax,
-            } => {
-                print_depth(depth);
-                print!("{}{}", prefix, syntax);
-            }
-            StartPrefixBlock2 {
-                depth,
-                prefix,
-                first_line,
-            } => {
-                print_depth(depth);
-                print!("{} {}", prefix, first_line);
-            }
-            BlockLine {
-                depth,
-                text,
-                prefix,
-            } => {
-                print_depth(depth);
-                if let Some(prefix) = prefix {
-                    print!("{} ", prefix);
-                }
-                print!("{}", text);
-            }
-            EndBlock(_) => {}
-            StartLine(depth) => print_depth(depth),
-            WikiTitle(t) => print!("{}", t),
-            AliasDefinition(t) => print!("({})", t),
-            TagDefinition(t) => print!("@{}", t),
-            TextFragment(t) | WhitespaceFragment(t) | UrlFragment(t) | WikiWordFragment(t) => {
-                print!("{}", t)
-            }
-            VerbatimFragment(t) => print!("`{}`", t),
-            FileLinkFragment(t) | AliasLinkFragment(t) => print!("[{}]", t),
-            InlineImageFragment(t) => print!("![{}]", t),
-            ImportanceMarkerFragment => print!(" *"),
-            NewLine => println!(),
-        }
+        print!("{}", tok);
     }
 }
 
