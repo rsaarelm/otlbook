@@ -275,7 +275,7 @@ impl<'a> fmt::Display for Token<'a> {
                 prefix,
                 syntax,
             } => {
-                for _ in 0..(depth - 1) { write!(f, "\t")?; }
+                for _ in 1..*depth { write!(f, "\t")?; }
                 write!(f, "{}{}", prefix, syntax)
             }
             StartPrefixBlock2 {
@@ -283,7 +283,7 @@ impl<'a> fmt::Display for Token<'a> {
                 prefix,
                 first_line,
             } => {
-                for _ in 0..(depth - 1) { write!(f, "\t")?; }
+                for _ in 1..*depth { write!(f, "\t")?; }
                 write!(f, "{} {}", prefix, first_line)
             }
             BlockLine {
@@ -291,14 +291,14 @@ impl<'a> fmt::Display for Token<'a> {
                 text,
                 prefix,
             } => {
-                for _ in 0..(depth - 1) { write!(f, "\t")?; }
+                for _ in 1..*depth { write!(f, "\t")?; }
                 if let Some(prefix) = prefix {
                     write!(f, "{} ", prefix)?;
                 }
                 write!(f, "{}", text)
             }
             EndBlock(_) => { Ok(()) }
-            StartLine(depth) => { for _ in 0..(depth - 1) { write!(f, "\t")?; } Ok(()) }
+            StartLine(depth) => { for _ in 1..*depth { write!(f, "\t")?; } Ok(()) }
             WikiTitle(t) => write!(f, "{}", t),
             AliasDefinition(t) => write!(f, "({})", t),
             TagDefinition(t) => write!(f, "@{}", t),
