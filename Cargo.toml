@@ -11,3 +11,4 @@ members = ["parser", "wasm" ]
 [dependencies]
 parser = { path = "parser" }
 structopt = "0.2"
+walkdir = "2"
