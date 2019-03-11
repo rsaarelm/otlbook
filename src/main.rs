@@ -1,8 +1,11 @@
-use parser::{Lexer, Token};
+use parser::{self, Lexer, Token};
 use std::collections::BTreeMap;
 use std::env;
+use std::error::Error;
 use std::fmt;
+use std::fs;
 use std::io::{self, Read};
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use structopt::{self, StructOpt};
@@ -86,6 +89,9 @@ fn echo(debug: bool) {
     }
 }
 
+//////////////////////////////// Outline type
+
+#[derive(Debug)]
 enum OutlineObject {
     WikiTitle(String),
     Line(Vec<Token<String>>),
@@ -99,27 +105,287 @@ enum OutlineObject {
 impl FromStr for Outline {
     type Err = ();
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {}
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let tokens: Vec<Token<String>> = Lexer::new(s)
+            .map(|t| t.map(|s: &str| s.to_string()))
+            .collect();
+
+        let mut input = tokens.as_slice();
+        Ok(Outline::parse(0, input).unwrap().1)
+    }
 }
 
+#[derive(Debug)]
 struct Outline {
-    children: Vec<Outline>,
-    aliases: Vec<String>,
-    tags: Vec<String>,
+    depth: usize,
     body: OutlineObject,
+    children: Vec<Outline>,
 }
 
 impl Outline {
-    fn parse<T: Deref<Target = str>>(
+    /// Load the outline from file path.
+    ///
+    /// The outline will get a toplevel name derived from the file name.
+    fn load(path: impl AsRef<Path>) -> Result<Outline, Box<Error>> {
+        // TODO: Error handling instead of unwraps.
+        let basename = path
+            .as_ref()
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+        let text = fs::read_to_string(path)?;
+
+        // Parsing the outline should succeed with any string.
+        let mut ret: Outline = text.parse().unwrap();
+        ret.body = OutlineObject::WikiTitle(basename);
+        Ok(ret)
+    }
+
+    /// Construct the object for a part of an outline from token stream.
+    fn parse<T: Deref<Target = str>+Clone>(
         depth: usize,
-        tokens: &[Token<T>],
-    ) -> (&[Token<T>], Result<Outline, ()>) {
-        for (i, t) in tokens.iter().enumerate() {
-            match t {}
+        input: &[Token<T>],
+    ) -> Result<(&[Token<T>], Outline), &[Token<T>]> {
+        let mut input = input;
+
+        let body = if depth == 0 {
+            OutlineObject::Line(Vec::new())
+        } else {
+            let (rest, body) = match Outline::parse_body(depth, input) {
+                Ok(pair) => pair,
+                Err(_) => return Err(input),
+            };
+            input = rest;
+            body
+        };
+
+        let mut children = Vec::new();
+        while let Ok((rest, child)) = Outline::parse(depth + 1, input) {
+            children.push(child);
+            input = rest;
         }
-        unimplemented!();
+
+        debug_assert!(
+            depth > 0 || input.is_empty(),
+            "Parsing an entire file, but there still remains unparsed input"
+        );
+
+        Ok((
+            input,
+            Outline {
+                depth,
+                body,
+                children,
+            },
+        ))
+    }
+
+    /// Construct body of an outline object from token stream.
+    fn parse_body<T: Deref<Target = str>+Clone>(
+        depth: usize,
+        input: &[Token<T>],
+    ) -> Result<(&[Token<T>], OutlineObject), &[Token<T>]> {
+        use Token::*;
+
+        if input.is_empty() {
+            return Err(input);
+        }
+
+        if let [StartPrefixBlock {
+            depth: d,
+            prefix,
+            syntax,
+        }, NewLine] = &input[..2]
+        {
+            if *d >= depth {
+                let mut body = String::new();
+                let rest =
+                    match Outline::parse_block_lines(&mut body, depth, Some(prefix), &input[2..]) {
+                        Ok((rest, _)) => rest,
+                        Err(rest) => rest,
+                    };
+                return Ok((
+                    rest,
+                    OutlineObject::Block {
+                        syntax: Some(syntax.to_string()),
+                        is_preformatted: parser::is_preformatted_block(prefix),
+                        body,
+                    },
+                ));
+            }
+        } else if let [StartPrefixBlock2 {
+            depth: d,
+            prefix,
+            first_line,
+        }, NewLine] = &input[..2]
+        {
+            if *d >= depth {
+                let mut body = String::new();
+                body.push_str(first_line);
+                body.push_str("\n");
+                let rest =
+                    match Outline::parse_block_lines(&mut body, depth, Some(prefix), &input[2..]) {
+                        Ok((rest, _)) => rest,
+                        Err(rest) => rest,
+                    };
+
+                return Ok((
+                    rest,
+                    OutlineObject::Block {
+                        syntax: None,
+                        is_preformatted: parser::is_preformatted_block(prefix),
+                        body,
+                    },
+                ));
+            }
+        } else if let [StartIndentBlock { prefix, syntax }, NewLine] = &input[..2] {
+            let mut body = String::new();
+            // We're parsing this as a child of the line the block prefix is on, so depth is
+            // already at +1 compared to the prefix line and we don't need to indent it further.
+            let rest = match Outline::parse_block_lines(&mut body, depth, None, &input[2..]) {
+                Ok((rest, _)) => rest,
+                Err(rest) => rest,
+            };
+
+            return Ok((
+                rest,
+                OutlineObject::Block {
+                    syntax: Some(syntax.to_string()),
+                    is_preformatted: parser::is_preformatted_block(prefix),
+                    body,
+                },
+            ));
+        }
+
+        if let [StartLine(d), WikiTitle(s), NewLine] = &input[..3] {
+            if *d >= depth {
+                return Ok((&input[3..], OutlineObject::WikiTitle(s.to_string())));
+            }
+        }
+
+        if let &StartLine(d) = &input[0] {
+            if d >= depth {
+                return Outline::parse_line_body(&input[1..]);
+            }
+        }
+
+        return Err(input);
+    }
+
+    fn parse_line_body<T: Deref<Target = str>+Clone>(
+        input: &[Token<T>],
+    ) -> Result<(&[Token<T>], OutlineObject), &[Token<T>]> {
+        use Token::*;
+        let mut i = input;
+        let mut parts = Vec::new();
+
+        loop {
+            if i.is_empty() {
+                break;
+            }
+            match &i[0] {
+                NewLine => {
+                    i = &i[1..];
+                    break;
+                }
+                // StartIndentBlock is treated as the next parse unit.
+                StartIndentBlock { .. } => break,
+
+                // Line must end with NewLine or StartIndentBlock
+                StartPrefixBlock { .. }
+                | StartPrefixBlock2 { .. }
+                | BlockLine { .. }
+                | StartLine(_) => {
+                    debug_assert!(false, "Malformed token stream");
+                    break;
+                }
+                tok => {
+                    parts.push(tok.clone().map(|s| s.to_string()));
+                    i = &i[1..];
+                }
+            }
+        }
+
+        Ok((i, OutlineObject::Line(parts)))
+    }
+
+    fn parse_block_lines<'a, T: Deref<Target = str>>(
+        buf: &mut String,
+        depth: usize,
+        prefix: Option<&str>,
+        input: &'a [Token<T>],
+    ) -> Result<(&'a [Token<T>], ()), &'a [Token<T>]> {
+        use Token::*;
+        let mut i = input;
+        let mut saw_input = !buf.is_empty();
+        loop {
+            if i.is_empty() {
+                break;
+            }
+            if let [BlockLine {
+                depth: d,
+                prefix: p,
+                text,
+            }, NewLine] = &i[..2]
+            {
+                if *d == depth && p.as_ref().map(|s| s.deref()) == prefix {
+                    buf.push_str(text);
+                    buf.push_str("\n");
+                    i = &i[2..];
+                    saw_input = true;
+                }
+            } else if let EndBlock(_) = i[0] {
+                i = &i[1..];
+                break;
+            } else {
+                // If we hit BlockLines, should've ended with EndBlock.
+                debug_assert!(!saw_input);
+                break;
+            }
+        }
+
+        if saw_input {
+            Ok((i, ()))
+        } else {
+            Err(input)
+        }
+    }
+
+    fn tokens(&self) -> &[Token<String>] {
+        match self.body {
+            OutlineObject::Line(ref ts) => &ts,
+            _ => &[],
+        }
+    }
+
+    fn aliases(&self) -> impl Iterator<Item = &str> {
+        self.children.iter().flat_map(|c| {
+            c.tokens().into_iter().filter_map(|t| {
+                if let Token::AliasDefinition(s) = t {
+                    Some(s.as_str())
+                } else {
+                    None
+                }
+            })
+        })
+    }
+
+    fn tags(&self) -> impl Iterator<Item = &str> {
+        self.children.iter().flat_map(|c| {
+            c.tokens().into_iter().filter_map(|t| {
+                if let Token::TagDefinition(s) = t {
+                    Some(s.as_str())
+                } else {
+                    None
+                }
+            })
+        })
     }
 }
+
+//////////////////////////////// Tag generation
 
 enum TagAddress {
     LineNum(usize),
@@ -175,8 +441,14 @@ impl fmt::Display for CTags {
 }
 
 fn tags() {
-    otl_paths(env::current_dir().expect("Invalid working directory"));
+    for path in otl_paths(env::current_dir().expect("Invalid working directory")) {
+        println!("Loading {:?}", path);
+        let outline = Outline::load(path);
+        println!("{:?}", outline);
+    }
 }
+
+//////////////////////////////// Filesystem tools
 
 fn otl_paths(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf> {
     fn is_otl(entry: &DirEntry) -> bool {

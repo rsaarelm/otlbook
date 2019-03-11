@@ -265,7 +265,7 @@ impl<S> Token<S> {
         }
     }
 
-    pub fn map<T>(self, f: &impl Fn(S) -> T) -> Token<T> {
+    pub fn map<T>(self, f: impl Fn(S) -> T + Copy) -> Token<T> {
         use Token::*;
         match self {
             StartIndentBlock { prefix, syntax } => StartIndentBlock {
