@@ -110,7 +110,7 @@ impl FromStr for Outline {
             .map(|t| t.map(|s: &str| s.to_string()))
             .collect();
 
-        let mut input = tokens.as_slice();
+        let input = tokens.as_slice();
         Ok(Outline::parse(0, input).unwrap().1)
     }
 }
@@ -144,7 +144,7 @@ impl Outline {
     }
 
     /// Construct the object for a part of an outline from token stream.
-    fn parse<T: Deref<Target = str>+Clone>(
+    fn parse<T: Deref<Target = str> + Clone>(
         depth: usize,
         input: &[Token<T>],
     ) -> Result<(&[Token<T>], Outline), &[Token<T>]> {
@@ -183,7 +183,7 @@ impl Outline {
     }
 
     /// Construct body of an outline object from token stream.
-    fn parse_body<T: Deref<Target = str>+Clone>(
+    fn parse_body<T: Deref<Target = str> + Clone>(
         depth: usize,
         input: &[Token<T>],
     ) -> Result<(&[Token<T>], OutlineObject), &[Token<T>]> {
@@ -274,7 +274,7 @@ impl Outline {
         return Err(input);
     }
 
-    fn parse_line_body<T: Deref<Target = str>+Clone>(
+    fn parse_line_body<T: Deref<Target = str> + Clone>(
         input: &[Token<T>],
     ) -> Result<(&[Token<T>], OutlineObject), &[Token<T>]> {
         use Token::*;
@@ -372,7 +372,7 @@ impl Outline {
         })
     }
 
-    fn tags(&self) -> impl Iterator<Item = &str> {
+    fn tag_definitions(&self) -> impl Iterator<Item = &str> {
         self.children.iter().flat_map(|c| {
             c.tokens().into_iter().filter_map(|t| {
                 if let Token::TagDefinition(s) = t {
@@ -383,52 +383,71 @@ impl Outline {
             })
         })
     }
+
+    /// Return title if outline is toplevel of a wiki article.
+    fn wiki_title(&self) -> Option<&str> {
+        match self.body {
+            OutlineObject::WikiTitle(ref s) => Some(s.as_str()),
+            _ => None,
+        }
+    }
+
+    fn ctags(
+        &self,
+        filename: &str,
+    ) -> impl Iterator<Item = ((String, usize), (String, TagAddress))> {
+        let child_tags: Vec<((String, usize), (String, TagAddress))> = self
+            .children
+            .iter()
+            .flat_map(|c| c.ctags(filename))
+            .collect();
+        let mut tags = Vec::new();
+        if let Some(title) = self.wiki_title() {
+            let addr = if self.depth == 0 {
+                TagAddress::LineNum(0)
+            } else {
+                TagAddress::Search(title.to_string())
+            };
+
+            tags.push((
+                (title.to_string(), self.depth),
+                (filename.to_string(), addr.clone()),
+            ));
+            for a in self.aliases() {
+                tags.push((
+                    (a.to_string(), self.depth),
+                    (filename.to_string(), addr.clone()),
+                ));
+            }
+        }
+
+        tags.into_iter().chain(child_tags.into_iter())
+    }
 }
 
 //////////////////////////////// Tag generation
 
+#[derive(Clone)]
 enum TagAddress {
     LineNum(usize),
     Search(String),
-}
-
-impl TagAddress {
-    fn start_of_file() -> TagAddress {
-        TagAddress::LineNum(0)
-    }
-
-    fn otl_search(tagname: &str) -> TagAddress {
-        TagAddress::Search(format!(r"^\t\*{}$", tagname))
-    }
 }
 
 impl fmt::Display for TagAddress {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TagAddress::LineNum(n) => write!(f, "{}", n),
-            TagAddress::Search(expr) => write!(f, "/{}/", expr),
+            TagAddress::Search(expr) => write!(f, "/^\\t\\*{}$/", expr),
         }
     }
 }
 
+#[derive(Default)]
 struct CTags {
     // Include depth in key so that tags deeper in the outline are give a lower priority in case
     // there are multiple instances of the same tag name. Want the higher-up version to be more
     // authoritative.
     tags: BTreeMap<(String, usize), (String, TagAddress)>,
-}
-
-impl CTags {
-    fn insert_tag(&mut self, tag_name: &str, depth: usize, target_name: &str, path: &str) {
-        let key = (tag_name.to_string(), depth);
-        let addr = if depth == 0 {
-            TagAddress::start_of_file()
-        } else {
-            TagAddress::otl_search(target_name)
-        };
-
-        self.tags.insert(key, (path.to_string(), addr));
-    }
 }
 
 impl fmt::Display for CTags {
@@ -441,11 +460,15 @@ impl fmt::Display for CTags {
 }
 
 fn tags() {
+    let mut tags = CTags::default();
+
     for path in otl_paths(env::current_dir().expect("Invalid working directory")) {
-        println!("Loading {:?}", path);
-        let outline = Outline::load(path);
-        println!("{:?}", outline);
+        let filename = path.file_name().unwrap().to_str().unwrap().to_string();
+        let outline = Outline::load(path).unwrap();
+        tags.tags.extend(outline.ctags(&filename));
     }
+
+    println!("{}", tags);
 }
 
 //////////////////////////////// Filesystem tools
