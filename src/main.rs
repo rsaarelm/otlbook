@@ -1,6 +1,5 @@
 use parser::{self, Lexer, Token};
-use std::collections::BTreeMap;
-use std::env;
+use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt;
 use std::fs;
@@ -392,15 +391,9 @@ impl Outline {
         }
     }
 
-    fn ctags(
-        &self,
-        filename: &str,
-    ) -> impl Iterator<Item = ((String, usize), (String, TagAddress))> {
-        let child_tags: Vec<((String, usize), (String, TagAddress))> = self
-            .children
-            .iter()
-            .flat_map(|c| c.ctags(filename))
-            .collect();
+    fn ctags(&self, path: &str) -> impl Iterator<Item = (String, usize, String, TagAddress)> {
+        let child_tags: Vec<(String, usize, String, TagAddress)> =
+            self.children.iter().flat_map(|c| c.ctags(path)).collect();
         let mut tags = Vec::new();
         if let Some(title) = self.wiki_title() {
             let addr = if self.depth == 0 {
@@ -410,14 +403,13 @@ impl Outline {
             };
 
             tags.push((
-                (title.to_string(), self.depth),
-                (filename.to_string(), addr.clone()),
+                title.to_string(),
+                self.depth,
+                path.to_string(),
+                addr.clone(),
             ));
             for a in self.aliases() {
-                tags.push((
-                    (a.to_string(), self.depth),
-                    (filename.to_string(), addr.clone()),
-                ));
+                tags.push((a.to_string(), self.depth, path.to_string(), addr.clone()));
             }
         }
 
@@ -427,7 +419,7 @@ impl Outline {
 
 //////////////////////////////// Tag generation
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
 enum TagAddress {
     LineNum(usize),
     Search(String),
@@ -447,12 +439,12 @@ struct CTags {
     // Include depth in key so that tags deeper in the outline are give a lower priority in case
     // there are multiple instances of the same tag name. Want the higher-up version to be more
     // authoritative.
-    tags: BTreeMap<(String, usize), (String, TagAddress)>,
+    tags: BTreeSet<(String, usize, String, TagAddress)>,
 }
 
 impl fmt::Display for CTags {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for ((tag, _), (path, addr)) in &self.tags {
+        for (tag, _, path, addr) in &self.tags {
             writeln!(f, "{}\t{}\t{}", tag, path, addr)?;
         }
         Ok(())
@@ -462,10 +454,10 @@ impl fmt::Display for CTags {
 fn tags() {
     let mut tags = CTags::default();
 
-    for path in otl_paths(env::current_dir().expect("Invalid working directory")) {
-        let filename = path.file_name().unwrap().to_str().unwrap().to_string();
+    for path in otl_paths("./") {
+        let path = path.strip_prefix("./").unwrap().to_str().unwrap();
         let outline = Outline::load(path).unwrap();
-        tags.tags.extend(outline.ctags(&filename));
+        tags.tags.extend(outline.ctags(path));
     }
 
     println!("{}", tags);
