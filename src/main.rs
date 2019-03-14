@@ -336,6 +336,7 @@ impl Outline {
                     saw_input = true;
                 }
             } else if let EndBlock(_) = i[0] {
+                saw_input = true;
                 i = &i[1..];
                 break;
             } else {
