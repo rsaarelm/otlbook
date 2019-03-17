@@ -14,9 +14,7 @@ stdenv.mkDerivation {
     lighttpd
   ];
   shellHook = ''
-    # Rust environment, use a local cargo dir
-    export CARGO_HOME=$PWD/.cargo
-    export PATH=$PATH:$CARGO_HOME/bin
+    export PATH=$PATH:~/.cargo/bin
     export RUST_BACKTRACE=1
 
     # Basic compiler
