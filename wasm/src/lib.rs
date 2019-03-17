@@ -1,4 +1,3 @@
-#![no_std]
 mod utils;
 
 use cfg_if::cfg_if;
@@ -26,9 +25,9 @@ pub fn greet() {
 }
 
 #[wasm_bindgen]
-pub fn parse(input: &str) -> usize {
+pub fn parse(input: &str) -> String {
     // TODO: Put something useful here.
     // Now there's just a code that forces the parser to get compiled so I can track the generated
     // wasm size.
-    parser::Lexer::new(input).count()
+    format!("{}", input.parse::<parser::Outline>().unwrap())
 }

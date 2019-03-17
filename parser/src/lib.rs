@@ -1,395 +1,617 @@
-#![cfg_attr(not(test), no_std)]
-use core::fmt;
-use core::ops::Deref;
 use nom::types::CompleteStr;
 use nom::{
-    self, alt, count, delimited, do_parse, eof, line_ending, many1, map, named, not, one_of, opt,
-    pair, peek, preceded, recognize, tag, take_while, take_while1, terminated,
+    self, alt, count, delimited, do_parse, eof, line_ending, many0, many1, map, named, not, one_of,
+    opt, pair, peek, preceded, recognize, tag, take_while, take_while1, terminated, verify,
 };
+use nom::{Context, ErrorKind};
+use serde::{Deserialize, Serialize};
+use std::default;
+use std::error::Error;
+use std::fmt;
+use std::fs;
+use std::path::Path;
+use std::str::FromStr;
 
-/// Converts outline file text into lexical tokens.
-pub struct Lexer<'a> {
-    source: &'a str,
-    block_state: Option<BlockSpec<'a>>,
-    line_tokenizer: Option<LineTokenizer<'a>>,
-    /// Are we set to parse tag and alias declarations
-    in_header: bool,
-    /// Leftmost column has depth 1 so we can use 0 for the start of the file.
-    previous_depth: usize,
-    /// Contain a closing token from previous cycle if needed.
-    buffer: Ending<'a>,
+#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
+pub struct Outline {
+    depth: usize,
+    body: OutlineBody,
+    children: Vec<Outline>,
 }
 
-enum Ending<'a> {
-    None,
-    Line,
-    Block(&'a str),
-}
+impl Outline {
+    /// Load the outline from file path.
+    ///
+    /// The outline will get a toplevel name derived from the file name.
+    pub fn load(path: impl AsRef<Path>) -> Result<Outline, Box<Error>> {
+        // TODO: Error handling instead of unwraps.
+        let basename = path
+            .as_ref()
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+        let text = fs::read_to_string(path)?;
 
-impl<'a> Lexer<'a> {
-    pub fn new(source: &'a str) -> Lexer<'a> {
-        Lexer {
-            source,
-            block_state: None,
-            line_tokenizer: None,
-            in_header: true,
-            previous_depth: 0,
-            buffer: Ending::None,
-        }
+        // Parsing the outline should succeed with any string.
+        let mut ret: Outline = text.parse().unwrap();
+        ret.body = (outline_body(0, CompleteStr(&*basename)).unwrap().1).1;
+        Ok(ret)
     }
-}
 
-/// Return whether a prefix indicates a preformatted or a paragraphs block.
-pub fn is_preformatted_block(block_prefix: &str) -> bool {
-    match block_prefix {
-        "" | ":" | ">" | "'''" => false,
-        _ => true,
+    pub fn aliases(&self) -> impl Iterator<Item = &String> {
+        self.children
+            .iter()
+            .take_while(|c| c.can_be_header())
+            .flat_map(|c| {
+                c.fragments().filter_map(|f| match f {
+                    Fragment::AliasDefinition(s) => Some(s),
+                    _ => None,
+                })
+            })
     }
-}
 
-impl<'a> Iterator for Lexer<'a> {
-    type Item = Token<&'a str>;
+    pub fn tags(&self) -> impl Iterator<Item = &String> {
+        self.children
+            .iter()
+            .take_while(|c| c.can_be_header())
+            .flat_map(|c| {
+                c.fragments().filter_map(|f| match f {
+                    Fragment::TagLink(s) => Some(s),
+                    _ => None,
+                })
+            })
+    }
 
-    fn next(&mut self) -> Option<Self::Item> {
-        // Emit a pending end of element tokens.
-        match self.buffer {
-            Ending::Block(prefix) => {
-                self.buffer = Ending::None;
-                return Some(Token::EndBlock(prefix));
-            }
-            Ending::Line => {
-                self.buffer = Ending::None;
-                return Some(Token::NewLine);
-            }
-            Ending::None => {}
-        }
-
-        // Still tokenizing the previous line, just keep doing that until it's consumed.
-        if let Some(ref mut line_tok) = self.line_tokenizer {
-            match line_tok.next() {
-                // Catch an indent block specifier in the line.
-                // Mark Lexer to be processing that block from here on.
-                Some(Token::StartIndentBlock { prefix, syntax }) => {
-                    self.block_state = Some(BlockSpec {
-                        // previous_depth should be the depth of the line being processed at
-                        // this point.
-                        depth: self.previous_depth + 1,
-                        line_prefix: None,
-                        start_prefix: prefix,
-                    });
-                    return Some(Token::StartIndentBlock { prefix, syntax });
-                }
-                Some(tok) => return Some(tok),
-                None => {
-                    self.buffer = Ending::Line;
-                    self.line_tokenizer = None;
-                    return self.next();
-                }
-            }
-        }
-
-        // Now processing new input, stop if there is none.
-        if self.source.is_empty() {
-            return None;
-        }
-
-        // Check out the next line.
-        let (rest, line) = complete_line(CompleteStr(self.source)).unwrap();
-
-        // If we're parsing a text block, see if we can keep going.
-        if let Some(BlockSpec {
-            depth: d,
-            line_prefix,
-            start_prefix,
-        }) = self.block_state
-        {
-            if let Some(prefix) = line_prefix {
-                // It's a prefix block
-                if let Ok((_, line)) = prefix_block_line(d, prefix, line) {
-                    self.buffer = Ending::Line;
-                    self.source = rest.0;
-                    return Some(Token::BlockLine {
-                        depth: d,
-                        prefix: Some(prefix),
-                        text: line.0,
-                    });
+    /// Return title if outline is toplevel of a wiki article.
+    pub fn wiki_title(&self) -> Option<&str> {
+        match self.body {
+            OutlineBody::Line(ref fs) => {
+                if let [Fragment::WikiWord(word)] = &fs[..] {
+                    Some(word.as_str())
                 } else {
-                    self.buffer = Ending::Block(prefix);
-                    self.block_state = None;
-                    return self.next();
+                    None
                 }
+            }
+            _ => None,
+        }
+    }
+
+    pub fn ctags(&self, path: &str) -> impl Iterator<Item = (String, usize, String, TagAddress)> {
+        let child_tags: Vec<(String, usize, String, TagAddress)> =
+            self.children.iter().flat_map(|c| c.ctags(path)).collect();
+        let mut tags = Vec::new();
+        if let Some(title) = self.wiki_title() {
+            let addr = if self.depth == 0 {
+                TagAddress::LineNum(0)
             } else {
-                // It's an indent block.
-                if let Ok((_, line)) = indent_block_line(d, line) {
-                    self.buffer = Ending::Line;
-                    self.source = rest.0;
-                    // No prefix in token to mark this as an indent block line
-                    return Some(Token::BlockLine {
-                        depth: d,
-                        prefix: None,
-                        text: line.0,
-                    });
-                } else {
-                    self.buffer = Ending::Block(start_prefix);
-                    self.block_state = None;
-                    return self.next();
-                }
+                TagAddress::Search(title.to_string())
+            };
+
+            tags.push((
+                title.to_string(),
+                self.depth,
+                path.to_string(),
+                addr.clone(),
+            ));
+            for a in self.aliases() {
+                tags.push((a.to_string(), self.depth, path.to_string(), addr.clone()));
             }
         }
 
-        // We know we'll consume the line now, so make this official.
-        self.source = rest.0;
-
-        // Actually investigate the line now.
-        let (line, depth) = depth(line).unwrap();
-        if depth > self.previous_depth {
-            self.in_header = true;
-        } else if depth < self.previous_depth {
-            self.in_header = false;
-        }
-        self.previous_depth = depth;
-
-        if let Ok((_, (prefix, body))) = prefix_block_regular(line) {
-            self.block_state = Some(BlockSpec {
-                depth,
-                line_prefix: Some(prefix.0),
-                start_prefix: prefix.0,
-            });
-            self.buffer = Ending::Line;
-            return Some(Token::StartPrefixBlock2 {
-                depth,
-                prefix: prefix.0,
-                first_line: body.0,
-            });
-        } else if let Ok((_, (prefix, syntax))) = prefix_block_syntax(line) {
-            self.block_state = Some(BlockSpec {
-                depth,
-                line_prefix: Some(prefix.0),
-                start_prefix: prefix.0,
-            });
-            self.buffer = Ending::Line;
-            return Some(Token::StartPrefixBlock {
-                depth,
-                prefix: prefix.0,
-                syntax: syntax.0,
-            });
-        }
-
-        // Start parsing a header or a regular line.
-        self.in_header =
-            self.in_header && LineTokenizer::new_header(line.0).all(|t| t.is_header_token());
-        if self.in_header {
-            self.line_tokenizer = Some(LineTokenizer::new_header(line.0));
-        } else {
-            self.line_tokenizer = Some(LineTokenizer::new(line.0));
-        }
-
-        return Some(Token::StartLine(depth));
+        tags.into_iter().chain(child_tags.into_iter())
     }
-}
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum Token<S> {
-    /// Text block delimited by indention.
-    ///
-    /// ```notrust
-    /// [ ][ ][ ]Some text at depth - 1[prefix][syntax] <- Matched suffix
-    /// [ ][ ][ ][ ]Blocks of indented text follow...
-    /// ```
-    StartIndentBlock {
-        prefix: S,
-        syntax: S,
-    },
-
-    /// Syntax-specifying first line of a prefix delimited text block.
-    ///
-    /// The syntax string starts with a non-whitespace character and touches the prefix character.
-    ///
-    /// ```notrust
-    /// [ ][ ][ ][ ][prefix][syntax] <- matched line
-    /// [ ][ ][ ][ ][prefix] Lines of body text follow...
-    /// ```
-    StartPrefixBlock {
-        depth: usize,
-        prefix: S,
-        syntax: S,
-    },
-
-    /// First line of a syntaxless prefix delimited block
-    ///
-    /// ```notrust
-    /// [ ][ ][ ][ ][prefix] Lines of body text.
-    /// ```
-    StartPrefixBlock2 {
-        depth: usize,
-        prefix: S,
-        first_line: S,
-    },
-
-    /// Further line in a text block started earlier.
-    BlockLine {
-        depth: usize,
-        prefix: Option<S>,
-        text: S,
-    },
-
-    /// End block with the given prefix.
-    EndBlock(S),
-
-    /// Start of a regular, non text block outline line at given depth.
-    StartLine(usize),
-
-    WikiTitle(S),
-    AliasDefinition(S),
-    TagDefinition(S),
-
-    TextFragment(S),
-    WhitespaceFragment(S),
-    UrlFragment(S),
-    WikiWordFragment(S),
-    VerbatimFragment(S),
-    FileLinkFragment(S),
-    AliasLinkFragment(S),
-    InlineImageFragment(S),
-    ImportanceMarkerFragment,
-    NewLine,
-}
-
-impl<S> Token<S> {
-    fn is_header_token(&self) -> bool {
-        match self {
-            Token::WhitespaceFragment(_) => true,
-            Token::AliasDefinition(_) => true,
-            Token::TagDefinition(_) => true,
+    /// Return true if outline is a block and should be preformatted.
+    pub fn is_preformatted_block(&self) -> bool {
+        match self.body {
+            OutlineBody::Block { ref prefix, .. } => match prefix.as_str() {
+                "" | ":" | ">" | "'''" => false,
+                _ => true,
+            },
             _ => false,
         }
     }
 
-    pub fn map<T>(self, f: impl Fn(S) -> T + Copy) -> Token<T> {
-        use Token::*;
-        match self {
-            StartIndentBlock { prefix, syntax } => StartIndentBlock {
-                prefix: f(prefix),
-                syntax: f(syntax),
-            },
+    fn can_be_header(&self) -> bool {
+        match self.body {
+            OutlineBody::Line(ref fs) => fs.iter().all(|f| f.can_be_header()),
+            _ => false,
+        }
+    }
 
-            StartPrefixBlock {
-                depth,
-                prefix,
-                syntax,
-            } => StartPrefixBlock {
-                depth,
-                prefix: f(prefix),
-                syntax: f(syntax),
-            },
-
-            StartPrefixBlock2 {
-                depth,
-                prefix,
-                first_line,
-            } => StartPrefixBlock2 {
-                depth,
-                prefix: f(prefix),
-                first_line: f(first_line),
-            },
-
-            BlockLine {
-                depth,
-                prefix,
-                text,
-            } => BlockLine {
-                depth,
-                prefix: prefix.map(f),
-                text: f(text),
-            },
-
-            StartLine(d) => StartLine(d),
-            EndBlock(s) => EndBlock(f(s)),
-            WikiTitle(s) => WikiTitle(f(s)),
-            AliasDefinition(s) => AliasDefinition(f(s)),
-            TagDefinition(s) => TagDefinition(f(s)),
-            TextFragment(s) => TextFragment(f(s)),
-            WhitespaceFragment(s) => WhitespaceFragment(f(s)),
-            UrlFragment(s) => UrlFragment(f(s)),
-            WikiWordFragment(s) => WikiWordFragment(f(s)),
-            VerbatimFragment(s) => VerbatimFragment(f(s)),
-            FileLinkFragment(s) => FileLinkFragment(f(s)),
-            AliasLinkFragment(s) => AliasLinkFragment(f(s)),
-            InlineImageFragment(s) => InlineImageFragment(f(s)),
-            ImportanceMarkerFragment => ImportanceMarkerFragment,
-            NewLine => NewLine,
+    fn fragments(&self) -> impl Iterator<Item = &Fragment> {
+        match self.body {
+            OutlineBody::Line(ref fs) => fs.iter(),
+            OutlineBody::Block {
+                indent_line: Some(ref fs),
+                ..
+            } => fs.iter(),
+            _ => (&[]).iter(),
         }
     }
 }
 
-impl<S: Deref<Target = str> + fmt::Display> fmt::Display for Token<S> {
+impl FromStr for Outline {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match outline(0, CompleteStr(s)) {
+            Ok((_, ret)) => Ok(ret),
+            Err(_) => Err(()),
+        }
+    }
+}
+
+impl fmt::Display for Outline {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use Token::*;
+        use OutlineBody::*;
+
+        fn indent(f: &mut fmt::Formatter, i: usize) -> fmt::Result {
+            for _ in 1..i {
+                write!(f, "\t")?;
+            }
+            Ok(())
+        }
+
+        if self.depth > 0 {
+            match self.body {
+                Line(ref line) => {
+                    indent(f, self.depth)?;
+                    for x in line {
+                        write!(f, "{}", x)?;
+                    }
+                    writeln!(f)?;
+                }
+                Block {
+                    ref indent_line,
+                    ref syntax,
+                    ref prefix,
+                    ref lines,
+                    ..
+                } => {
+                    if let Some(line) = indent_line {
+                        // It's an indent block.
+                        indent(f, self.depth)?;
+                        for x in line {
+                            write!(f, "{}", x)?;
+                        }
+                        write!(f, "{}", prefix)?;
+                        if let Some(syntax) = syntax {
+                            write!(f, "{}", syntax)?;
+                        }
+                        writeln!(f)?;
+
+                        for line in lines {
+                            if line.is_empty() {
+                                writeln!(f)?;
+                            } else {
+                                indent(f, self.depth + 1)?;
+                                writeln!(f, "{}", line)?;
+                            }
+                        }
+                    } else {
+                        // It's a prefix block
+                        if let Some(syntax) = syntax {
+                            indent(f, self.depth)?;
+                            writeln!(f, "{}{}", prefix, syntax)?;
+                        }
+                        for line in lines {
+                            if line.is_empty() && prefix.is_empty() {
+                                writeln!(f)?;
+                            } else {
+                                indent(f, self.depth)?;
+                                writeln!(f, "{} {}", prefix, line)?;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for c in &self.children {
+            c.fmt(f)?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
+enum OutlineBody {
+    Line(Vec<Fragment>),
+    Block {
+        // An indent block gets the preceding line as a part of the block.
+        // The block is an indent block if `indent_line` exists.
+        indent_line: Option<Vec<Fragment>>,
+        syntax: Option<String>,
+        prefix: String,
+        lines: Vec<String>,
+    },
+}
+
+impl default::Default for OutlineBody {
+    fn default() -> Self {
+        OutlineBody::Line(Vec::new())
+    }
+}
+
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub enum TagAddress {
+    LineNum(usize),
+    Search(String),
+}
+
+impl fmt::Display for TagAddress {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            StartIndentBlock { prefix, syntax } => write!(f, "{}{}", prefix, syntax),
-            StartPrefixBlock {
-                depth,
-                prefix,
-                syntax,
-            } => {
-                for _ in 1..*depth {
-                    write!(f, "\t")?;
-                }
-                write!(f, "{}{}", prefix, syntax)
-            }
-            StartPrefixBlock2 {
-                depth,
-                prefix,
-                first_line,
-            } => {
-                for _ in 1..*depth {
-                    write!(f, "\t")?;
-                }
-                write!(f, "{} {}", prefix, first_line)
-            }
-            BlockLine {
-                depth,
-                text,
-                prefix,
-            } => {
-                for _ in 1..*depth {
-                    write!(f, "\t")?;
-                }
-                if let Some(prefix) = prefix {
-                    write!(f, "{} ", prefix)?;
-                }
-                write!(f, "{}", text)
-            }
-            EndBlock(_) => Ok(()),
-            StartLine(depth) => {
-                for _ in 1..*depth {
-                    write!(f, "\t")?;
-                }
-                Ok(())
-            }
-            WikiTitle(t) => write!(f, "{}", t),
-            AliasDefinition(t) => write!(f, "({})", t),
-            TagDefinition(t) => write!(f, "@{}", t),
-            TextFragment(t) | WhitespaceFragment(t) | UrlFragment(t) | WikiWordFragment(t) => {
-                write!(f, "{}", t)
-            }
-            VerbatimFragment(t) => write!(f, "`{}`", t),
-            FileLinkFragment(t) | AliasLinkFragment(t) => write!(f, "[{}]", t),
-            InlineImageFragment(t) => write!(f, "![{}]", t),
-            ImportanceMarkerFragment => write!(f, " *"),
-            NewLine => writeln!(f),
+            TagAddress::LineNum(n) => write!(f, "{}", n),
+            TagAddress::Search(expr) => write!(f, "/^\\t\\*{}$/", expr),
         }
     }
 }
 
-/// Describe the state of the text block object currently being processed.
-///
-/// Indent blocks get `None` for prefix since their block lines are marked by indentation only.
-struct BlockSpec<'a> {
-    depth: usize,
-    line_prefix: Option<&'a str>,
-    start_prefix: &'a str,
+/// Parse text into an outline
+fn outline(depth: usize, input: CompleteStr<'_>) -> nom::IResult<CompleteStr<'_>, Outline> {
+    let (rest, (body_depth, body)) = if depth == 0 {
+        // Depth 0 means we're parsing an entire line and the parent line doesn't exist.
+        Ok((input, (0, OutlineBody::default())))
+    } else {
+        outline_body(depth, input)
+    }?;
+
+    let (rest, children) = child_outlines(body_depth + 1, rest)?;
+
+    Ok((
+        rest,
+        Outline {
+            depth: body_depth,
+            body,
+            children,
+        },
+    ))
 }
+
+fn outline_body(
+    min_indent: usize,
+    input: CompleteStr<'_>,
+) -> nom::IResult<CompleteStr<'_>, (usize, OutlineBody)> {
+    let (line_start, d) = depth(input).unwrap();
+    if d < min_indent {
+        return nom_err(input);
+    }
+
+    if let Ok((rest, _)) = empty_line(input) {
+        return Ok((rest, (min_indent, OutlineBody::default())));
+    }
+
+    if let Ok(ret) = prefix_block(min_indent, input) {
+        return Ok(ret);
+    }
+
+    let mut line = Vec::new();
+    let mut current = line_start;
+    loop {
+        if let Ok((rest, _)) = alt!(current, line_ending | eof!()) {
+            return Ok((rest, (d, OutlineBody::Line(line))));
+        }
+
+        if let Ok((rest, (prefix, syntax))) = indent_block_start(current) {
+            let (rest, lines) = indent_block_lines(d + 1, rest).unwrap_or((rest, Vec::new()));
+            return Ok((
+                rest,
+                (
+                    d,
+                    OutlineBody::Block {
+                        indent_line: Some(line),
+                        syntax: syntax.map(|s| s.to_string()),
+                        prefix: prefix.to_string(),
+                        lines: lines,
+                    },
+                ),
+            ));
+        }
+
+        if let Ok((rest, f)) = fragment(current) {
+            line.push(f);
+            current = rest;
+        } else {
+            break;
+        }
+    }
+    Ok((current, (d, OutlineBody::Line(line))))
+}
+
+// Return indent and body on match.
+fn prefix_block(
+    min_indent: usize,
+    input: CompleteStr,
+) -> nom::IResult<CompleteStr, (usize, OutlineBody)> {
+    fn prefix_block_line<'a>(
+        indent: usize,
+        prefix: &str,
+        input: CompleteStr<'a>,
+    ) -> nom::IResult<CompleteStr<'a>, CompleteStr<'a>> {
+        debug_assert!(indent > 0);
+
+        // Allow empty lines in space-prefix blocks that don't need to have even the indent.
+        if prefix.is_empty() {
+            if let Ok((rest, _)) = empty_line(input) {
+                return Ok((rest, CompleteStr("")));
+            }
+        }
+
+        // Allow non-empty prefix to be separated from text with tab as well as space, to avoid the
+        // more confusing alternative of parsing a non-empty prefix + tab as a syntax line.
+        do_parse!(
+            input,
+            count!(tag!("\t"), indent - 1)
+                >> terminated!(
+                    tag!(prefix),
+                    one_of!(if prefix.is_empty() { " " } else { " \t" })
+                )
+                >> body: complete_line
+                >> (body)
+        )
+    }
+
+    fn prefix_block_syntax_line<'a>(
+        indent: usize,
+        prefix: &str,
+        input: CompleteStr<'a>,
+    ) -> nom::IResult<CompleteStr<'a>, CompleteStr<'a>> {
+        debug_assert!(indent > 0);
+        if prefix.is_empty() {
+            return nom_err(input);
+        }
+
+        do_parse!(
+            input,
+            count!(tag!("\t"), indent - 1)
+                >> tag!(prefix)
+                // XXX: Ugly, using recognize! on complete_line seems to pull in the trailing
+                // newline.
+                >> body: verify!(complete_line, |s: CompleteStr| match s.chars().next() {
+                    Some(' ') | Some('\t') | None => false,
+                    _ => true })
+                >> (body)
+        )
+    }
+
+    // Need to figure out the depth here, since it's allowed to be deeper than min_indent.
+    let mut indent = 1;
+    let mut prefix = String::new();
+
+    for c in input.chars() {
+        match c {
+            '\t' => {
+                indent += 1;
+            }
+            ':' | ';' | '>' | '<' => {
+                prefix = format!("{}", c);
+                break;
+            }
+            ' ' => break,
+            _ => return nom_err(input),
+        }
+    }
+    if indent < min_indent {
+        return nom_err(input);
+    }
+
+    let (rest, (syntax, lines)) = pair!(
+        input,
+        opt!(|i| prefix_block_syntax_line(indent, &prefix, i)),
+        many0!(|i| prefix_block_line(indent, &prefix, i))
+    )?;
+
+    if syntax.is_none() && lines.is_empty() {
+        return nom_err(input);
+    }
+
+    Ok((
+        rest,
+        (
+            indent,
+            OutlineBody::Block {
+                indent_line: None,
+                syntax: syntax.map(|s| s.to_string()),
+                prefix,
+                lines: lines.into_iter().map(|s| s.to_string()).collect(),
+            },
+        ),
+    ))
+}
+
+fn child_outlines(
+    min_indent: usize,
+    input: CompleteStr<'_>,
+) -> nom::IResult<CompleteStr<'_>, Vec<Outline>> {
+    let outline = |i| outline(min_indent, i);
+
+    many0!(input, outline)
+}
+
+/// Parse text block delimited only by sufficient indentation.
+fn indent_block_lines(
+    min_indent: usize,
+    input: CompleteStr,
+) -> nom::IResult<CompleteStr, Vec<String>> {
+    many0!(input, |i| indent_block_line(min_indent, i))
+}
+
+fn indent_block_line(
+    expected_indent: usize,
+    input: CompleteStr,
+) -> nom::IResult<CompleteStr, String> {
+    alt!(
+        input,
+        map!(empty_line, |_| String::new())
+            | map!(
+                preceded!(count!(tag!("\t"), expected_indent - 1), complete_line),
+                |s| s.to_string()
+            )
+    )
+}
+
+/// Line element fragments.
+#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
+pub enum Fragment {
+    WikiWord(String),
+    Verbatim(String),
+    InlineImage(String),
+    FileLink(String),
+    AliasLink(String),
+    AliasDefinition(String),
+    TagLink(String),
+    Url(String),
+    ImportanceMarker,
+    Text(String),
+}
+
+impl Fragment {
+    /// Return whether the fragment can be part of an outline header.
+    ///
+    /// The header is the initial lines of the outline that can only contain alias definitions and
+    /// tag declarations.
+    fn can_be_header(&self) -> bool {
+        use Fragment::*;
+        match self {
+            TagLink(_) | AliasDefinition(_) => true,
+            Text(ref s) => s.chars().all(|c| c.is_whitespace()),
+            _ => false,
+        }
+    }
+}
+
+impl fmt::Display for Fragment {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Fragment::*;
+        match self {
+            Verbatim(s) => write!(f, "`{}`", s),
+            InlineImage(s) => write!(f, "![{}]", s),
+            FileLink(s) | AliasLink(s) => write!(f, "[{}]", s),
+            AliasDefinition(s) => write!(f, "({})", s),
+            TagLink(s) => write!(f, "@{}", s),
+            ImportanceMarker => write!(f, " *"),
+            Url(s) | WikiWord(s) | Text(s) => write!(f, "{}", s),
+        }
+    }
+}
+
+fn fragment(input: CompleteStr) -> nom::IResult<CompleteStr, Fragment> {
+    if alt!(input, line_ending | eof!()).is_ok() {
+        return nom_err(input);
+    }
+    if indent_block_start(input).is_ok() {
+        return nom_err(input);
+    }
+    if let Ok(ret) = terminable_fragment(input) {
+        return Ok(ret);
+    }
+
+    let mut pos = 0;
+    while let Some(next_p) = &input[pos..].char_indices().skip(1).next().map(|(i, _)| i) {
+        debug_assert!(*next_p > 0);
+        pos += *next_p;
+        if terminable_fragment(CompleteStr(&input[pos..])).is_ok() {
+            break;
+        }
+        if indent_block_start(CompleteStr(&input[pos..])).is_ok() {
+            break;
+        }
+        if alt!(&input[pos..], line_ending | eof!()).is_ok() {
+            break;
+        }
+    }
+
+    if pos > 0 {
+        Ok((
+            CompleteStr(&input[pos..]),
+            Fragment::Text(input[..pos].to_string()),
+        ))
+    } else {
+        nom_err(input)
+    }
+}
+
+// Fragments whose end can be determined using nom.
+// Text is the "all the other stuff" fragment that is handled in the main framgent function.
+named!(terminable_fragment<CompleteStr, Fragment>,
+    alt!(map!(wiki_word, |s| Fragment::WikiWord(s.to_string()))
+       | map!(verbatim, |s| Fragment::Verbatim(s.to_string()))
+       | map!(inline_image, |s| Fragment::InlineImage(s.to_string()))
+       | map!(file_link, |s| Fragment::FileLink(s.to_string()))
+       | map!(alias_link, |s| Fragment::AliasLink(s.to_string()))
+       | map!(alias_definition, |s| Fragment::AliasDefinition(s.to_string()))
+       | map!(tag_link, |s| Fragment::TagLink(s.to_string()))
+       | map!(url, |s| Fragment::Url(s.to_string()))
+       | map!(importance_marker, |_| Fragment::ImportanceMarker)
+    ));
+
+named!(wiki_word_segment<CompleteStr, CompleteStr>,
+    recognize!(pair!(wiki_word_segment_head, wiki_word_segment_tail)));
+
+named!(wiki_word_segment_head<CompleteStr, char>,
+    // XXX: Is there a nice concise way to get |c| c.is_uppercase() here instead?
+    one_of!("ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+
+named!(wiki_word_segment_tail<CompleteStr, CompleteStr>,
+    take_while1!(|c: char| c.is_lowercase() || c.is_numeric()));
+
+named!(wiki_word<CompleteStr, CompleteStr>,
+    terminated!(
+        recognize!(pair!(wiki_word_segment, many1!(wiki_word_segment))),
+        peek!(not!(wiki_word_segment_head))));
+
+named!(empty_line<CompleteStr, CompleteStr>,
+    terminated!(recognize!(many0!(one_of!(" \t"))), alt!(line_ending | eof!())));
+
+named!(depth<CompleteStr, usize>,
+       map!(take_while!(|c| c == '\t'), |s| s.len() + 1));
+
+named!(complete_line<CompleteStr, CompleteStr>,
+    terminated!(take_while!(|c| c != '\n' && c != '\r'), alt!(line_ending | eof!())));
+
+named!(verbatim<CompleteStr, CompleteStr>,
+    delimited!(tag!("`"), take_while!(|c| c != '`'), tag!("`")));
+
+named!(url<CompleteStr, CompleteStr>,
+    recognize!(pair!(
+        alt!(tag!("https://") | tag!("http://") | tag!("ftp://")),
+        take_while!(is_url_char))));
+
+named!(inline_image<CompleteStr, CompleteStr>,
+    delimited!(tag!("!["), take_while!(is_path_char), tag!("]")));
+
+named!(file_link<CompleteStr, CompleteStr>,
+    delimited!(
+        tag!("["),
+        recognize!(pair!(
+                alt!(tag!("./") | tag!("../")),
+                take_while!(is_path_char))),
+        tag!("]")));
+
+named!(alias_definition<CompleteStr, CompleteStr>,
+    delimited!(tag!("("), take_while!(is_alias_char), tag!(")")));
+
+named!(alias_link<CompleteStr, CompleteStr>,
+    delimited!(tag!("["), take_while!(is_alias_char), tag!("]")));
+
+named!(tag_link<CompleteStr, CompleteStr>,
+    preceded!(tag!("@"), take_while!(is_tag_char)));
+
+named!(importance_marker<CompleteStr, CompleteStr>,
+    terminated!(tag!(" *"), peek!(alt!(line_ending | eof!()))));
+
+named!(indent_block_with_syntax<CompleteStr, (CompleteStr, Option<CompleteStr>)>,
+    map!(pair!(alt!(tag!("'''") | tag!("```")), complete_line), |(a, b)| (a, if b.is_empty() { None } else { Some(b) })));
+
+named!(indent_block_trail<CompleteStr, (CompleteStr, Option<CompleteStr>)>,
+    map!(terminated!(alt!(tag!(">") | tag!(";")), alt!(line_ending | eof!())), |p| (p, None)));
+
+named!(indent_block_start<CompleteStr, (CompleteStr, Option<CompleteStr>)>,
+    alt!(indent_block_with_syntax | indent_block_trail));
 
 /// Character that can show up in an URL.
 ///
@@ -427,285 +649,45 @@ fn is_tag_char(c: char) -> bool {
     }
 }
 
-/// Parse the entire line, match sufficiently indented indent text block
-fn indent_block_line(
-    expected_indent: usize,
-    input: CompleteStr,
-) -> nom::IResult<CompleteStr, CompleteStr> {
-    alt!(
-        input,
-        map!(empty_line, |_| CompleteStr(""))
-            | preceded!(count!(tag!("\t"), expected_indent - 1), complete_line)
-    )
-}
-
-fn prefix_block_line<'a>(
-    expected_indent: usize,
-    prefix: &str,
-    input: CompleteStr<'a>,
-) -> nom::IResult<CompleteStr<'a>, CompleteStr<'a>> {
-    if prefix.is_empty() {
-        if let Ok((rest, _)) = empty_line(input) {
-            return Ok((rest, CompleteStr("")));
-        }
-    }
-
-    do_parse!(
-        input,
-        count!(tag!("\t"), expected_indent - 1)
-            >> terminated!(tag!(prefix), tag!(" "))
-            >> body: complete_line
-            >> (body)
-    )
-}
-
-named!(prefix_block_regular<CompleteStr, (CompleteStr, CompleteStr)>,
-    pair!(
-        map!(terminated!(
-            opt!(alt!(tag!(":") | tag!(">") | tag!("<") | tag!(";"))),
-            tag!(" ")), |t| t.unwrap_or(CompleteStr(""))),
-        complete_line));
-
-named!(prefix_block_syntax<CompleteStr, (CompleteStr, CompleteStr)>,
-    pair!(
-        alt!(tag!(":") | tag!(">") | tag!("<") | tag!(";")),
-        complete_line));
-
-named!(wiki_word_segment_head<CompleteStr, char>,
-    // XXX: Is there a nice concise way to get |c| c.is_uppercase() here instead?
-    one_of!("ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
-
-named!(wiki_word_segment_tail<CompleteStr, CompleteStr>,
-    take_while1!(|c: char| c.is_lowercase() || c.is_numeric()));
-
-named!(wiki_word_segment<CompleteStr, CompleteStr>,
-    recognize!(pair!(wiki_word_segment_head, wiki_word_segment_tail)));
-
-named!(wiki_word<CompleteStr, CompleteStr>,
-    terminated!(
-        recognize!(pair!(wiki_word_segment, many1!(wiki_word_segment))),
-        peek!(not!(wiki_word_segment_head))));
-
-named!(empty_line<CompleteStr, CompleteStr>,
-    terminated!(take_while!(|c: char| c.is_whitespace()), alt!(line_ending | eof!())));
-
-named!(depth<CompleteStr, usize>,
-       map!(take_while!(|c| c == '\t'), |s| s.len() + 1));
-
-named!(complete_line<CompleteStr, CompleteStr>,
-    terminated!(take_while!(|c| c != '\n' && c != '\r'), alt!(line_ending | eof!())));
-
-named!(verbatim<CompleteStr, CompleteStr>,
-    delimited!(tag!("`"), take_while!(|c| c != '`'), tag!("`")));
-
-named!(url<CompleteStr, CompleteStr>,
-    recognize!(pair!(
-        alt!(tag!("https://") | tag!("http://") | tag!("ftp://")),
-        take_while!(is_url_char))));
-
-named!(inline_image<CompleteStr, CompleteStr>,
-    delimited!(tag!("!["), take_while!(is_path_char), tag!("]")));
-
-named!(file_link<CompleteStr, CompleteStr>,
-    delimited!(
-        tag!("["),
-        recognize!(pair!(
-                alt!(tag!("./") | tag!("../")),
-                take_while!(is_path_char))),
-        tag!("]")));
-
-named!(alias_link<CompleteStr, CompleteStr>,
-    delimited!(tag!("["), take_while!(is_alias_char), tag!("]")));
-
-named!(alias_definition<CompleteStr, CompleteStr>,
-    delimited!(tag!("("), take_while!(is_alias_char), tag!(")")));
-
-named!(tag_definition<CompleteStr, CompleteStr>,
-    preceded!(tag!("@"), take_while!(is_tag_char)));
-
-named!(importance_marker<CompleteStr, CompleteStr>,
-    terminated!(tag!(" *"), eof!()));
-
-named!(indent_block_with_syntax<CompleteStr, (CompleteStr, CompleteStr)>,
-    pair!(alt!(tag!("'''") | tag!("```")), complete_line));
-
-named!(indent_block_trail<CompleteStr, (CompleteStr, CompleteStr)>,
-    map!(terminated!(alt!(tag!(">") | tag!(";")), eof!()), |p| (p, CompleteStr(""))));
-
-named!(indent_block<CompleteStr, (CompleteStr, CompleteStr)>,
-    alt!(indent_block_with_syntax | indent_block_trail));
-
-struct LineTokenizer<'a> {
-    text: &'a str,
-    current_pos: usize,
-    token_start: usize,
-    can_start_url: bool,
-    can_start_wiki_word: bool,
-    header_mode: bool,
-    buffer: Option<Token<&'a str>>,
-    is_first: bool,
-}
-
-impl<'a> LineTokenizer<'a> {
-    pub fn new(text: &'a str) -> LineTokenizer<'a> {
-        LineTokenizer {
-            text,
-            current_pos: 0,
-            token_start: 0,
-            can_start_url: true,
-            can_start_wiki_word: true,
-            header_mode: false,
-            buffer: None,
-            is_first: true,
-        }
-    }
-
-    pub fn new_header(text: &'a str) -> LineTokenizer<'a> {
-        LineTokenizer {
-            text,
-            current_pos: 0,
-            token_start: 0,
-            can_start_url: true,
-            can_start_wiki_word: true,
-            header_mode: true,
-            buffer: None,
-            is_first: true,
-        }
-    }
-
-    /// Flush pending text out as a token.
-    ///
-    /// This is called when a non-text token is detected.
-    fn flush_text(&mut self) -> Option<Token<&'a str>> {
-        if self.current_pos > self.token_start {
-            let text = &self.text[self.token_start..self.current_pos];
-            self.token_start = self.current_pos;
-            if text.chars().all(|c| c.is_whitespace()) {
-                Some(Token::WhitespaceFragment(text))
-            } else {
-                Some(Token::TextFragment(text))
-            }
-        } else {
-            None
-        }
-    }
-
-    /// Try a parser function against the current input.
-    fn test(
-        &mut self,
-        f: impl Fn(CompleteStr) -> nom::IResult<CompleteStr, CompleteStr>,
-    ) -> Option<(&'a str, usize)> {
-        match f(CompleteStr(&self.text[self.current_pos..])) {
-            Ok((rest, result)) => Some((result.0, self.text.len() - rest.0.len())),
-            _ => None,
-        }
-    }
-
-    /// Queue a new token, return either that or the pending text token.
-    fn queue(&mut self, tok: Token<&'a str>, new_pos: usize) -> Option<Token<&'a str>> {
-        debug_assert!(self.buffer.is_none());
-        let ret = if let Some(t) = self.flush_text() {
-            self.buffer = Some(tok);
-            Some(t)
-        } else {
-            if let Token::WikiWordFragment(w) = tok {
-                if self.is_first && self.text[new_pos..].is_empty() {
-                    Some(Token::WikiTitle(w))
-                } else {
-                    Some(tok)
-                }
-            } else {
-                Some(tok)
-            }
-        };
-        self.current_pos = new_pos;
-        self.token_start = new_pos;
-        self.is_first = false;
-        ret
-    }
-}
-
-impl<'a> Iterator for LineTokenizer<'a> {
-    type Item = Token<&'a str>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // Return item stored from previous call.
-        if let Some(t) = self.buffer {
-            self.buffer = None;
-            return Some(t);
-        }
-
-        while let Some(c) = &self.text[self.current_pos..].chars().next() {
-            if let Ok((rest, (prefix, syntax))) =
-                indent_block(CompleteStr(&self.text[self.current_pos..]))
-            {
-                return self.queue(
-                    Token::StartIndentBlock {
-                        prefix: prefix.0,
-                        syntax: syntax.0,
-                    },
-                    self.text.len() - rest.len(),
-                );
-            }
-            if let Some((inner, new_pos)) = self.test(verbatim) {
-                return self.queue(Token::VerbatimFragment(inner), new_pos);
-            }
-            if self.can_start_url {
-                if let Some((inner, new_pos)) = self.test(url) {
-                    self.can_start_url = false;
-                    return self.queue(Token::UrlFragment(inner), new_pos);
-                }
-            }
-            if let Some((inner, new_pos)) = self.test(inline_image) {
-                return self.queue(Token::InlineImageFragment(inner), new_pos);
-            }
-            if let Some((inner, new_pos)) = self.test(file_link) {
-                return self.queue(Token::FileLinkFragment(inner), new_pos);
-            }
-            if let Some((inner, new_pos)) = self.test(alias_link) {
-                return self.queue(Token::AliasLinkFragment(inner), new_pos);
-            }
-            if self.header_mode {
-                if let Some((inner, new_pos)) = self.test(alias_definition) {
-                    return self.queue(Token::AliasDefinition(inner), new_pos);
-                }
-                if let Some((inner, new_pos)) = self.test(tag_definition) {
-                    return self.queue(Token::TagDefinition(inner), new_pos);
-                }
-            }
-            if let Some((_, new_pos)) = self.test(importance_marker) {
-                return self.queue(Token::ImportanceMarkerFragment, new_pos);
-            }
-            if self.can_start_wiki_word {
-                if let Some((inner, new_pos)) = self.test(wiki_word) {
-                    self.can_start_url = false;
-                    return self.queue(Token::WikiWordFragment(inner), new_pos);
-                }
-            }
-            self.can_start_url = !is_url_char(*c);
-            self.can_start_wiki_word = !c.is_alphanumeric();
-            self.current_pos += c.len_utf8();
-        }
-
-        return self.flush_text();
-    }
+/// Helper function for the verbose Nom error expression
+fn nom_err<I, T>(input: I) -> nom::IResult<I, T> {
+    return Err(nom::Err::Error(Context::Code(input, ErrorKind::Custom(1))));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use nom::types::CompleteStr as S;
+    use ron;
 
-    fn parse(input: &str) -> String {
-        let mut buf = String::new();
-        for t in Lexer::new(input) {
-            buf.push_str(&format!("{:?}", t));
-        }
-        buf
+    fn parse_test(input: &str, output: &str) {
+        let outline: Outline = input.parse().unwrap();
+        // Outline type must echo back verbatim (except maybe trailing whitespace)
+
+        println!(
+            "{}",
+            ron::ser::to_string_pretty(&outline, Default::default()).unwrap()
+        );
+
+        // Provide more eyeballable outputs in case the test fails.
+        println!("{}", input); // This is what you want
+        println!("{}", outline); // This is what you get
+
+        assert_eq!(&format!("{}", outline), input);
+
+        // Check that the parse result matches the example serialization.
+        assert_eq!(outline, ron::de::from_str(output).unwrap());
     }
 
     #[test]
     fn test_components() {
+        assert!(empty_line(S("")).is_ok());
+        assert!(empty_line(S(" ")).is_ok());
+        assert!(empty_line(S("\t")).is_ok());
+        assert!(empty_line(S("\t\t ")).is_ok());
+        assert!(empty_line(S("\n")).is_ok());
+        assert!(empty_line(S("\njunk")).is_ok());
+
         assert!(importance_marker(S(" *")).is_ok());
         assert!(importance_marker(S("")).is_err());
         assert!(importance_marker(S(" * x")).is_err());
@@ -721,7 +703,7 @@ mod tests {
 
         assert_eq!(
             indent_block_line(3, S("\t\t\tcode")),
-            Ok((S(""), S("\tcode")))
+            Ok((S(""), "\tcode".to_string()))
         );
         assert!(indent_block_line(3, S("\tcode")).is_err());
 
@@ -737,13 +719,32 @@ mod tests {
     }
 
     #[test]
-    fn test_parsing() {
-        assert_eq!(parse(""), "");
+    fn test_full_outline() {
+        parse_test(
+            include_str!("../test/test.otl"),
+            include_str!("../test/test.ron"),
+        );
+        parse_test(
+            include_str!("../test/otlbook.otl"),
+            include_str!("../test/otlbook.ron"),
+        );
+    }
+
+    #[test]
+    fn test_aliases() {
+        let outline: Outline = "(Alias) (A2)\nSeparator\n(A3)".parse().unwrap();
         assert_eq!(
-            parse("; A\nB"),
-            "StartPrefixBlock2 { depth: 1, prefix: \";\", \
-             first_line: \"A\" }NewLineEndBlock(\";\")StartLine(1)\
-             TextFragment(\"B\")NewLine"
+            outline.aliases().cloned().collect::<Vec<String>>(),
+            vec!["Alias", "A2"]
+        );
+    }
+
+    #[test]
+    fn test_tags() {
+        let outline: Outline = "@tag1 @tag2\nSeparator\n@tag3".parse().unwrap();
+        assert_eq!(
+            outline.tags().cloned().collect::<Vec<String>>(),
+            vec!["tag1", "tag2"]
         );
     }
 }

@@ -6,3 +6,5 @@ edition = "2018"
 
 [dependencies]
 nom = "4"
+serde = "1"
+ron = "0.4"
