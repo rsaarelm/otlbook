@@ -1,0 +1,49 @@
+Example outline
+Important line *
+Line with url http://example.com/
+WikiTitle
+	(Alias)
+	@tag
+	@tag2 @tag3
+	Out of the header
+	(Not-alias)
+Blocks test
+	Two blocks
+		;syntax
+		; one
+		;syntax
+		; two
+	Space indent
+		 spaced
+
+		 must handle empty lines...
+	Other
+		: block
+		> block
+		< block
+	Indent 1>
+		Indented
+
+		block
+	Indent 2;
+		stuff
+
+		More stuff
+	Indent3```
+		test
+	Indent3```with a syntax
+		test too
+	Indent4'''
+		foo
+	Indent4'''syntax
+		bar
+	Tables
+		| Table | mode |
+		|-------+------|
+		| 1     | 2    |
+		| 3     | 4    |
+	Links
+		To WikiWord
+		To [./local-file.txt]
+		To ![image.png]
+		To [Alias]

@@ -11,6 +11,13 @@ run-server:
 test:
 	cargo test --all
 
+regenerate-test-outputs:
+	# ONLY RUN THIS WHEN CHANGING Outline TYPE STRUCTURE
+	# Re-dumps the test inputs using RON.
+	# If you run this while there are known bugs in the parser, you will
+	# invalidate tests.
+	for X in parser/test/*.otl; do cargo run echo --debug < $$X > parser/test/`basename $$X .otl`.ron; done
+
 pkg/chunk.js: pkg/${PROJECT}_bg.wasm
 	rm -f pkg/chunk.js
 	echo "let code='`base64 -w0 $<`';" >> pkg/chunk.js
