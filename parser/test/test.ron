@@ -1,0 +1,373 @@
+(
+    depth: 0,
+    body: Line([
+    ]),
+    children: [
+        (
+            depth: 1,
+            body: Line([
+                Text("Example outline"),
+            ]),
+            children: [
+            ],
+        ),
+        (
+            depth: 1,
+            body: Line([
+                Text("Important line"),
+                ImportanceMarker,
+            ]),
+            children: [
+            ],
+        ),
+        (
+            depth: 1,
+            body: Line([
+                Text("Line with url "),
+                Url("http://example.com/"),
+            ]),
+            children: [
+            ],
+        ),
+        (
+            depth: 1,
+            body: Line([
+                WikiWord("WikiTitle"),
+            ]),
+            children: [
+                (
+                    depth: 2,
+                    body: Line([
+                        AliasDefinition("Alias"),
+                    ]),
+                    children: [
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Line([
+                        TagLink("tag"),
+                    ]),
+                    children: [
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Line([
+                        TagLink("tag2"),
+                        Text(" "),
+                        TagLink("tag3"),
+                    ]),
+                    children: [
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Line([
+                        Text("Out of the header"),
+                    ]),
+                    children: [
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Line([
+                        AliasDefinition("Not-alias"),
+                    ]),
+                    children: [
+                    ],
+                ),
+            ],
+        ),
+        (
+            depth: 1,
+            body: Line([
+                Text("Blocks test"),
+            ]),
+            children: [
+                (
+                    depth: 2,
+                    body: Line([
+                        Text("Two blocks"),
+                    ]),
+                    children: [
+                        (
+                            depth: 3,
+                            body: Block(
+                                indent_line: None,
+                                syntax: Some("syntax"),
+                                prefix: ";",
+                                lines: [
+                                    "one",
+                                ],
+                            ),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Block(
+                                indent_line: None,
+                                syntax: Some("syntax"),
+                                prefix: ";",
+                                lines: [
+                                    "two",
+                                ],
+                            ),
+                            children: [
+                            ],
+                        ),
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Line([
+                        Text("Space indent"),
+                    ]),
+                    children: [
+                        (
+                            depth: 3,
+                            body: Block(
+                                indent_line: None,
+                                syntax: None,
+                                prefix: "",
+                                lines: [
+                                    "spaced",
+                                    "",
+                                    "must handle empty lines...",
+                                ],
+                            ),
+                            children: [
+                            ],
+                        ),
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Line([
+                        Text("Other"),
+                    ]),
+                    children: [
+                        (
+                            depth: 3,
+                            body: Block(
+                                indent_line: None,
+                                syntax: None,
+                                prefix: ":",
+                                lines: [
+                                    "block",
+                                ],
+                            ),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Block(
+                                indent_line: None,
+                                syntax: None,
+                                prefix: ">",
+                                lines: [
+                                    "block",
+                                ],
+                            ),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Block(
+                                indent_line: None,
+                                syntax: None,
+                                prefix: "<",
+                                lines: [
+                                    "block",
+                                ],
+                            ),
+                            children: [
+                            ],
+                        ),
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Block(
+                        indent_line: Some([
+                            Text("Indent 1"),
+                        ]),
+                        syntax: None,
+                        prefix: ">",
+                        lines: [
+                            "Indented",
+                            "",
+                            "block",
+                        ],
+                    ),
+                    children: [
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Block(
+                        indent_line: Some([
+                            Text("Indent 2"),
+                        ]),
+                        syntax: None,
+                        prefix: ";",
+                        lines: [
+                            "stuff",
+                            "",
+                            "More stuff",
+                        ],
+                    ),
+                    children: [
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Block(
+                        indent_line: Some([
+                            Text("Indent3"),
+                        ]),
+                        syntax: None,
+                        prefix: "```",
+                        lines: [
+                            "test",
+                        ],
+                    ),
+                    children: [
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Block(
+                        indent_line: Some([
+                            Text("Indent3"),
+                        ]),
+                        syntax: Some("with a syntax"),
+                        prefix: "```",
+                        lines: [
+                            "test too",
+                        ],
+                    ),
+                    children: [
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Block(
+                        indent_line: Some([
+                            Text("Indent4"),
+                        ]),
+                        syntax: None,
+                        prefix: "\'\'\'",
+                        lines: [
+                            "foo",
+                        ],
+                    ),
+                    children: [
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Block(
+                        indent_line: Some([
+                            Text("Indent4"),
+                        ]),
+                        syntax: Some("syntax"),
+                        prefix: "\'\'\'",
+                        lines: [
+                            "bar",
+                        ],
+                    ),
+                    children: [
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Line([
+                        Text("Tables"),
+                    ]),
+                    children: [
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("| Table | mode |"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("|-------+------|"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("| 1     | 2    |"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("| 3     | 4    |"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Line([
+                        Text("Links"),
+                    ]),
+                    children: [
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("To "),
+                                WikiWord("WikiWord"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("To "),
+                                FileLink("./local-file.txt"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("To "),
+                                InlineImage("image.png"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("To "),
+                                AliasLink("Alias"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ],
+)

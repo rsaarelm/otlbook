@@ -1,0 +1,1962 @@
+(
+    depth: 0,
+    body: Line([
+    ]),
+    children: [
+        (
+            depth: 1,
+            body: Block(
+                indent_line: None,
+                syntax: None,
+                prefix: "",
+                lines: [
+                    "<meta charset=\"utf-8\">",
+                ],
+            ),
+            children: [
+            ],
+        ),
+        (
+            depth: 1,
+            body: Line([
+                Text("Copyright "),
+                AliasDefinition("C"),
+                Text(" Risto Saarelma 2019"),
+            ]),
+            children: [
+            ],
+        ),
+        (
+            depth: 1,
+            body: Line([
+                Url("https://github.com/rsaarelm/otlbook"),
+            ]),
+            children: [
+            ],
+        ),
+        (
+            depth: 1,
+            body: Line([
+                Text("Otlbook introduction"),
+            ]),
+            children: [
+                (
+                    depth: 2,
+                    body: Line([
+                        Text("In five seconds"),
+                    ]),
+                    children: [
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Look at the source code of this page"),
+                                ImportanceMarker,
+                            ]),
+                            children: [
+                            ],
+                        ),
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Line([
+                        Text("Slightly longer"),
+                    ]),
+                    children: [
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Otlbook is a method for turning a "),
+                                WikiWord("VimOutliner"),
+                                Text(" file into a static wiki"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Write a regular "),
+                                WikiWord("VimOutliner"),
+                                Text(" outline file, see how you can "),
+                                WikiWord("TurnAnOutlineIntoOtlbook"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                WikiWord("OtlbookSyntax"),
+                                Text(" is pretty much the same as "),
+                                WikiWord("VimOutliner"),
+                                Text("\'s, with the addition of the "),
+                                WikiWord("WikiWord"),
+                                Text(" support and some other extras"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Use "),
+                                WikiWord("WikiWord"),
+                                Text("-s to structure your outline into "),
+                                WikiWord("OtlArticle"),
+                                Text("-s"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("The Otlbook view will show "),
+                                WikiWord("OtlArticle"),
+                                Text("-s in the currently viewed tree as closed nodes and everything else as open"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Click on the closed "),
+                                WikiWord("WikiWord"),
+                                Text(" on the current page or a "),
+                                WikiWord("WikiWord"),
+                                Text(" link to elsewhere in the outline to move there"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("You can display Otlbook documents from a static website or from local disk files, you don\'t need a server"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("So what\'s the point?"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("You get to write your notes in a text editor and store them as text files in version control instead of having to set up an online database server whatsit and having it get hacked, cost you money and eat all your data"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Outlining lets you write lots of crap with little friction"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("You can still have a nice wiki-like view to your thing"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        (
+            depth: 1,
+            body: Line([
+                Text("Table of contents"),
+            ]),
+            children: [
+                (
+                    depth: 2,
+                    body: Line([
+                        WikiWord("OutliningAndWiki"),
+                    ]),
+                    children: [
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Outline writing is better for quick notes for self than completed paragraphs"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Wiki is good for linking notes together"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Wiki structure as a trick for folding"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Wiki articles are always shown folded, nothing else is"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("It\'s up to the author to structure the page so that the folding looks sensible at different levels"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("This lets us have a folding outline view without actually managing any sort of mutable open/closed fold state"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Line([
+                        WikiWord("TurnAnOutlineIntoOtlbook"),
+                    ]),
+                    children: [
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Otlbook uses the "),
+                                FileLink("./otlb.js"),
+                                Text(" script to convert a static page into HTML at runtime"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Make sure you have the script file present in the same directory where your documents are"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Add "),
+                                WikiWord("OtlBoilerplate"),
+                                Text(" to your "),
+                                WikiWord("VimOutliner"),
+                                Text(" file"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                WikiWord("OtlBoilerplate"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Add UTF-8 marker to the top of the page"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Block(
+                                        indent_line: None,
+                                        syntax: None,
+                                        prefix: ";",
+                                        lines: [
+                                            "&lt;meta charset=\"utf-8\"&gt;",
+                                        ],
+                                    ),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Add the boilerplate line of HTML code to the bottom of the page"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Block(
+                                        indent_line: None,
+                                        syntax: None,
+                                        prefix: ";",
+                                        lines: [
+                                            "&lt;style&gt;body{white-space:pre;font-family:monospace}&lt;/style&gt;&lt;script src=\"otlb.js\" charset=\"utf-8\"&gt;&lt;/script&gt;",
+                                        ],
+                                    ),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("(View page source on this page to see it on this page)"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Optionally add a modeline for Vim to show that it should use "),
+                                        WikiWord("VimOutliner"),
+                                        Text(" mode for the file"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Block(
+                                        indent_line: None,
+                                        syntax: None,
+                                        prefix: ";",
+                                        lines: [
+                                            "&lt;!-- vim: set filetype=votl: --&gt;",
+                                        ],
+                                    ),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Add one leading space to the lines stop "),
+                                        WikiWord("VimOutliner"),
+                                        Text(" from thinking it\'s an user-formatted text object"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Otlbook has a hack where it will not escape HTML codes from leading space indented lines, so this way the lines will also be invisible when rendering the page"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Line([
+                        WikiWord("OtlbookSyntax"),
+                    ]),
+                    children: [
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Standard "),
+                                WikiWord("VimOutliner"),
+                                Text(" syntax"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Paragraphs of text prefixed with :"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Block(
+                                                indent_line: None,
+                                                syntax: None,
+                                                prefix: ":",
+                                                lines: [
+                                                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut",
+                                                    "labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco",
+                                                    "laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in",
+                                                    "voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat",
+                                                    "non proident, sunt in culpa qui officia deserunt mollit anim id est laborum",
+                                                ],
+                                            ),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text(":"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Block(
+                                                indent_line: None,
+                                                syntax: None,
+                                                prefix: ":",
+                                                lines: [
+                                                    "Omnes offendit duo ad, repudiare voluptatum theophrastus vim ne. Vel te facilis tacimates",
+                                                    "referrentur, partiendo deseruisse eam no, velit error melius ne vel. Duo postulant",
+                                                    "disputationi te, usu in liber putant assueverit. At autem mundi vel.",
+                                                ],
+                                            ),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Tables with |"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("| Header1 | Header2 |"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("|---------|---------|"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("| 1       | 2       |"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("| 3       | 4       |"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("(Use "),
+                                                Url("https://github.com/dhruvasagar/vim-table-mode"),
+                                                Text(" to work with tables in Vim)"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Preformatted text with "),
+                                        Verbatim(";"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Block(
+                                                indent_line: None,
+                                                syntax: None,
+                                                prefix: ";",
+                                                lines: [
+                                                    "#include <stdio.h>",
+                                                    "int main() {",
+                                                    "    printf(\"Hello, world!\\n\");",
+                                                    "    return 0;",
+                                                    "}",
+                                                ],
+                                            ),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Long lines wrap"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Problem with the preformatted user blocks"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                WikiWord("VimOutliner"),
+                                                Text(" uses < for preformatted user text blocks"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("However, < next to a letter messes up the HTML hack parsing"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("So Otlbook also treats the : and ; "),
+                                                WikiWord("VimOutliner"),
+                                                Text(" blocks as potential user blocks"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("The convention is that regular text must always have one space between the text and the block character"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("Text next right next to the block separator is treated as user metadata:"),
+                                            ]),
+                                            children: [
+                                                (
+                                                    depth: 6,
+                                                    body: Block(
+                                                        indent_line: None,
+                                                        syntax: None,
+                                                        prefix: ";",
+                                                        lines: [
+                                                            ":latex",
+                                                            ": $\\sum_{i=1}^n i \\equiv \\frac{n(n + 1)}{2}$",
+                                                        ],
+                                                    ),
+                                                    children: [
+                                                    ],
+                                                ),
+                                                (
+                                                    depth: 6,
+                                                    body: Line([
+                                                        Text("Becomes"),
+                                                    ]),
+                                                    children: [
+                                                    ],
+                                                ),
+                                                (
+                                                    depth: 6,
+                                                    body: Block(
+                                                        indent_line: None,
+                                                        syntax: Some("latex"),
+                                                        prefix: ":",
+                                                        lines: [
+                                                            "$\\sum_{i=1}^n i \\equiv \\frac{n(n + 1)}{2}$",
+                                                        ],
+                                                    ),
+                                                    children: [
+                                                    ],
+                                                ),
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("New syntax"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("(View source to see the syntax in action)"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Mark important nodes with trailing asterisk"),
+                                        ImportanceMarker,
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("Use this to tag interesting ideas you get in the middle of doing a braindump"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Add inline images with "),
+                                        Verbatim("![image path]"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                InlineImage("mandrill.jpeg"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Four or more hyphens make a horizontal rule"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("----"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Add local links with "),
+                                        Verbatim("[./path]"),
+                                        Text(" (must start with either ./ or ../)"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("See the script code at "),
+                                                FileLink("./otlb.js"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Block(
+                                        indent_line: Some([
+                                            Text("Well-formed HTML tags on the line will be escaped: <hello> <world"),
+                                        ]),
+                                        syntax: None,
+                                        prefix: ">",
+                                        lines: [
+                                            "Malformed tags with the opening bracket but not the closing one will cause things to break at the web page parsing level, avoid writing those",
+                                        ],
+                                    ),
+                                    children: [
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Alias links"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("You can have aliases to awkward "),
+                                        WikiWord("WikiWord"),
+                                        Text(" names"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("The alias is written right below the "),
+                                        WikiWord("WikiWord"),
+                                        Text(" title in parentheses"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("The alias is referenced in text in square brackets: "),
+                                        AliasLink("TLA"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Block(
+                                                indent_line: None,
+                                                syntax: None,
+                                                prefix: ";",
+                                                lines: [
+                                                    "[TLA]",
+                                                ],
+                                            ),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        WikiWord("ThreeLetterAcronym"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                AliasDefinition("TLA"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("This title might be annoying to use verbatim everywhere"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("It\'s more commonly referred to as "),
+                                                AliasLink("TLA"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Line([
+                        WikiWord("OtlbookTips"),
+                    ]),
+                    children: [
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("The "),
+                                WikiWord("OtlArticle"),
+                                Text(" title has navigation links to move to its parent articles"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Avoid screwing up your browser\'s HTML parser"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Things in text that look like they are opening a HTML tag, "),
+                                        Verbatim("&lt;likethis"),
+                                        Text(" and not closing it afterwards will break the browser\'s parser"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Alphabetic characters immediately after the < are the problem"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("You need to use "),
+                                        Verbatim("&amp;lt;"),
+                                        Text(" in place of the "),
+                                        Verbatim("<"),
+                                        Text(" for them"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("This hurts with "),
+                                        WikiWord("VimOutliner"),
+                                        Text("\'s convention of having preformatted user blocks start with <"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("The default format line will trip the browser\'s HTML parser"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("Because of this Otlbook tools just use ; and : for user blocks as well"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Make Vim fill the preformatted otl block prefix"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        WikiWord("VimOutliner"),
+                                        Text(" enables prefix filling by marking prefixes as comments"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Tag the preformatted block prefix as comment"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Block(
+                                        indent_line: None,
+                                        syntax: None,
+                                        prefix: ";",
+                                        lines: [
+                                            ":se comments+=:;",
+                                        ],
+                                    ),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Disable autowrapping in comment text"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Block(
+                                        indent_line: None,
+                                        syntax: None,
+                                        prefix: ";",
+                                        lines: [
+                                            ":se formatoptions-=c",
+                                        ],
+                                    ),
+                                    children: [
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("You can use "),
+                                WikiWord("StubWord"),
+                                Text("-s to create link redirects: "),
+                                WikiWord("EveningStar"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("The actual definition:"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        WikiWord("PlanetVenus"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                WikiWord("MorningStar"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                WikiWord("EveningStar"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("| symbol          | ♀         |"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("| orbit           | 0.7 AU    |"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("| radius          | 6e6 m     |"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("| mass            | 4.8e24 kg |"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("| surface gravity | 8.87 ms⁻² |"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Remember that "),
+                                WikiWord("NumbersAreAllowed123"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Line([
+                        WikiWord("InteractiveNotebook"),
+                    ]),
+                    children: [
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("The "),
+                                FileLink("./otltool.py"),
+                                Text(" tool supports an offline interactive notebook using "),
+                                WikiWord("JayLanguage"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Use the "),
+                                WikiWord("VimOutliner"),
+                                Text(" preformatted user block to add J code"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Block(
+                                        indent_line: None,
+                                        syntax: None,
+                                        prefix: ";",
+                                        lines: [
+                                            ";j",
+                                            "; 1 + 2",
+                                        ],
+                                    ),
+                                    children: [
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Then pipe your file through "),
+                                Verbatim("./otltool.py eval"),
+                                Text(" and it will insert the script output"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Block(
+                                        indent_line: None,
+                                        syntax: Some("j md5:45459934a386946e6f76a32587aac2d3"),
+                                        prefix: ";",
+                                        lines: [
+                                            "   1 + 2",
+                                            "3\u{a0}",
+                                        ],
+                                    ),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("The Vim command to pipe the whole file through the evaluator is something like"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Block(
+                                                indent_line: None,
+                                                syntax: None,
+                                                prefix: ";",
+                                                lines: [
+                                                    ":%!./otltool.py eval",
+                                                ],
+                                            ),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("What\'s going on there?"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Otlbook uses the ; block style because "),
+                                        WikiWord("VimOutliner"),
+                                        Text("\'s < blocks can cause trouble with the browser\'s HTML parser"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("The hash digest (not visible in the HTML-rendered version) is added to track what has been evaluated"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("The block will not get re-evaluated if the current code\'s digest is equal to the cached one"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("This means that expensive notebook computations don\'t need to be re-done every time the notebook is updated"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("The user input gets indented to three characters"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("J language REPL style is to have user input indented relative to the runtime output"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("The result of the expression gets added to the block"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("You can also provide library code"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Block(
+                                        indent_line: None,
+                                        syntax: Some("j-lib"),
+                                        prefix: ";",
+                                        lines: [
+                                            "is_palindrome=: 3 : 0 \"0",
+                                            " (|. 10 #.inv y) -: 10 #.inv y",
+                                            ")",
+                                        ],
+                                    ),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Library code blocks don\'t get evaluated locally"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("They do get added to all subsequent code blocks"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("So you can start the file by defining shared library functions, then write computations that use them"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Here\'s a Project Euler solution using the library verb"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("Find the largest palindrome made from the product of two 3-digit numbers."),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Block(
+                                                indent_line: None,
+                                                syntax: Some("j md5:40c1fd0c4390e001ee7d2351e80bf8e0"),
+                                                prefix: ";",
+                                                lines: [
+                                                    "   nums =: 100+i.900",
+                                                ],
+                                            ),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Block(
+                                                indent_line: Some([
+                                                ]),
+                                                syntax: None,
+                                                prefix: ";",
+                                                lines: [
+                                                ],
+                                            ),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Block(
+                                                indent_line: None,
+                                                syntax: None,
+                                                prefix: ";",
+                                                lines: [
+                                                    "   prods =: , nums */ nums",
+                                                    "   >./ prods * is_palindrome prods",
+                                                    "906609\u{a0}",
+                                                ],
+                                            ),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("That\'s slow to compute"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("The hash digest keeps updates quick as long as nothing changes with the expensive computation or the libraries leading to it"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Line([
+                        WikiWord("SpacedRepetitionSupport"),
+                    ]),
+                    children: [
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("You can embed Anki flashcard data in the outile files for "),
+                                WikiWord("SpacedRepetition"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Flashcard items are marked by terminating the otl line with a period"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("As you can see from this file, normally otl lines never have a period in the end"),
+                            ]),
+                            children: [
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Run "),
+                                Verbatim("otltool.py anki"),
+                                Text(" to generate Anki cards from otl files in your working directly"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("This loads the cards encoded in your otl files into your default Anki deck"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("If it finds cards with matching fronts but different backs, it rewrites the backs of the cards"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("If it finds cards with fronts not in your input set in the deck, it suspends these cards"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("The idea is that you maintain your entire deck in the otl files and can refactor the cards and have the old cards get removed from your review cycle"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("You need to have the Ankiconnect add-on installed for the command to work"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Url("https://ankiweb.net/shared/info/2055492159"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                Text("Two formats are supported"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Question and answer on separate lines"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Block(
+                                                indent_line: None,
+                                                syntax: None,
+                                                prefix: ";",
+                                                lines: [
+                                                    "The question ends in a question mark?",
+                                                    "\tThe answer is the only child to the question and ends in a period.",
+                                                ],
+                                            ),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("This generates a card with the question on the front and the answer on the back"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Cloze style"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Block(
+                                                indent_line: None,
+                                                syntax: None,
+                                                prefix: ";",
+                                                lines: [
+                                                    "Single leaf node ending in period with {{cloze items}} enclosed in {{curly brackets}}.",
+                                                ],
+                                            ),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("This generates one card for each cloze group with that group replaced with ellipsis on the card front"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Line([
+                        WikiWord("OtherTopics"),
+                    ]),
+                    children: [
+                        (
+                            depth: 3,
+                            body: Line([
+                                WikiWord("OtlArticle"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("An article is a fragment of the "),
+                                        WikiWord("VimOutliner"),
+                                        Text(" file tree that starts with a solitary "),
+                                        WikiWord("WikiWord"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("It is then considered the article defining that "),
+                                        WikiWord("WikiWord"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Articles can be nested"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                WikiWord("WikiWord"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Otlbook uses the "),
+                                        WikiWord("WikiWord"),
+                                        Text(" convention from the original Wiki Wiki Web"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Url("http://wiki.c2.com/?WikiWord"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Also "),
+                                        WikiWord("NumbersAreAllowed123"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("A "),
+                                        WikiWord("WikiWord"),
+                                        Text(" in Otlbook that has no contents inside it is called a"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        WikiWord("StubWord"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("When you are linked to a "),
+                                        WikiWord("StubWord"),
+                                        Text(" you are shown its parent "),
+                                        WikiWord("OtlArticle"),
+                                        Text(" instead"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                WikiWord("NumbersAreAllowed123"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("One difference to traditional "),
+                                        WikiWord("WikiWord"),
+                                        Text("-s, Otlbook allows numbers along with lower case letters"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("This lets you mark citation links with a year, "),
+                                        WikiWord("Cunningham01WikiWay"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("It\'s also useful for diary entries, "),
+                                        WikiWord("DiaryEntry19047"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                WikiWord("YearWeekWeekday"),
+                                                Text(" timestamps are nice and short"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("You save one entire character compared to writing something boring like 190127 for 2019-01-27"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                WikiWord("YearWeekWeekday"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("So what\'s with the timestamps like 19047?"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Block(
+                                                indent_line: None,
+                                                syntax: None,
+                                                prefix: ";",
+                                                lines: [
+                                                    "$ date +%g%V%u -d\'2019-01-27\'",
+                                                    "19047",
+                                                ],
+                                            ),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("That\'s YYWWD,"),
+                                            ]),
+                                            children: [
+                                                (
+                                                    depth: 6,
+                                                    body: Line([
+                                                        Text("YY: Last two digits of year of ISO week number"),
+                                                    ]),
+                                                    children: [
+                                                    ],
+                                                ),
+                                                (
+                                                    depth: 6,
+                                                    body: Line([
+                                                        Text("WW: ISO week number"),
+                                                    ]),
+                                                    children: [
+                                                    ],
+                                                ),
+                                                (
+                                                    depth: 6,
+                                                    body: Line([
+                                                        Text("D: Weekday number starting with 1 = Monday"),
+                                                    ]),
+                                                    children: [
+                                                    ],
+                                                ),
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("It\'s a lot shorter to type than 20190127 if you can\'t use punctuation"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Okay assume this will become a respectable niche timestamp, what do we do in 2100 when the two year digits roll over?"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("Start treating the year part as current year minus 2000, add a 1 to the front"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("2100-01-04 becomes 100011"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("How do I turn them back into yyyy-mm-dd dates?"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("Why would anyone want to do that?"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("Well fine, GNU date doesn\'t seem to be able to do it, but you can do this:"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Text("(Must have Python 3.6 or newer)"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Block(
+                                                indent_line: None,
+                                                syntax: None,
+                                                prefix: ";",
+                                                lines: [
+                                                    "$ alias weektoiso=\"python -c \\\"import sys;from datetime import datetime;print(str(datetime.strptime(str(2000000+int(sys.argv[1])),\'%G%V%u\')).split()[0])\\\"\"",
+                                                    "$ weektoiso 19047",
+                                                    "2019-01-27",
+                                                ],
+                                            ),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                WikiWord("DiaryEntry19047"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("New folding outline view for Otlbook"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Rewrote the documentation to use the new layout style"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                WikiWord("SpacedRepetition"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Url("https://ankiweb.net/"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Url("https://www.supermemo.com/en/articles/20rules"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Url("https://www.gwern.net/Spaced-repetition"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                (
+                    depth: 2,
+                    body: Line([
+                        WikiWord("ListOfReferences"),
+                    ]),
+                    children: [
+                        (
+                            depth: 3,
+                            body: Line([
+                                WikiWord("VimOutliner"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Url("https://github.com/vimoutliner/vimoutliner"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Url("http://www.troubleshooters.com/tpromag/199911/199911.htm"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Text("Example documents"),
+                                    ]),
+                                    children: [
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Url("http://www.troubleshooters.com/linux/djbdns/djbdns_install.otl"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                        (
+                                            depth: 5,
+                                            body: Line([
+                                                Url("http://www.troubleshooters.com/linux/presentations/leap_vo/leap_vo.otl"),
+                                            ]),
+                                            children: [
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                WikiWord("Cunningham01WikiWay"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Block(
+                                        indent_line: Some([
+                                        ]),
+                                        syntax: Some("bibtex"),
+                                        prefix: "```",
+                                        lines: [
+                                            "@book{Cunningham01WikiWay,",
+                                            "\tauthor = {Leuf, Bo and Cunningham, Ward},",
+                                            "\ttitle = {The Wiki Way: Quick Collaboration on the Web},",
+                                            "\tyear = {2001},",
+                                            "\tisbn = {0-201-71499-X},",
+                                            "\tpublisher = {Addison-Wesley Longman Publishing Co., Inc.},",
+                                            "\taddress = {Boston, MA, USA},",
+                                            "}",
+                                        ],
+                                    ),
+                                    children: [
+                                    ],
+                                ),
+                            ],
+                        ),
+                        (
+                            depth: 3,
+                            body: Line([
+                                WikiWord("JayLanguage"),
+                            ]),
+                            children: [
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Url("http://jsoftware.com"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Url("http://wiki.c2.com/?JayLanguage"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                                (
+                                    depth: 4,
+                                    body: Line([
+                                        Url("https://www.hillelwayne.com/post/handwriting-j/"),
+                                    ]),
+                                    children: [
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        (
+            depth: 1,
+            body: Block(
+                indent_line: None,
+                syntax: None,
+                prefix: "",
+                lines: [
+                    "<style>body{white-space:pre;font-family:monospace}</style><script src=\"otlb.js\" charset=\"utf-8\"></script>",
+                    "<!-- vim: set filetype=votl: -->",
+                ],
+            ),
+            children: [
+            ],
+        ),
+    ],
+)
