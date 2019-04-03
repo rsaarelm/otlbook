@@ -113,6 +113,7 @@ fn otl_paths(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf> {
     }
 
     WalkDir::new(root)
+        .follow_links(true)
         .into_iter()
         .filter_map(|e| e.ok())
         .filter_map(|e| {
