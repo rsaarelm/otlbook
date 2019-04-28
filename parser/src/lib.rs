@@ -561,7 +561,10 @@ named!(wiki_word_segment_tail<CompleteStr, CompleteStr>,
 
 named!(wiki_word<CompleteStr, CompleteStr>,
     terminated!(
-        recognize!(pair!(wiki_word_segment, many1!(wiki_word_segment))),
+        recognize!(
+            preceded!(take_while!(|c: char| c.is_numeric()),
+            pair!(wiki_word_segment, many1!(wiki_word_segment)))
+        ),
         peek!(not!(wiki_word_segment_head))));
 
 named!(empty_line<CompleteStr, CompleteStr>,
@@ -716,6 +719,7 @@ mod tests {
         assert_eq!(wiki_word(S("WikiWord")), Ok((S(""), S("WikiWord"))));
         assert_eq!(wiki_word(S("Wiki1Word2")), Ok((S(""), S("Wiki1Word2"))));
         assert_eq!(wiki_word(S("WikiWord-s")), Ok((S("-s"), S("WikiWord"))));
+        assert_eq!(wiki_word(S("1984WikiWord")), Ok((S(""), S("1984WikiWord"))));
     }
 
     #[test]
