@@ -95,7 +95,7 @@ fn tags() {
     for path in otl_paths("./") {
         let path = path.strip_prefix("./").unwrap().to_str().unwrap();
         let outline = Outline::load(path).unwrap();
-        tags.tags.extend(outline.ctags(path));
+        tags.tags.extend(outline.ctags(0, path));
     }
 
     println!("{}", tags);

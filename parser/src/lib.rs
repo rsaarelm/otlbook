@@ -78,12 +78,12 @@ impl Outline {
         }
     }
 
-    pub fn ctags(&self, path: &str) -> impl Iterator<Item = (String, usize, String, TagAddress)> {
+    pub fn ctags(&self, depth: usize, path: &str) -> impl Iterator<Item = (String, usize, String, TagAddress)> {
         let child_tags: Vec<(String, usize, String, TagAddress)> =
-            self.children.iter().flat_map(|c| c.ctags(path)).collect();
+            self.children.iter().flat_map(|c| c.ctags(depth + 1, path)).collect();
         let mut tags = Vec::new();
         if let Some(title) = self.wiki_title() {
-            let addr = if self.depth == 0 {
+            let addr = if depth == 0 {
                 TagAddress::LineNum(0)
             } else {
                 TagAddress::Search(title.to_string())
@@ -91,12 +91,12 @@ impl Outline {
 
             tags.push((
                 title.to_string(),
-                self.depth,
+                depth,
                 path.to_string(),
                 addr.clone(),
             ));
             for a in self.aliases() {
-                tags.push((a.to_string(), self.depth, path.to_string(), addr.clone()));
+                tags.push((a.to_string(), depth, path.to_string(), addr.clone()));
             }
         }
 
@@ -254,7 +254,7 @@ impl fmt::Display for TagAddress {
 /// Parse text into an outline
 fn outline(depth: usize, input: CompleteStr<'_>) -> nom::IResult<CompleteStr<'_>, Outline> {
     let (rest, (body_depth, body)) = if depth == 0 {
-        // Depth 0 means we're parsing an entire line and the parent line doesn't exist.
+        // Depth 0 means we're parsing an entire file and the parent line doesn't exist.
         Ok((input, (0, OutlineBody::default())))
     } else {
         outline_body(depth, input)
