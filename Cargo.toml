@@ -12,5 +12,5 @@ members = ["parser", "wasm" ]
 parser = { path = "parser" }
 structopt = "0.2"
 walkdir = "2"
-ron = "0.4"
+ron = "0.5"
 serde = "1"
