@@ -1,10 +1,10 @@
 (
-    depth: 0,
+    indent: 0,
     body: Line([
     ]),
     children: [
         (
-            depth: 1,
+            indent: 0,
             body: Block(
                 indent_line: None,
                 syntax: None,
@@ -17,7 +17,7 @@
             ],
         ),
         (
-            depth: 1,
+            indent: 0,
             body: Line([
                 Text("Copyright "),
                 AliasDefinition("C"),
@@ -27,7 +27,7 @@
             ],
         ),
         (
-            depth: 1,
+            indent: 0,
             body: Line([
                 Url("https://github.com/rsaarelm/otlbook"),
             ]),
@@ -35,19 +35,19 @@
             ],
         ),
         (
-            depth: 1,
+            indent: 0,
             body: Line([
                 Text("Otlbook introduction"),
             ]),
             children: [
                 (
-                    depth: 2,
+                    indent: 0,
                     body: Line([
                         Text("In five seconds"),
                     ]),
                     children: [
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Look at the source code of this page"),
                                 ImportanceMarker,
@@ -58,13 +58,13 @@
                     ],
                 ),
                 (
-                    depth: 2,
+                    indent: 0,
                     body: Line([
                         Text("Slightly longer"),
                     ]),
                     children: [
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Otlbook is a method for turning a "),
                                 WikiWord("VimOutliner"),
@@ -74,7 +74,7 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Write a regular "),
                                 WikiWord("VimOutliner"),
@@ -85,7 +85,7 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 WikiWord("OtlbookSyntax"),
                                 Text(" is pretty much the same as "),
@@ -98,7 +98,7 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Use "),
                                 WikiWord("WikiWord"),
@@ -110,7 +110,7 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("The Otlbook view will show "),
                                 WikiWord("OtlArticle"),
@@ -120,7 +120,7 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Click on the closed "),
                                 WikiWord("WikiWord"),
@@ -132,7 +132,7 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("You can display Otlbook documents from a static website or from local disk files, you don\'t need a server"),
                             ]),
@@ -140,13 +140,13 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("So what\'s the point?"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("You get to write your notes in a text editor and store them as text files in version control instead of having to set up an online database server whatsit and having it get hacked, cost you money and eat all your data"),
                                     ]),
@@ -154,7 +154,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Outlining lets you write lots of crap with little friction"),
                                     ]),
@@ -162,7 +162,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("You can still have a nice wiki-like view to your thing"),
                                     ]),
@@ -176,19 +176,19 @@
             ],
         ),
         (
-            depth: 1,
+            indent: 0,
             body: Line([
                 Text("Table of contents"),
             ]),
             children: [
                 (
-                    depth: 2,
+                    indent: 0,
                     body: Line([
                         WikiWord("OutliningAndWiki"),
                     ]),
                     children: [
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Outline writing is better for quick notes for self than completed paragraphs"),
                             ]),
@@ -196,7 +196,7 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Wiki is good for linking notes together"),
                             ]),
@@ -204,13 +204,13 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Wiki structure as a trick for folding"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Wiki articles are always shown folded, nothing else is"),
                                     ]),
@@ -218,7 +218,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("It\'s up to the author to structure the page so that the folding looks sensible at different levels"),
                                     ]),
@@ -226,7 +226,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("This lets us have a folding outline view without actually managing any sort of mutable open/closed fold state"),
                                     ]),
@@ -238,13 +238,13 @@
                     ],
                 ),
                 (
-                    depth: 2,
+                    indent: 0,
                     body: Line([
                         WikiWord("TurnAnOutlineIntoOtlbook"),
                     ]),
                     children: [
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Otlbook uses the "),
                                 FileLink("./otlb.js"),
@@ -252,7 +252,7 @@
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Make sure you have the script file present in the same directory where your documents are"),
                                     ]),
@@ -262,7 +262,7 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Add "),
                                 WikiWord("OtlBoilerplate"),
@@ -274,13 +274,13 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 WikiWord("OtlBoilerplate"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Add UTF-8 marker to the top of the page"),
                                     ]),
@@ -288,7 +288,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Block(
                                         indent_line: None,
                                         syntax: None,
@@ -301,7 +301,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Add the boilerplate line of HTML code to the bottom of the page"),
                                     ]),
@@ -309,7 +309,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Block(
                                         indent_line: None,
                                         syntax: None,
@@ -322,7 +322,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("(View page source on this page to see it on this page)"),
                                     ]),
@@ -330,7 +330,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Optionally add a modeline for Vim to show that it should use "),
                                         WikiWord("VimOutliner"),
@@ -340,7 +340,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Block(
                                         indent_line: None,
                                         syntax: None,
@@ -353,7 +353,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Add one leading space to the lines stop "),
                                         WikiWord("VimOutliner"),
@@ -363,7 +363,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Otlbook has a hack where it will not escape HTML codes from leading space indented lines, so this way the lines will also be invisible when rendering the page"),
                                     ]),
@@ -375,13 +375,13 @@
                     ],
                 ),
                 (
-                    depth: 2,
+                    indent: 0,
                     body: Line([
                         WikiWord("OtlbookSyntax"),
                     ]),
                     children: [
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Standard "),
                                 WikiWord("VimOutliner"),
@@ -389,13 +389,13 @@
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Paragraphs of text prefixed with :"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Block(
                                                 indent_line: None,
                                                 syntax: None,
@@ -412,7 +412,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text(":"),
                                             ]),
@@ -420,7 +420,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Block(
                                                 indent_line: None,
                                                 syntax: None,
@@ -437,13 +437,13 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Tables with |"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("| Header1 | Header2 |"),
                                             ]),
@@ -451,7 +451,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("|---------|---------|"),
                                             ]),
@@ -459,7 +459,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("| 1       | 2       |"),
                                             ]),
@@ -467,7 +467,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("| 3       | 4       |"),
                                             ]),
@@ -475,7 +475,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("(Use "),
                                                 Url("https://github.com/dhruvasagar/vim-table-mode"),
@@ -487,14 +487,14 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Preformatted text with "),
                                         Verbatim(";"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Block(
                                                 indent_line: None,
                                                 syntax: None,
@@ -513,13 +513,13 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Long lines wrap"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum"),
                                             ]),
@@ -529,13 +529,13 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Problem with the preformatted user blocks"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 WikiWord("VimOutliner"),
                                                 Text(" uses < for preformatted user text blocks"),
@@ -544,7 +544,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("However, < next to a letter messes up the HTML hack parsing"),
                                             ]),
@@ -552,7 +552,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("So Otlbook also treats the : and ; "),
                                                 WikiWord("VimOutliner"),
@@ -562,7 +562,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("The convention is that regular text must always have one space between the text and the block character"),
                                             ]),
@@ -570,13 +570,13 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("Text next right next to the block separator is treated as user metadata:"),
                                             ]),
                                             children: [
                                                 (
-                                                    depth: 6,
+                                                    indent: 0,
                                                     body: Block(
                                                         indent_line: None,
                                                         syntax: None,
@@ -590,7 +590,7 @@
                                                     ],
                                                 ),
                                                 (
-                                                    depth: 6,
+                                                    indent: 0,
                                                     body: Line([
                                                         Text("Becomes"),
                                                     ]),
@@ -598,7 +598,7 @@
                                                     ],
                                                 ),
                                                 (
-                                                    depth: 6,
+                                                    indent: 0,
                                                     body: Block(
                                                         indent_line: None,
                                                         syntax: Some("latex"),
@@ -617,13 +617,13 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("New syntax"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("(View source to see the syntax in action)"),
                                     ]),
@@ -631,14 +631,14 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Mark important nodes with trailing asterisk"),
                                         ImportanceMarker,
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("Use this to tag interesting ideas you get in the middle of doing a braindump"),
                                             ]),
@@ -648,14 +648,14 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Add inline images with "),
                                         Verbatim("![image path]"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 InlineImage("mandrill.jpeg"),
                                             ]),
@@ -665,7 +665,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Four or more hyphens make a horizontal rule"),
                                     ]),
@@ -673,7 +673,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("----"),
                                     ]),
@@ -681,7 +681,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Add local links with "),
                                         Verbatim("[./path]"),
@@ -689,7 +689,7 @@
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("See the script code at "),
                                                 FileLink("./otlb.js"),
@@ -700,7 +700,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Block(
                                         indent_line: Some([
                                             Text("Well-formed HTML tags on the line will be escaped: <hello> <world"),
@@ -717,13 +717,13 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Alias links"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("You can have aliases to awkward "),
                                         WikiWord("WikiWord"),
@@ -733,7 +733,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("The alias is written right below the "),
                                         WikiWord("WikiWord"),
@@ -743,14 +743,14 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("The alias is referenced in text in square brackets: "),
                                         AliasLink("TLA"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Block(
                                                 indent_line: None,
                                                 syntax: None,
@@ -765,13 +765,13 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         WikiWord("ThreeLetterAcronym"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 AliasDefinition("TLA"),
                                             ]),
@@ -779,7 +779,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("This title might be annoying to use verbatim everywhere"),
                                             ]),
@@ -787,7 +787,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("It\'s more commonly referred to as "),
                                                 AliasLink("TLA"),
@@ -802,13 +802,13 @@
                     ],
                 ),
                 (
-                    depth: 2,
+                    indent: 0,
                     body: Line([
                         WikiWord("OtlbookTips"),
                     ]),
                     children: [
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("The "),
                                 WikiWord("OtlArticle"),
@@ -818,13 +818,13 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Avoid screwing up your browser\'s HTML parser"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Things in text that look like they are opening a HTML tag, "),
                                         Verbatim("&lt;likethis"),
@@ -834,7 +834,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Alphabetic characters immediately after the < are the problem"),
                                     ]),
@@ -842,7 +842,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("You need to use "),
                                         Verbatim("&amp;lt;"),
@@ -854,7 +854,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("This hurts with "),
                                         WikiWord("VimOutliner"),
@@ -862,7 +862,7 @@
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("The default format line will trip the browser\'s HTML parser"),
                                             ]),
@@ -870,7 +870,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("Because of this Otlbook tools just use ; and : for user blocks as well"),
                                             ]),
@@ -882,13 +882,13 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Make Vim fill the preformatted otl block prefix"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         WikiWord("VimOutliner"),
                                         Text(" enables prefix filling by marking prefixes as comments"),
@@ -897,7 +897,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Tag the preformatted block prefix as comment"),
                                     ]),
@@ -905,7 +905,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Block(
                                         indent_line: None,
                                         syntax: None,
@@ -918,7 +918,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Disable autowrapping in comment text"),
                                     ]),
@@ -926,7 +926,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Block(
                                         indent_line: None,
                                         syntax: None,
@@ -941,7 +941,7 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("You can use "),
                                 WikiWord("StubWord"),
@@ -950,7 +950,7 @@
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("The actual definition:"),
                                     ]),
@@ -958,13 +958,13 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         WikiWord("PlanetVenus"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 WikiWord("MorningStar"),
                                             ]),
@@ -972,7 +972,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 WikiWord("EveningStar"),
                                             ]),
@@ -980,7 +980,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("| symbol          | ♀         |"),
                                             ]),
@@ -988,7 +988,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("| orbit           | 0.7 AU    |"),
                                             ]),
@@ -996,7 +996,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("| radius          | 6e6 m     |"),
                                             ]),
@@ -1004,7 +1004,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("| mass            | 4.8e24 kg |"),
                                             ]),
@@ -1012,7 +1012,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("| surface gravity | 8.87 ms⁻² |"),
                                             ]),
@@ -1024,7 +1024,7 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Remember that "),
                                 WikiWord("NumbersAreAllowed123"),
@@ -1035,13 +1035,13 @@
                     ],
                 ),
                 (
-                    depth: 2,
+                    indent: 0,
                     body: Line([
                         WikiWord("InteractiveNotebook"),
                     ]),
                     children: [
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("The "),
                                 FileLink("./otltool.py"),
@@ -1052,7 +1052,7 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Use the "),
                                 WikiWord("VimOutliner"),
@@ -1060,7 +1060,7 @@
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Block(
                                         indent_line: None,
                                         syntax: None,
@@ -1076,7 +1076,7 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Then pipe your file through "),
                                 Verbatim("./otltool.py eval"),
@@ -1084,7 +1084,7 @@
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Block(
                                         indent_line: None,
                                         syntax: Some("j md5:45459934a386946e6f76a32587aac2d3"),
@@ -1098,13 +1098,13 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("The Vim command to pipe the whole file through the evaluator is something like"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Block(
                                                 indent_line: None,
                                                 syntax: None,
@@ -1121,13 +1121,13 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("What\'s going on there?"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Otlbook uses the ; block style because "),
                                         WikiWord("VimOutliner"),
@@ -1137,13 +1137,13 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("The hash digest (not visible in the HTML-rendered version) is added to track what has been evaluated"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("The block will not get re-evaluated if the current code\'s digest is equal to the cached one"),
                                             ]),
@@ -1151,7 +1151,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("This means that expensive notebook computations don\'t need to be re-done every time the notebook is updated"),
                                             ]),
@@ -1161,13 +1161,13 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("The user input gets indented to three characters"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("J language REPL style is to have user input indented relative to the runtime output"),
                                             ]),
@@ -1177,7 +1177,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("The result of the expression gets added to the block"),
                                     ]),
@@ -1187,13 +1187,13 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("You can also provide library code"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Block(
                                         indent_line: None,
                                         syntax: Some("j-lib"),
@@ -1208,7 +1208,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Library code blocks don\'t get evaluated locally"),
                                     ]),
@@ -1216,7 +1216,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("They do get added to all subsequent code blocks"),
                                     ]),
@@ -1224,7 +1224,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("So you can start the file by defining shared library functions, then write computations that use them"),
                                     ]),
@@ -1232,13 +1232,13 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Here\'s a Project Euler solution using the library verb"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("Find the largest palindrome made from the product of two 3-digit numbers."),
                                             ]),
@@ -1246,7 +1246,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Block(
                                                 indent_line: None,
                                                 syntax: Some("j md5:40c1fd0c4390e001ee7d2351e80bf8e0"),
@@ -1259,7 +1259,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Block(
                                                 indent_line: Some([
                                                 ]),
@@ -1272,7 +1272,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Block(
                                                 indent_line: None,
                                                 syntax: None,
@@ -1289,7 +1289,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("That\'s slow to compute"),
                                     ]),
@@ -1297,7 +1297,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("The hash digest keeps updates quick as long as nothing changes with the expensive computation or the libraries leading to it"),
                                     ]),
@@ -1309,13 +1309,13 @@
                     ],
                 ),
                 (
-                    depth: 2,
+                    indent: 0,
                     body: Line([
                         WikiWord("SpacedRepetitionSupport"),
                     ]),
                     children: [
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("You can embed Anki flashcard data in the outile files for "),
                                 WikiWord("SpacedRepetition"),
@@ -1324,7 +1324,7 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Flashcard items are marked by terminating the otl line with a period"),
                             ]),
@@ -1332,7 +1332,7 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("As you can see from this file, normally otl lines never have a period in the end"),
                             ]),
@@ -1340,7 +1340,7 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Run "),
                                 Verbatim("otltool.py anki"),
@@ -1348,7 +1348,7 @@
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("This loads the cards encoded in your otl files into your default Anki deck"),
                                     ]),
@@ -1356,7 +1356,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("If it finds cards with matching fronts but different backs, it rewrites the backs of the cards"),
                                     ]),
@@ -1364,13 +1364,13 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("If it finds cards with fronts not in your input set in the deck, it suspends these cards"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("The idea is that you maintain your entire deck in the otl files and can refactor the cards and have the old cards get removed from your review cycle"),
                                             ]),
@@ -1380,13 +1380,13 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("You need to have the Ankiconnect add-on installed for the command to work"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Url("https://ankiweb.net/shared/info/2055492159"),
                                             ]),
@@ -1398,19 +1398,19 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 Text("Two formats are supported"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Question and answer on separate lines"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Block(
                                                 indent_line: None,
                                                 syntax: None,
@@ -1424,7 +1424,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("This generates a card with the question on the front and the answer on the back"),
                                             ]),
@@ -1434,13 +1434,13 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Cloze style"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Block(
                                                 indent_line: None,
                                                 syntax: None,
@@ -1453,7 +1453,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("This generates one card for each cloze group with that group replaced with ellipsis on the card front"),
                                             ]),
@@ -1467,19 +1467,19 @@
                     ],
                 ),
                 (
-                    depth: 2,
+                    indent: 0,
                     body: Line([
                         WikiWord("OtherTopics"),
                     ]),
                     children: [
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 WikiWord("OtlArticle"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("An article is a fragment of the "),
                                         WikiWord("VimOutliner"),
@@ -1490,7 +1490,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("It is then considered the article defining that "),
                                         WikiWord("WikiWord"),
@@ -1499,7 +1499,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Articles can be nested"),
                                     ]),
@@ -1509,13 +1509,13 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 WikiWord("WikiWord"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Otlbook uses the "),
                                         WikiWord("WikiWord"),
@@ -1523,7 +1523,7 @@
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Url("http://wiki.c2.com/?WikiWord"),
                                             ]),
@@ -1533,7 +1533,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Also "),
                                         WikiWord("NumbersAreAllowed123"),
@@ -1542,7 +1542,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("A "),
                                         WikiWord("WikiWord"),
@@ -1552,7 +1552,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         WikiWord("StubWord"),
                                     ]),
@@ -1560,7 +1560,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("When you are linked to a "),
                                         WikiWord("StubWord"),
@@ -1574,13 +1574,13 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 WikiWord("NumbersAreAllowed123"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("One difference to traditional "),
                                         WikiWord("WikiWord"),
@@ -1590,7 +1590,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("This lets you mark citation links with a year, "),
                                         WikiWord("Cunningham01WikiWay"),
@@ -1599,14 +1599,14 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("It\'s also useful for diary entries, "),
                                         WikiWord("DiaryEntry19047"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 WikiWord("YearWeekWeekday"),
                                                 Text(" timestamps are nice and short"),
@@ -1615,7 +1615,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("You save one entire character compared to writing something boring like 190127 for 2019-01-27"),
                                             ]),
@@ -1627,19 +1627,19 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 WikiWord("YearWeekWeekday"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("So what\'s with the timestamps like 19047?"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Block(
                                                 indent_line: None,
                                                 syntax: None,
@@ -1653,13 +1653,13 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("That\'s YYWWD,"),
                                             ]),
                                             children: [
                                                 (
-                                                    depth: 6,
+                                                    indent: 0,
                                                     body: Line([
                                                         Text("YY: Last two digits of year of ISO week number"),
                                                     ]),
@@ -1667,7 +1667,7 @@
                                                     ],
                                                 ),
                                                 (
-                                                    depth: 6,
+                                                    indent: 0,
                                                     body: Line([
                                                         Text("WW: ISO week number"),
                                                     ]),
@@ -1675,7 +1675,7 @@
                                                     ],
                                                 ),
                                                 (
-                                                    depth: 6,
+                                                    indent: 0,
                                                     body: Line([
                                                         Text("D: Weekday number starting with 1 = Monday"),
                                                     ]),
@@ -1685,7 +1685,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("It\'s a lot shorter to type than 20190127 if you can\'t use punctuation"),
                                             ]),
@@ -1695,13 +1695,13 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Okay assume this will become a respectable niche timestamp, what do we do in 2100 when the two year digits roll over?"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("Start treating the year part as current year minus 2000, add a 1 to the front"),
                                             ]),
@@ -1709,7 +1709,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("2100-01-04 becomes 100011"),
                                             ]),
@@ -1719,13 +1719,13 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("How do I turn them back into yyyy-mm-dd dates?"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("Why would anyone want to do that?"),
                                             ]),
@@ -1733,7 +1733,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("Well fine, GNU date doesn\'t seem to be able to do it, but you can do this:"),
                                             ]),
@@ -1741,7 +1741,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Text("(Must have Python 3.6 or newer)"),
                                             ]),
@@ -1749,7 +1749,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Block(
                                                 indent_line: None,
                                                 syntax: None,
@@ -1768,13 +1768,13 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 WikiWord("DiaryEntry19047"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("New folding outline view for Otlbook"),
                                     ]),
@@ -1782,7 +1782,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Rewrote the documentation to use the new layout style"),
                                     ]),
@@ -1792,13 +1792,13 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 WikiWord("SpacedRepetition"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Url("https://ankiweb.net/"),
                                     ]),
@@ -1806,7 +1806,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Url("https://www.supermemo.com/en/articles/20rules"),
                                     ]),
@@ -1814,7 +1814,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Url("https://www.gwern.net/Spaced-repetition"),
                                     ]),
@@ -1826,19 +1826,19 @@
                     ],
                 ),
                 (
-                    depth: 2,
+                    indent: 0,
                     body: Line([
                         WikiWord("ListOfReferences"),
                     ]),
                     children: [
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 WikiWord("VimOutliner"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Url("https://github.com/vimoutliner/vimoutliner"),
                                     ]),
@@ -1846,7 +1846,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Url("http://www.troubleshooters.com/tpromag/199911/199911.htm"),
                                     ]),
@@ -1854,13 +1854,13 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Text("Example documents"),
                                     ]),
                                     children: [
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Url("http://www.troubleshooters.com/linux/djbdns/djbdns_install.otl"),
                                             ]),
@@ -1868,7 +1868,7 @@
                                             ],
                                         ),
                                         (
-                                            depth: 5,
+                                            indent: 0,
                                             body: Line([
                                                 Url("http://www.troubleshooters.com/linux/presentations/leap_vo/leap_vo.otl"),
                                             ]),
@@ -1880,13 +1880,13 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 WikiWord("Cunningham01WikiWay"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Block(
                                         indent_line: Some([
                                         ]),
@@ -1909,13 +1909,13 @@
                             ],
                         ),
                         (
-                            depth: 3,
+                            indent: 0,
                             body: Line([
                                 WikiWord("JayLanguage"),
                             ]),
                             children: [
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Url("http://jsoftware.com"),
                                     ]),
@@ -1923,7 +1923,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Url("http://wiki.c2.com/?JayLanguage"),
                                     ]),
@@ -1931,7 +1931,7 @@
                                     ],
                                 ),
                                 (
-                                    depth: 4,
+                                    indent: 0,
                                     body: Line([
                                         Url("https://www.hillelwayne.com/post/handwriting-j/"),
                                     ]),
@@ -1945,7 +1945,7 @@
             ],
         ),
         (
-            depth: 1,
+            indent: 0,
             body: Block(
                 indent_line: None,
                 syntax: None,

@@ -13,8 +13,10 @@ use std::path::Path;
 use std::str::FromStr;
 
 #[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
+/// Representation of an outliner-formatted text document.
 pub struct Outline {
-    depth: usize,
+    /// Number of extra indentation steps relative to the outline's parent.
+    indent: usize,
     body: OutlineBody,
     children: Vec<Outline>,
 }
@@ -78,9 +80,16 @@ impl Outline {
         }
     }
 
-    pub fn ctags(&self, depth: usize, path: &str) -> impl Iterator<Item = (String, usize, String, TagAddress)> {
-        let child_tags: Vec<(String, usize, String, TagAddress)> =
-            self.children.iter().flat_map(|c| c.ctags(depth + 1, path)).collect();
+    pub fn ctags(
+        &self,
+        depth: usize,
+        path: &str,
+    ) -> impl Iterator<Item = (String, usize, String, TagAddress)> {
+        let child_tags: Vec<(String, usize, String, TagAddress)> = self
+            .children
+            .iter()
+            .flat_map(|c| c.ctags(depth + 1, path))
+            .collect();
         let mut tags = Vec::new();
         if let Some(title) = self.wiki_title() {
             let addr = if depth == 0 {
@@ -89,12 +98,7 @@ impl Outline {
                 TagAddress::Search(title.to_string())
             };
 
-            tags.push((
-                title.to_string(),
-                depth,
-                path.to_string(),
-                addr.clone(),
-            ));
+            tags.push((title.to_string(), depth, path.to_string(), addr.clone()));
             for a in self.aliases() {
                 tags.push((a.to_string(), depth, path.to_string(), addr.clone()));
             }
@@ -131,6 +135,79 @@ impl Outline {
             _ => (&[]).iter(),
         }
     }
+
+    fn fmt_with_depth(&self, f: &mut fmt::Formatter, depth: usize) -> fmt::Result {
+        use OutlineBody::*;
+
+        fn indent(f: &mut fmt::Formatter, i: usize) -> fmt::Result {
+            for _ in 1..i {
+                write!(f, "\t")?;
+            }
+            Ok(())
+        }
+
+        let depth = depth + self.indent;
+
+        if depth > 0 {
+            match self.body {
+                Line(ref line) => {
+                    indent(f, depth)?;
+                    for x in line {
+                        write!(f, "{}", x)?;
+                    }
+                    writeln!(f)?;
+                }
+                Block {
+                    ref indent_line,
+                    ref syntax,
+                    ref prefix,
+                    ref lines,
+                    ..
+                } => {
+                    if let Some(line) = indent_line {
+                        // It's an indent block.
+                        indent(f, depth)?;
+                        for x in line {
+                            write!(f, "{}", x)?;
+                        }
+                        write!(f, "{}", prefix)?;
+                        if let Some(syntax) = syntax {
+                            write!(f, "{}", syntax)?;
+                        }
+                        writeln!(f)?;
+
+                        for line in lines {
+                            if line.is_empty() {
+                                writeln!(f)?;
+                            } else {
+                                indent(f, depth + 1)?;
+                                writeln!(f, "{}", line)?;
+                            }
+                        }
+                    } else {
+                        // It's a prefix block
+                        if let Some(syntax) = syntax {
+                            indent(f, depth)?;
+                            writeln!(f, "{}{}", prefix, syntax)?;
+                        }
+                        for line in lines {
+                            if line.is_empty() && prefix.is_empty() {
+                                writeln!(f)?;
+                            } else {
+                                indent(f, depth)?;
+                                writeln!(f, "{} {}", prefix, line)?;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for c in &self.children {
+            c.fmt_with_depth(f, depth + 1)?;
+        }
+        Ok(())
+    }
 }
 
 impl FromStr for Outline {
@@ -146,74 +223,15 @@ impl FromStr for Outline {
 
 impl fmt::Display for Outline {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use OutlineBody::*;
-
-        fn indent(f: &mut fmt::Formatter, i: usize) -> fmt::Result {
-            for _ in 1..i {
-                write!(f, "\t")?;
-            }
-            Ok(())
-        }
-
-        if self.depth > 0 {
-            match self.body {
-                Line(ref line) => {
-                    indent(f, self.depth)?;
-                    for x in line {
-                        write!(f, "{}", x)?;
-                    }
-                    writeln!(f)?;
-                }
-                Block {
-                    ref indent_line,
-                    ref syntax,
-                    ref prefix,
-                    ref lines,
-                    ..
-                } => {
-                    if let Some(line) = indent_line {
-                        // It's an indent block.
-                        indent(f, self.depth)?;
-                        for x in line {
-                            write!(f, "{}", x)?;
-                        }
-                        write!(f, "{}", prefix)?;
-                        if let Some(syntax) = syntax {
-                            write!(f, "{}", syntax)?;
-                        }
-                        writeln!(f)?;
-
-                        for line in lines {
-                            if line.is_empty() {
-                                writeln!(f)?;
-                            } else {
-                                indent(f, self.depth + 1)?;
-                                writeln!(f, "{}", line)?;
-                            }
-                        }
-                    } else {
-                        // It's a prefix block
-                        if let Some(syntax) = syntax {
-                            indent(f, self.depth)?;
-                            writeln!(f, "{}{}", prefix, syntax)?;
-                        }
-                        for line in lines {
-                            if line.is_empty() && prefix.is_empty() {
-                                writeln!(f)?;
-                            } else {
-                                indent(f, self.depth)?;
-                                writeln!(f, "{} {}", prefix, line)?;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        for c in &self.children {
-            c.fmt(f)?;
-        }
-        Ok(())
+        // XXX: Okay, hacky part incoming.
+        //
+        // The toplevel outline (depth == 0) is special. It has no body, only children, and all the
+        // children must be printed without indentation. When recursing down and printing the child
+        // outlines with Display, they're going to look just like the toplevel otherwise, but will
+        // have a non-empty body. So we do a switcheroo here with the indent depth where a bodied
+        // outline will start at depth 1 (actually showing things) and the bodiless one will start
+        // at 0 so that its children will all be on the first-visible depth 1.
+        self.fmt_with_depth(f, if self.body.is_empty() { 0 } else { 1 })
     }
 }
 
@@ -228,6 +246,22 @@ enum OutlineBody {
         prefix: String,
         lines: Vec<String>,
     },
+}
+
+impl OutlineBody {
+    pub fn is_empty(&self) -> bool {
+        match self {
+            OutlineBody::Line(v) => v.is_empty(),
+            _ => false,
+        }
+    }
+
+    pub fn is_indent_block(&self) -> bool {
+        match self {
+            OutlineBody::Block { indent_line, .. } => indent_line.is_some(),
+            _ => false,
+        }
+    }
 }
 
 impl default::Default for OutlineBody {
@@ -265,7 +299,7 @@ fn outline(depth: usize, input: CompleteStr<'_>) -> nom::IResult<CompleteStr<'_>
     Ok((
         rest,
         Outline {
-            depth: body_depth,
+            indent: body_depth - depth,
             body,
             children,
         },

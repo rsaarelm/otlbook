@@ -47,3 +47,8 @@ Blocks test
 		To [./local-file.txt]
 		To ![image.png]
 		To [Alias]
+	Multiple depths indent
+			Indent
+						Go
+									Deep!
+					Back up
