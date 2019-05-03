@@ -22,6 +22,32 @@ pub struct Outline {
 }
 
 impl Outline {
+    /// Create a new complete outline from a list of child nodes.
+    pub fn new(children: Vec<Outline>) -> Outline {
+        Outline {
+            indent: 0,
+            body: Default::default(),
+            children,
+        }
+    }
+
+    /// Create a new child node in an outline.
+    ///
+    /// A full outline is equivalent to a child node with indent 0 and an empty `Default` body.
+    pub fn new_node(indent: usize, body: OutlineBody, children: Vec<Outline>) -> Outline {
+        if body.is_indent_block() && !children.is_empty() {
+            // Everything indented deeper than an indent block directly below the block line
+            // belongs to the block, the block node can't have child nodes.
+            panic!("Indent block node can't have children");
+        }
+
+        Outline {
+            indent,
+            body,
+            children,
+        }
+    }
+
     /// Load the outline from file path.
     ///
     /// The outline will get a toplevel name derived from the file name.
@@ -208,6 +234,22 @@ impl Outline {
         }
         Ok(())
     }
+
+    pub fn indent(&self) -> usize {
+        self.indent
+    }
+
+    pub fn body(&self) -> &OutlineBody {
+        &self.body
+    }
+
+    pub fn children(&self) -> impl Iterator<Item = &'_ Outline> {
+        self.children.iter()
+    }
+
+    pub fn children_mut(&mut self) -> impl Iterator<Item = &'_ mut Outline> {
+        self.children.iter_mut()
+    }
 }
 
 impl FromStr for Outline {
@@ -236,7 +278,7 @@ impl fmt::Display for Outline {
 }
 
 #[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
-enum OutlineBody {
+pub enum OutlineBody {
     Line(Vec<Fragment>),
     Block {
         // An indent block gets the preceding line as a part of the block.
