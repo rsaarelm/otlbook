@@ -279,7 +279,7 @@ impl fmt::Display for Outline {
     }
 }
 
-#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum OutlineBody {
     Line(Vec<Fragment>),
     Block {
@@ -562,7 +562,7 @@ fn indent_block_line(
 }
 
 /// Line element fragments.
-#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum Fragment {
     WikiWord(String),
     Verbatim(String),
