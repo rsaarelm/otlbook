@@ -1,6 +1,11 @@
 PROJECT=otlbook
 
-all: ${PROJECT}_bg.wasm
+all: ${PROJECT}_bg.wasm target/release/otltool
+
+.PHONY: target/release/otltool
+
+target/release/otltool:
+	cargo build --release
 
 ${PROJECT}_bg.wasm:
 	wasm-pack build wasm --release --target no-modules
