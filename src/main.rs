@@ -1,3 +1,4 @@
+use md5;
 use parser::{self, Outline, OutlineBody, SyntaxInfo, TagAddress};
 use std::collections::{BTreeSet, HashMap};
 use std::fmt;
@@ -140,23 +141,36 @@ impl EvalState {
     pub fn process_outline(&mut self, outline: &mut Outline) {
         self.accumulate_libraries(outline);
 
-        let mut body: OutlineBody = outline.body().clone();
+        self.run_script(outline);
 
+        for i in outline.children_mut() {
+            self.process_outline(i);
+        }
+    }
+
+    fn run_script(&mut self, outline: &mut Outline) {
         if let OutlineBody::Block {
-            syntax: Some(ref s),
-            ref mut lines,
-            ..
-        } = body
+            syntax: Some(syntax),
+            lines,
+            prefix,
+            indent_line,
+        } = outline.body()
         {
             if let SyntaxInfo {
                 lang: Some(lang),
                 is_lib: false,
                 checksum,
-            } = SyntaxInfo::new(&s)
+            } = SyntaxInfo::new(&syntax)
             {
                 if lang == "julia" {
-                    // Library code
-                    let mut code = self.libraries.entry(lang).or_insert(String::new()).clone();
+                    // Code that gets executed by interpreter.
+                    let lib = self.libraries.entry(lang).or_insert(String::new()).clone();
+
+                    // Text where the checksum is derived from. Code and output.
+                    let mut checksum_text = lib.clone();
+
+                    let mut code = lib.clone();
+
                     // Print a separator marker to denote the end of script code. We'll use this
                     // later to throw out REPL output from script code.
                     code.push_str("println('\\u241E')\n");
@@ -171,10 +185,21 @@ impl EvalState {
                         };
                         target.push_str(line);
                         target.push('\n');
+
+                        checksum_text.push_str(line);
+                        checksum_text.push('\n');
+                    }
+
+                    let current_digest = md5::compute(checksum_text.as_bytes());
+
+                    // Looks like nothing has changed, let's just keep it unchanged.
+                    if checksum == Some(current_digest) {
+                        return;
                     }
 
                     code.push_str(&script_code);
 
+                    // New block content goes here.
                     let mut new_content = script_code.clone();
 
                     let mut interpreter = Command::new("julia")
@@ -212,19 +237,24 @@ impl EvalState {
                         println!("Script error!");
                     }
 
-                    lines.clear();
+                    let mut new_checksum_text = lib.clone();
+                    new_checksum_text.push_str(&new_content);
 
-                    for line in new_content.lines() {
-                        lines.push(line.to_string());
-                    }
+                    *outline = Outline::new_node(
+                        outline.indent(),
+                        OutlineBody::Block {
+                            lines: new_content.lines().map(|x| x.to_string()).collect(),
+                            syntax: Some(format!(
+                                "julia md5:{:x}",
+                                md5::compute(new_checksum_text.as_bytes())
+                            )),
+                            prefix: prefix.clone(),
+                            indent_line: indent_line.clone(),
+                        },
+                        Vec::new(),
+                    );
                 }
             }
-
-            *outline = Outline::new_node(outline.indent(), body, Vec::new());
-        }
-
-        for i in outline.children_mut() {
-            self.process_outline(i);
         }
     }
 }
