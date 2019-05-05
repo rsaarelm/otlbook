@@ -1,7 +1,9 @@
+use md5::Digest;
 use nom::types::CompleteStr;
 use nom::{
-    self, alt, count, delimited, do_parse, eof, line_ending, many0, many1, map, named, not, one_of,
-    opt, pair, peek, preceded, recognize, tag, take_while, take_while1, terminated, verify,
+    self, alt, count, count_fixed, delimited, do_parse, eof, line_ending, many0, many1, map,
+    map_res, named, not, one_of, opt, pair, peek, preceded, recognize, tag, take_while,
+    take_while1, take_while_m_n, terminated, verify,
 };
 use nom::{Context, ErrorKind};
 use serde::{Deserialize, Serialize};
@@ -323,6 +325,35 @@ impl fmt::Display for TagAddress {
         match self {
             TagAddress::LineNum(n) => write!(f, "{}", n),
             TagAddress::Search(expr) => write!(f, "/^\\t\\*{}$/", expr),
+        }
+    }
+}
+
+/// Parsed information from a syntax line.
+#[derive(Default, Eq, PartialEq, Debug)]
+pub struct SyntaxInfo {
+    /// Scripting language used
+    pub lang: Option<String>,
+    /// Is this a library section instead of a script?
+    ///
+    /// Library sections are catenated to all script blocks that come after them.
+    pub is_lib: bool,
+    /// Checksum for input and output from last script evaluation.
+    ///
+    /// No need to re-evaluate the script if the checksum still matches the text.
+    pub checksum: Option<Digest>,
+}
+
+impl SyntaxInfo {
+    pub fn new(source: &str) -> SyntaxInfo {
+        if let Ok((_, ((lang, is_lib), checksum))) = syntax_line(CompleteStr(source)) {
+            SyntaxInfo {
+                lang: Some(lang),
+                is_lib,
+                checksum,
+            }
+        } else {
+            Default::default()
         }
     }
 }
@@ -692,6 +723,29 @@ named!(indent_block_trail<CompleteStr, (CompleteStr, Option<CompleteStr>)>,
 named!(indent_block_start<CompleteStr, (CompleteStr, Option<CompleteStr>)>,
     alt!(indent_block_with_syntax | indent_block_trail));
 
+named!(syntax_line<CompleteStr, ((String, bool), Option<Digest>)>,
+    pair!(syntax_lang, opt!(checksum)));
+
+// Return ([lang name], [is library block]).
+named!(syntax_lang<CompleteStr, (String, bool)>, alt!(lang_lib | lang_script));
+
+named!(lang_lib<CompleteStr, (String, bool)>,
+    map!(terminated!(take_while1!(is_lang_char), tag!("-lib")), |s| (s.to_string(), true)));
+
+named!(lang_script<CompleteStr, (String, bool)>,
+    map!(take_while1!(is_lang_char), |s| (s.to_string(), false)));
+
+named!(checksum<CompleteStr, Digest>,
+    map!(preceded!(
+            pair!(take_while1!(|c: char| c.is_whitespace()), tag!("md5:")),
+            count_fixed!(u8, hex_byte, 16)),
+        |bytes| Digest(bytes)));
+
+named!(hex_byte<CompleteStr, u8>,
+    map_res!(
+        take_while_m_n!(2, 2, |c: char| c.is_digit(16)),
+        |hex: CompleteStr| u8::from_str_radix(&*hex, 16)));
+
 /// Character that can show up in an URL.
 ///
 /// See https://tools.ietf.org/html/rfc3986#appendix-A
@@ -723,6 +777,14 @@ fn is_alias_char(c: char) -> bool {
 fn is_tag_char(c: char) -> bool {
     match c {
         '-' | '_' => true,
+        c if c.is_alphanumeric() => true,
+        _ => false,
+    }
+}
+
+fn is_lang_char(c: char) -> bool {
+    match c {
+        '_' => true,
         c if c.is_alphanumeric() => true,
         _ => false,
     }
@@ -825,6 +887,62 @@ mod tests {
         assert_eq!(
             outline.tags().cloned().collect::<Vec<String>>(),
             vec!["tag1", "tag2"]
+        );
+    }
+
+    #[test]
+    fn test_syntax_info() {
+        assert_eq!(
+            syntax_lang(S("julia")),
+            Ok((S(""), ("julia".to_string(), false)))
+        );
+        assert_eq!(
+            syntax_lang(S("julia-lib")),
+            Ok((S(""), ("julia".to_string(), true)))
+        );
+
+        assert_eq!(
+            SyntaxInfo::new(""),
+            SyntaxInfo {
+                ..Default::default()
+            }
+        );
+
+        assert_eq!(
+            SyntaxInfo::new("julia"),
+            SyntaxInfo {
+                lang: Some("julia".to_string()),
+                ..Default::default()
+            }
+        );
+
+        assert_eq!(
+            SyntaxInfo::new("julia trailing garbage"),
+            SyntaxInfo {
+                lang: Some("julia".to_string()),
+                ..Default::default()
+            }
+        );
+
+        assert_eq!(
+            SyntaxInfo::new("julia-lib"),
+            SyntaxInfo {
+                lang: Some("julia".to_string()),
+                is_lib: true,
+                ..Default::default()
+            }
+        );
+
+        assert_eq!(
+            SyntaxInfo::new("julia md5:4f41243847da693a4f356c0486114bc6"),
+            SyntaxInfo {
+                lang: Some("julia".to_string()),
+                checksum: Some(Digest([
+                    0x4f, 0x41, 0x24, 0x38, 0x47, 0xda, 0x69, 0x3a, 0x4f, 0x35, 0x6c, 0x04, 0x86,
+                    0x11, 0x4b, 0xc6
+                ])),
+                ..Default::default()
+            }
         );
     }
 }
