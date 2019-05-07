@@ -138,17 +138,17 @@ impl EvalState {
         }
     }
 
-    pub fn process_outline(&mut self, outline: &mut Outline) {
+    pub fn process_outline(&mut self, force: bool, outline: &mut Outline) {
         self.accumulate_libraries(outline);
 
-        self.run_script(outline);
+        self.run_script(force, outline);
 
         for i in outline.children_mut() {
-            self.process_outline(i);
+            self.process_outline(force, i);
         }
     }
 
-    fn run_script(&mut self, outline: &mut Outline) {
+    fn run_script(&mut self, force: bool, outline: &mut Outline) {
         if let OutlineBody::Block {
             syntax: Some(syntax),
             lines,
@@ -192,8 +192,9 @@ impl EvalState {
 
                     let current_digest = md5::compute(checksum_text.as_bytes());
 
-                    // Looks like nothing has changed, let's just keep it unchanged.
-                    if checksum == Some(current_digest) {
+                    // Looks like nothing has changed, let's just keep it unchanged (unless
+                    // evaluation is being forced).
+                    if !force && checksum == Some(current_digest) {
                         return;
                     }
 
@@ -259,14 +260,13 @@ impl EvalState {
     }
 }
 
-fn eval(_force: bool) {
+fn eval(force: bool) {
     let mut buf = String::new();
     let _ = io::stdin().read_to_string(&mut buf);
 
     let mut outline = Outline::from_str(&buf).unwrap();
-    EvalState::default().process_outline(&mut outline);
+    EvalState::default().process_outline(force, &mut outline);
 
-    // TODO: Eval part
     print!("{}", outline);
 }
 
