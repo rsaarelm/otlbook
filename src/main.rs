@@ -162,6 +162,11 @@ impl EvalState {
                 checksum,
             } = SyntaxInfo::new(&syntax)
             {
+                // TODO: This is currently a mix of Julia-specific hackery and the general
+                // machinery for script expansion. Probably want to support more languages than
+                // Julia eventually, so figure out a way to factor the language-specific stuff
+                // (eg. the workaround for the semicolon suppression bug, calling the actual
+                // interpreter) from the otlbook side stuff (Using NBSP to mark output lines).
                 if lang == "julia" {
                     // Code that gets executed by interpreter.
                     let lib = self.libraries.entry(lang).or_insert(String::new()).clone();
@@ -184,7 +189,6 @@ impl EvalState {
                             script_code.push('\n');
 
                             code.push_str(line);
-                            code.push('\n');
 
                             // XXX: Julia has a bug where semicolons don't suppress output when
                             // code is piped in through stdin
@@ -197,8 +201,10 @@ impl EvalState {
                             //
                             // The hackery should be removed when the Julia bug has been fixed.
                             if line.ends_with(";") {
-                                code.push_str("println('\\u241E')\n");
+                                code.push_str("println('\\u241E');");
                             }
+
+                            code.push('\n');
                         }
 
                         // Both input and output go into checksum text.
