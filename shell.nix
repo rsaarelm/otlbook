@@ -12,6 +12,9 @@ stdenv.mkDerivation {
 
     # Server
     lighttpd
+
+    # Useful stuff
+    html-tidy
   ];
   shellHook = ''
     export PATH=$PATH:~/.cargo/bin
