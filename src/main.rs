@@ -1,4 +1,4 @@
-use parser::{self, Outline, TagAddress};
+use parser::{self, Outline, OutlineBody, TagAddress};
 use std::collections::BTreeSet;
 use std::fmt;
 use std::io::{self, Read};
@@ -15,6 +15,7 @@ fn main() {
         Otltool::Echo { debug } => echo(debug),
         Otltool::Tags => tags(),
         Otltool::Eval { force } => eval(force),
+        Otltool::Extract { syntax } => extract(&syntax),
         _ => unimplemented!(),
     }
 }
@@ -57,13 +58,22 @@ enum Otltool {
         about = "Run a web server displaying outlines in HTML"
     )]
     Server,
+
+    #[structopt(
+        name = "extract",
+        about = "Extract deindented fragments of specific syntax from the outline"
+    )]
+    Extract {
+        #[structopt(parse(from_str))]
+        syntax: String,
+    },
 }
 
 fn echo(debug: bool) {
     let mut buf = String::new();
     io::stdin().read_to_string(&mut buf).unwrap();
-
     let outline: Outline = buf.parse().unwrap();
+
     if debug {
         println!(
             "{}",
@@ -103,6 +113,37 @@ fn tags() {
     }
 
     println!("{}", tags);
+}
+
+//////////////////////////////// Code block extraction
+
+fn extract(syntax: &str) {
+    fn echo_blocks(syntax: &str, outline: &Outline) {
+        match outline.body() {
+            OutlineBody::Block {
+                syntax: Some(s),
+                lines,
+                ..
+            } => {
+                if s.split_whitespace().next() == Some(syntax) {
+                    for line in lines {
+                        println!("{}", line);
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        for i in outline.children() {
+            echo_blocks(syntax, i);
+        }
+    }
+
+    let mut buf = String::new();
+    io::stdin().read_to_string(&mut buf).unwrap();
+    let outline: Outline = buf.parse().unwrap();
+
+    echo_blocks(syntax, &outline);
 }
 
 //////////////////////////////// Filesystem tools

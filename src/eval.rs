@@ -185,8 +185,8 @@ impl EvalState {
 pub fn eval(force: bool) {
     let mut buf = String::new();
     let _ = io::stdin().read_to_string(&mut buf);
-
     let mut outline = Outline::from_str(&buf).unwrap();
+
     EvalState::default().process_outline(force, &mut outline);
 
     print!("{}", outline);
