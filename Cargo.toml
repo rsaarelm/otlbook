@@ -9,9 +9,9 @@ edition = "2018"
 members = ["parser", "wasm" ]
 
 [dependencies]
-md5 = "0.6"
+md5 = "0.7"
 parser = { path = "parser" }
 ron = "0.5"
 serde = "1"
-structopt = "0.2"
+structopt = "0.3"
 walkdir = "2"

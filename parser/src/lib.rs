@@ -53,7 +53,7 @@ impl Outline {
     /// Load the outline from file path.
     ///
     /// The outline will get a toplevel name derived from the file name.
-    pub fn load(path: impl AsRef<Path>) -> Result<Outline, Box<Error>> {
+    pub fn load(path: impl AsRef<Path>) -> Result<Outline, Box<dyn Error>> {
         // TODO: Error handling instead of unwraps.
         let basename = path
             .as_ref()
