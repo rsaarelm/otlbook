@@ -1,11 +1,12 @@
 use md5::Digest;
-use nom::types::CompleteStr;
 use nom::{
-    self, alt, count, count_fixed, delimited, do_parse, eof, line_ending, many0, many1, map,
-    map_res, named, not, one_of, opt, pair, peek, preceded, recognize, tag, take_while,
-    take_while1, take_while_m_n, terminated, verify,
+    branch::alt,
+    bytes::complete::{tag, take_while, take_while1, take_while_m_n},
+    character::complete::{line_ending, one_of},
+    combinator::{map, map_res, not, opt, peek, recognize, verify},
+    multi::{count, many0, many1},
+    sequence::{delimited, pair, preceded, terminated},
 };
-use nom::{Context, ErrorKind};
 use serde::{Deserialize, Serialize};
 use std::default;
 use std::error::Error;
@@ -14,7 +15,7 @@ use std::fs;
 use std::path::Path;
 use std::str::FromStr;
 
-#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
 /// Representation of an outliner-formatted text document.
 pub struct Outline {
     /// Number of extra indentation steps relative to the outline's parent.
@@ -66,7 +67,7 @@ impl Outline {
 
         // Parsing the outline should succeed with any string.
         let mut ret: Outline = text.parse().unwrap();
-        ret.body = (outline_body(0, CompleteStr(&*basename)).unwrap().1).1;
+        ret.body = (outline_body(0, &*basename).unwrap().1).1;
         Ok(ret)
     }
 
@@ -258,7 +259,7 @@ impl FromStr for Outline {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match outline(0, CompleteStr(s)) {
+        match outline(0, s) {
             Ok((_, ret)) => Ok(ret),
             Err(_) => Err(()),
         }
@@ -346,7 +347,7 @@ pub struct SyntaxInfo {
 
 impl SyntaxInfo {
     pub fn new(source: &str) -> SyntaxInfo {
-        if let Ok((_, ((lang, is_lib), checksum))) = syntax_line(CompleteStr(source)) {
+        if let Ok((_, ((lang, is_lib), checksum))) = syntax_line(source) {
             SyntaxInfo {
                 lang: Some(lang),
                 is_lib,
@@ -358,8 +359,25 @@ impl SyntaxInfo {
     }
 }
 
+fn outline(depth: usize, input: &str) -> nom::IResult<&str, Outline> {
+    if input.is_empty() {
+        Ok((input, Default::default()))
+    } else {
+        non_empty_outline(depth, input)
+    }
+}
+
 /// Parse text into an outline
-fn outline(depth: usize, input: CompleteStr<'_>) -> nom::IResult<CompleteStr<'_>, Outline> {
+fn non_empty_outline(depth: usize, input: &str) -> nom::IResult<&str, Outline> {
+    if log::log_enabled!(log::Level::Trace) {
+        let line = input.lines().next();
+        log::trace!("Parsing outline {:?}, depth: {}", line, depth);
+    }
+
+    if input.is_empty() {
+        return nom_err(input);
+    }
+
     let (rest, (body_depth, body)) = if depth == 0 {
         // Depth 0 means we're parsing an entire file and the parent line doesn't exist.
         Ok((input, (0, OutlineBody::default())))
@@ -379,32 +397,38 @@ fn outline(depth: usize, input: CompleteStr<'_>) -> nom::IResult<CompleteStr<'_>
     ))
 }
 
-fn outline_body(
-    min_indent: usize,
-    input: CompleteStr<'_>,
-) -> nom::IResult<CompleteStr<'_>, (usize, OutlineBody)> {
+fn outline_body(min_indent: usize, input: &str) -> nom::IResult<&str, (usize, OutlineBody)> {
     let (line_start, d) = depth(input).unwrap();
     if d < min_indent {
+        log::trace!("outline_body: Above expected indent level");
         return nom_err(input);
     }
 
     if let Ok((rest, _)) = empty_line(input) {
+        log::trace!("outline_body: Empty line");
         return Ok((rest, (min_indent, OutlineBody::default())));
     }
 
     if let Ok(ret) = prefix_block(min_indent, input) {
+        log::trace!("outline_body: parsed prefix block {:?}", ret);
         return Ok(ret);
     }
 
     let mut line = Vec::new();
     let mut current = line_start;
     loop {
-        if let Ok((rest, _)) = alt!(current, line_ending | eof!()) {
+        if let Ok((rest, _)) = eol(current) {
             return Ok((rest, (d, OutlineBody::Line(line))));
         }
 
         if let Ok((rest, (prefix, syntax))) = indent_block_start(current) {
             let (rest, lines) = indent_block_lines(d + 1, rest).unwrap_or((rest, Vec::new()));
+            log::trace!(
+                "outline_body: Indent block {:?}, {} of {} lines",
+                line,
+                prefix,
+                lines.len()
+            );
             return Ok((
                 rest,
                 (
@@ -420,6 +444,7 @@ fn outline_body(
         }
 
         if let Ok((rest, f)) = fragment(current) {
+            log::trace!("outline_body: Pushed fragment {:?}", f);
             line.push(f);
             current = rest;
         } else {
@@ -430,59 +455,51 @@ fn outline_body(
 }
 
 // Return indent and body on match.
-fn prefix_block(
-    min_indent: usize,
-    input: CompleteStr,
-) -> nom::IResult<CompleteStr, (usize, OutlineBody)> {
+fn prefix_block(min_indent: usize, input: &str) -> nom::IResult<&str, (usize, OutlineBody)> {
     fn prefix_block_line<'a>(
         indent: usize,
         prefix: &str,
-        input: CompleteStr<'a>,
-    ) -> nom::IResult<CompleteStr<'a>, CompleteStr<'a>> {
+        i: &'a str,
+    ) -> nom::IResult<&'a str, &'a str> {
         debug_assert!(indent > 0);
+
+        if i.is_empty() {
+            return nom_err(i);
+        }
 
         // Allow empty lines in space-prefix blocks that don't need to have even the indent.
         if prefix.is_empty() {
-            if let Ok((rest, _)) = empty_line(input) {
-                return Ok((rest, CompleteStr("")));
+            if let Ok((rest, _)) = empty_line(i) {
+                return Ok((rest, ""));
             }
         }
 
         // Allow non-empty prefix to be separated from text with tab as well as space, to avoid the
         // more confusing alternative of parsing a non-empty prefix + tab as a syntax line.
-        do_parse!(
-            input,
-            count!(tag!("\t"), indent - 1)
-                >> terminated!(
-                    tag!(prefix),
-                    one_of!(if prefix.is_empty() { " " } else { " \t" })
-                )
-                >> body: complete_line
-                >> (body)
-        )
+        let (i, _) = count(tag("\t"), indent - 1)(i)?;
+        let (i, _) = terminated(
+            tag(prefix),
+            one_of(if prefix.is_empty() { " " } else { " \t" }),
+        )(i)?;
+        complete_line(i)
     }
 
     fn prefix_block_syntax_line<'a>(
         indent: usize,
         prefix: &str,
-        input: CompleteStr<'a>,
-    ) -> nom::IResult<CompleteStr<'a>, CompleteStr<'a>> {
+        i: &'a str,
+    ) -> nom::IResult<&'a str, &'a str> {
         debug_assert!(indent > 0);
         if prefix.is_empty() {
-            return nom_err(input);
+            return nom_err(i);
         }
 
-        do_parse!(
-            input,
-            count!(tag!("\t"), indent - 1)
-                >> tag!(prefix)
-                // XXX: Ugly, using recognize! on complete_line seems to pull in the trailing
-                // newline.
-                >> body: verify!(complete_line, |s: CompleteStr| match s.chars().next() {
-                    Some(' ') | Some('\t') | None => false,
-                    _ => true })
-                >> (body)
-        )
+        let (i, _) = count(tag("\t"), indent - 1)(i)?;
+        let (i, _) = tag(prefix)(i)?;
+        verify(complete_line, |s: &str| match s.chars().next() {
+            Some(' ') | Some('\t') | None => false,
+            _ => true,
+        })(i)
     }
 
     // Need to figure out the depth here, since it's allowed to be deeper than min_indent.
@@ -506,11 +523,14 @@ fn prefix_block(
         return nom_err(input);
     }
 
-    let (rest, (syntax, lines)) = pair!(
-        input,
-        opt!(|i| prefix_block_syntax_line(indent, &prefix, i)),
-        many0!(|i| prefix_block_line(indent, &prefix, i))
-    )?;
+    log::trace!("prefix_block indent: {}, prefix: {:?}", indent, prefix);
+
+    let (rest, (syntax, lines)) = pair(
+        opt(|i| prefix_block_syntax_line(indent, &prefix, i)),
+        many0(|i| prefix_block_line(indent, &prefix, i)),
+    )(input)?;
+
+    log::trace!("prefix_block syntax_line: {:?}, lines: {:?}", syntax, lines);
 
     if syntax.is_none() && lines.is_empty() {
         return nom_err(input);
@@ -530,35 +550,33 @@ fn prefix_block(
     ))
 }
 
-fn child_outlines(
-    min_indent: usize,
-    input: CompleteStr<'_>,
-) -> nom::IResult<CompleteStr<'_>, Vec<Outline>> {
-    let outline = |i| outline(min_indent, i);
+fn child_outlines(min_indent: usize, input: &str) -> nom::IResult<&str, Vec<Outline>> {
+    if input.is_empty() {
+        return Ok((input, Vec::new()));
+    }
 
-    many0!(input, outline)
+    let outline = |i| non_empty_outline(min_indent, i);
+
+    many0(outline)(input)
 }
 
 /// Parse text block delimited only by sufficient indentation.
-fn indent_block_lines(
-    min_indent: usize,
-    input: CompleteStr,
-) -> nom::IResult<CompleteStr, Vec<String>> {
-    many0!(input, |i| indent_block_line(min_indent, i))
+fn indent_block_lines(min_indent: usize, input: &str) -> nom::IResult<&str, Vec<String>> {
+    many0(|i| indent_block_line(min_indent, i))(input)
 }
 
-fn indent_block_line(
-    expected_indent: usize,
-    input: CompleteStr,
-) -> nom::IResult<CompleteStr, String> {
-    alt!(
-        input,
-        map!(empty_line, |_| String::new())
-            | map!(
-                preceded!(count!(tag!("\t"), expected_indent - 1), complete_line),
-                |s| s.to_string()
-            )
-    )
+fn indent_block_line(expected_indent: usize, input: &str) -> nom::IResult<&str, String> {
+    if input.is_empty() {
+        return nom_err(input);
+    }
+
+    alt((
+        map(empty_line, |_| String::new()),
+        map(
+            preceded(count(tag("\t"), expected_indent - 1), complete_line),
+            |s| s.to_string(),
+        ),
+    ))(input)
 }
 
 /// Line element fragments.
@@ -606,8 +624,8 @@ impl fmt::Display for Fragment {
     }
 }
 
-fn fragment(input: CompleteStr) -> nom::IResult<CompleteStr, Fragment> {
-    if alt!(input, line_ending | eof!()).is_ok() {
+fn fragment(input: &str) -> nom::IResult<&str, Fragment> {
+    if eol(input).is_ok() {
         return nom_err(input);
     }
     if indent_block_start(input).is_ok() {
@@ -618,25 +636,21 @@ fn fragment(input: CompleteStr) -> nom::IResult<CompleteStr, Fragment> {
     }
 
     let mut pos = 0;
-    while let Some(next_p) = &input[pos..].char_indices().skip(1).next().map(|(i, _)| i) {
-        debug_assert!(*next_p > 0);
-        pos += *next_p;
-        if terminable_fragment(CompleteStr(&input[pos..])).is_ok() {
+    while let Some(c) = &input[pos..].chars().next() {
+        pos += c.len_utf8();
+        if eol(&input[pos..]).is_ok() {
             break;
         }
-        if indent_block_start(CompleteStr(&input[pos..])).is_ok() {
+        if indent_block_start(&input[pos..]).is_ok() {
             break;
         }
-        if alt!(&input[pos..], line_ending | eof!()).is_ok() {
+        if terminable_fragment(&input[pos..]).is_ok() {
             break;
         }
     }
 
     if pos > 0 {
-        Ok((
-            CompleteStr(&input[pos..]),
-            Fragment::Text(input[..pos].to_string()),
-        ))
+        Ok((&input[pos..], Fragment::Text(input[..pos].to_string())))
     } else {
         nom_err(input)
     }
@@ -644,107 +658,162 @@ fn fragment(input: CompleteStr) -> nom::IResult<CompleteStr, Fragment> {
 
 // Fragments whose end can be determined using nom.
 // Text is the "all the other stuff" fragment that is handled in the main framgent function.
-named!(terminable_fragment<CompleteStr, Fragment>,
-    alt!(map!(wiki_word, |s| Fragment::WikiWord(s.to_string()))
-       | map!(verbatim, |s| Fragment::Verbatim(s.to_string()))
-       | map!(inline_image, |s| Fragment::InlineImage(s.to_string()))
-       | map!(file_link, |s| Fragment::FileLink(s.to_string()))
-       | map!(alias_link, |s| Fragment::AliasLink(s.to_string()))
-       | map!(alias_definition, |s| Fragment::AliasDefinition(s.to_string()))
-       | map!(tag_link, |s| Fragment::TagLink(s.to_string()))
-       | map!(url, |s| Fragment::Url(s.to_string()))
-       | map!(importance_marker, |_| Fragment::ImportanceMarker)
-    ));
+fn terminable_fragment(i: &str) -> nom::IResult<&str, Fragment> {
+    alt((
+        map(wiki_word, |s| Fragment::WikiWord(s.to_string())),
+        map(verbatim, |s| Fragment::Verbatim(s.to_string())),
+        map(inline_image, |s| Fragment::InlineImage(s.to_string())),
+        map(file_link, |s| Fragment::FileLink(s.to_string())),
+        map(alias_link, |s| Fragment::AliasLink(s.to_string())),
+        map(alias_definition, |s| {
+            Fragment::AliasDefinition(s.to_string())
+        }),
+        map(tag_link, |s| Fragment::TagLink(s.to_string())),
+        map(url, |s| Fragment::Url(s.to_string())),
+        map(importance_marker, |_| Fragment::ImportanceMarker),
+    ))(i)
+}
 
-named!(wiki_word_segment<CompleteStr, CompleteStr>,
-    recognize!(pair!(wiki_word_segment_head, wiki_word_segment_tail)));
+fn wiki_word_segment(i: &str) -> nom::IResult<&str, &str> {
+    recognize(pair(wiki_word_segment_head, wiki_word_segment_tail))(i)
+}
 
-named!(wiki_word_segment_head<CompleteStr, char>,
-    // XXX: Is there a nice concise way to get |c| c.is_uppercase() here instead?
-    one_of!("ABCDEFGHIJKLMNOPQRSTUVWXYZ"));
+fn wiki_word_segment_head(i: &str) -> nom::IResult<&str, char> {
+    one_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ")(i)
+}
 
-named!(wiki_word_segment_tail<CompleteStr, CompleteStr>,
-    take_while1!(|c: char| c.is_lowercase() || c.is_numeric()));
+fn wiki_word_segment_tail(i: &str) -> nom::IResult<&str, &str> {
+    take_while1(|c: char| c.is_lowercase() || c.is_numeric())(i)
+}
 
-named!(wiki_word<CompleteStr, CompleteStr>,
-    terminated!(
-        recognize!(
-            preceded!(take_while!(|c: char| c.is_numeric()),
-            pair!(wiki_word_segment, many1!(wiki_word_segment)))
-        ),
-        peek!(not!(wiki_word_segment_head))));
+fn wiki_word(i: &str) -> nom::IResult<&str, &str> {
+    terminated(
+        recognize(preceded(
+            take_while(|c: char| c.is_numeric()), // Allow numbers at start
+            pair(wiki_word_segment, many1(wiki_word_segment)),
+        )),
+        peek(not(wiki_word_segment_head)),
+    )(i)
+}
 
-named!(empty_line<CompleteStr, CompleteStr>,
-    terminated!(recognize!(many0!(one_of!(" \t"))), alt!(line_ending | eof!())));
+fn empty_line(i: &str) -> nom::IResult<&str, &str> {
+    recognize(terminated(many0(one_of(" \t")), eol))(i)
+}
 
-named!(depth<CompleteStr, usize>,
-       map!(take_while!(|c| c == '\t'), |s| s.len() + 1));
+fn depth(i: &str) -> nom::IResult<&str, usize> {
+    map(take_while(|c| c == '\t'), |s: &str| s.len() + 1)(i)
+}
 
-named!(complete_line<CompleteStr, CompleteStr>,
-    terminated!(take_while!(|c| c != '\n' && c != '\r'), alt!(line_ending | eof!())));
+fn complete_line(i: &str) -> nom::IResult<&str, &str> {
+    terminated(take_while(|c| c != '\n' && c != '\r'), eol)(i)
+}
 
-named!(verbatim<CompleteStr, CompleteStr>,
-    delimited!(tag!("`"), take_while!(|c| c != '`'), tag!("`")));
+fn verbatim(i: &str) -> nom::IResult<&str, &str> {
+    delimited(tag("`"), take_while(|c| c != '`'), tag("`"))(i)
+}
 
-named!(url<CompleteStr, CompleteStr>,
-    recognize!(pair!(
-        alt!(tag!("https://") | tag!("http://") | tag!("ftp://")),
-        take_while!(is_url_char))));
+fn url(i: &str) -> nom::IResult<&str, &str> {
+    recognize(pair(
+        alt((tag("https://"), tag("http://"), tag("ftp://"))),
+        take_while(is_url_char),
+    ))(i)
+}
 
-named!(inline_image<CompleteStr, CompleteStr>,
-    delimited!(tag!("!["), take_while!(is_path_char), tag!("]")));
+fn inline_image(i: &str) -> nom::IResult<&str, &str> {
+    delimited(tag("!["), take_while(is_path_char), tag("]"))(i)
+}
 
-named!(file_link<CompleteStr, CompleteStr>,
-    delimited!(
-        tag!("["),
-        recognize!(pair!(
-                alt!(tag!("./") | tag!("../")),
-                take_while!(is_path_char))),
-        tag!("]")));
+fn file_link(i: &str) -> nom::IResult<&str, &str> {
+    delimited(
+        tag("["),
+        recognize(pair(alt((tag("./"), tag("../"))), take_while(is_path_char))),
+        tag("]"),
+    )(i)
+}
 
-named!(alias_definition<CompleteStr, CompleteStr>,
-    delimited!(tag!("("), take_while!(is_alias_char), tag!(")")));
+fn alias_definition(i: &str) -> nom::IResult<&str, &str> {
+    delimited(tag("("), take_while(is_alias_char), tag(")"))(i)
+}
 
-named!(alias_link<CompleteStr, CompleteStr>,
-    delimited!(tag!("["), take_while!(is_alias_char), tag!("]")));
+fn alias_link(i: &str) -> nom::IResult<&str, &str> {
+    delimited(tag("["), take_while(is_alias_char), tag("]"))(i)
+}
 
-named!(tag_link<CompleteStr, CompleteStr>,
-    preceded!(tag!("@"), take_while!(is_tag_char)));
+fn tag_link(i: &str) -> nom::IResult<&str, &str> {
+    preceded(tag("@"), take_while(is_tag_char))(i)
+}
 
-named!(importance_marker<CompleteStr, CompleteStr>,
-    terminated!(tag!(" *"), peek!(alt!(line_ending | eof!()))));
+fn importance_marker(i: &str) -> nom::IResult<&str, &str> {
+    terminated(tag(" *"), peek(eol))(i)
+}
 
-named!(indent_block_with_syntax<CompleteStr, (CompleteStr, Option<CompleteStr>)>,
-    map!(pair!(alt!(tag!("'''") | tag!("```")), complete_line), |(a, b)| (a, if b.is_empty() { None } else { Some(b) })));
+fn indent_block_with_syntax(i: &str) -> nom::IResult<&str, (&str, Option<&str>)> {
+    map(
+        pair(alt((tag("'''"), tag("```"))), complete_line),
+        |(a, b)| (a, if b.is_empty() { None } else { Some(b) }),
+    )(i)
+}
 
-named!(indent_block_trail<CompleteStr, (CompleteStr, Option<CompleteStr>)>,
-    map!(terminated!(alt!(tag!(">") | tag!(";")), alt!(line_ending | eof!())), |p| (p, None)));
+// Any regular line ending with > or ; indicates subsequent lines with deeper indentation are an
+// indent block.
+fn indent_block_trail(i: &str) -> nom::IResult<&str, (&str, Option<&str>)> {
+    map(terminated(alt((tag(">"), tag(";"))), eol), |p| (p, None))(i)
+}
 
-named!(indent_block_start<CompleteStr, (CompleteStr, Option<CompleteStr>)>,
-    alt!(indent_block_with_syntax | indent_block_trail));
+fn indent_block_start(i: &str) -> nom::IResult<&str, (&str, Option<&str>)> {
+    alt((indent_block_with_syntax, indent_block_trail))(i)
+}
 
-named!(syntax_line<CompleteStr, ((String, bool), Option<Digest>)>,
-    pair!(syntax_lang, opt!(checksum)));
+fn syntax_line(i: &str) -> nom::IResult<&str, ((String, bool), Option<Digest>)> {
+    pair(syntax_lang, opt(checksum))(i)
+}
 
 // Return ([lang name], [is library block]).
-named!(syntax_lang<CompleteStr, (String, bool)>, alt!(lang_lib | lang_script));
+fn syntax_lang(i: &str) -> nom::IResult<&str, (String, bool)> {
+    alt((lang_lib, lang_script))(i)
+}
 
-named!(lang_lib<CompleteStr, (String, bool)>,
-    map!(terminated!(take_while1!(is_lang_char), tag!("-lib")), |s| (s.to_string(), true)));
+fn lang_lib(i: &str) -> nom::IResult<&str, (String, bool)> {
+    map(
+        terminated(take_while1(is_lang_char), tag("-lib")),
+        |s: &str| (s.to_string(), true),
+    )(i)
+}
 
-named!(lang_script<CompleteStr, (String, bool)>,
-    map!(take_while1!(is_lang_char), |s| (s.to_string(), false)));
+fn lang_script(i: &str) -> nom::IResult<&str, (String, bool)> {
+    map(take_while1(is_lang_char), |s: &str| (s.to_string(), false))(i)
+}
 
-named!(checksum<CompleteStr, Digest>,
-    map!(preceded!(
-            pair!(take_while1!(|c: char| c.is_whitespace()), tag!("md5:")),
-            count_fixed!(u8, hex_byte, 16)),
-        |bytes| Digest(bytes)));
+fn checksum(i: &str) -> nom::IResult<&str, Digest> {
+    const LEN: usize = std::mem::size_of::<Digest>();
+    map(
+        preceded(
+            pair(take_while1(|c: char| c.is_whitespace()), tag("md5:")),
+            count(hex_byte, LEN),
+        ),
+        |bytes| {
+            let mut array = [0; LEN];
+            array.copy_from_slice(&bytes[..LEN]);
+            Digest(array)
+        },
+    )(i)
+}
 
-named!(hex_byte<CompleteStr, u8>,
-    map_res!(
-        take_while_m_n!(2, 2, |c: char| c.is_digit(16)),
-        |hex: CompleteStr| u8::from_str_radix(&*hex, 16)));
+fn hex_byte(i: &str) -> nom::IResult<&str, u8> {
+    map_res(
+        take_while_m_n(2, 2, |c: char| c.is_digit(16)),
+        |hex: &str| u8::from_str_radix(&*hex, 16),
+    )(i)
+}
+
+/// Match newline or EOF
+fn eol(i: &str) -> nom::IResult<&str, &str> {
+    if i.is_empty() {
+        Ok((i, ""))
+    } else {
+        line_ending(i)
+    }
+}
 
 /// Character that can show up in an URL.
 ///
@@ -792,27 +861,22 @@ fn is_lang_char(c: char) -> bool {
 
 /// Helper function for the verbose Nom error expression
 fn nom_err<I, T>(input: I) -> nom::IResult<I, T> {
-    return Err(nom::Err::Error(Context::Code(input, ErrorKind::Custom(1))));
+    // XXX: ErrorKind variant is arbitrary.
+    return Err(nom::Err::Error(nom::error::make_error(
+        input,
+        nom::error::ErrorKind::Tag,
+    )));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nom::types::CompleteStr as S;
+    use pretty_assertions::{assert_eq, assert_ne};
     use ron;
 
     fn parse_test(input: &str, output: &str) {
         let outline: Outline = input.parse().unwrap();
         // Outline type must echo back verbatim (except maybe trailing whitespace)
-
-        println!(
-            "{}",
-            ron::ser::to_string_pretty(&outline, Default::default()).unwrap()
-        );
-
-        // Provide more eyeballable outputs in case the test fails.
-        println!("{}", input); // This is what you want
-        println!("{}", outline); // This is what you get
 
         assert_eq!(&format!("{}", outline), input);
 
@@ -820,44 +884,102 @@ mod tests {
         assert_eq!(outline, ron::de::from_str(output).unwrap());
     }
 
+    /// Slightly lossy format for small outlines for writing literals in tests
+    fn flatten(outline: &Outline) -> Vec<String> {
+        fn walk(o: &Outline, acc: &mut Vec<String>) {
+            match &o.body {
+                OutlineBody::Line(frags) => acc.extend(frags.iter().map(|f| format!("{}", f))),
+                OutlineBody::Block {
+                    indent_line: Some(frags),
+                    lines,
+                    ..
+                } => {
+                    acc.extend(frags.iter().map(|f| format!("{}", f)));
+                    for line in lines {
+                        acc.push(line.clone());
+                    }
+                }
+                OutlineBody::Block { lines, .. } => {
+                    for line in lines {
+                        acc.push(line.clone());
+                    }
+                }
+            }
+
+            for c in &o.children {
+                walk(c, acc);
+            }
+        }
+        let mut ret = Vec::new();
+        walk(outline, &mut ret);
+        ret
+    }
+
     #[test]
     fn test_components() {
-        assert!(empty_line(S("")).is_ok());
-        assert!(empty_line(S(" ")).is_ok());
-        assert!(empty_line(S("\t")).is_ok());
-        assert!(empty_line(S("\t\t ")).is_ok());
-        assert!(empty_line(S("\n")).is_ok());
-        assert!(empty_line(S("\njunk")).is_ok());
+        assert!(empty_line("").is_ok());
+        assert!(empty_line(" ").is_ok());
+        assert!(empty_line("\t").is_ok());
+        assert!(empty_line("\t\t ").is_ok());
+        assert!(empty_line("\n").is_ok());
+        assert!(empty_line("\njunk").is_ok());
 
-        assert!(importance_marker(S(" *")).is_ok());
-        assert!(importance_marker(S("")).is_err());
-        assert!(importance_marker(S(" * x")).is_err());
+        assert!(importance_marker(" *").is_ok());
+        assert!(importance_marker("").is_err());
+        assert!(importance_marker(" * x").is_err());
 
-        assert_eq!(complete_line(S("")), Ok((S(""), S(""))));
-        assert_eq!(complete_line(S("\nbaz")), Ok((S("baz"), S(""))));
-        assert_eq!(complete_line(S("foobar")), Ok((S(""), S("foobar"))));
-        assert_eq!(complete_line(S("foobar\nbaz")), Ok((S("baz"), S("foobar"))));
-        assert_eq!(
-            complete_line(S("foobar\r\nbaz")),
-            Ok((S("baz"), S("foobar")))
-        );
+        assert_eq!(complete_line(""), Ok(("", "")));
+        assert_eq!(complete_line("\nbaz"), Ok(("baz", "")));
+        assert_eq!(complete_line("foobar"), Ok(("", "foobar")));
+        assert_eq!(complete_line("foobar\nbaz"), Ok(("baz", "foobar")));
+        assert_eq!(complete_line("foobar\r\nbaz"), Ok(("baz", "foobar")));
 
         assert_eq!(
-            indent_block_line(3, S("\t\t\tcode")),
-            Ok((S(""), "\tcode".to_string()))
+            indent_block_line(3, "\t\t\tcode"),
+            Ok(("", "\tcode".to_string()))
         );
-        assert!(indent_block_line(3, S("\tcode")).is_err());
+        assert!(indent_block_line(3, "\tcode").is_err());
 
-        assert!(wiki_word(S("")).is_err());
-        assert!(wiki_word(S("word")).is_err());
-        assert!(wiki_word(S("Word")).is_err());
-        assert!(wiki_word(S("aWikiWord")).is_err());
-        assert!(wiki_word(S("WikiW")).is_err());
-        assert!(wiki_word(S("WikiWordW")).is_err());
-        assert_eq!(wiki_word(S("WikiWord")), Ok((S(""), S("WikiWord"))));
-        assert_eq!(wiki_word(S("Wiki1Word2")), Ok((S(""), S("Wiki1Word2"))));
-        assert_eq!(wiki_word(S("WikiWord-s")), Ok((S("-s"), S("WikiWord"))));
-        assert_eq!(wiki_word(S("1984WikiWord")), Ok((S(""), S("1984WikiWord"))));
+        assert!(wiki_word("").is_err());
+        assert!(wiki_word("word").is_err());
+        assert!(wiki_word("Word").is_err());
+        assert!(wiki_word("aWikiWord").is_err());
+        assert!(wiki_word("WikiW").is_err());
+        assert!(wiki_word("WikiWordW").is_err());
+        assert_eq!(wiki_word("WikiWord"), Ok(("", "WikiWord")));
+        assert_eq!(wiki_word("Wiki1Word2"), Ok(("", "Wiki1Word2")));
+        assert_eq!(wiki_word("WikiWord-s"), Ok(("-s", "WikiWord")));
+        assert_eq!(wiki_word("1984WikiWord"), Ok(("", "1984WikiWord")));
+    }
+
+    #[test]
+    fn test_oneliner_outlines() {
+        // Run tests with RUST_LOG="parser=TRACE" cargo test --all
+        env_logger::init();
+
+        let outline: Outline = "".parse().unwrap();
+        assert_eq!(outline, Outline::default());
+
+        let outline: Outline = "a".parse().unwrap();
+        assert_eq!(flatten(&outline), vec!["a"]);
+
+        let outline: Outline = "\ta".parse().unwrap();
+        assert_eq!(flatten(&outline), vec!["a"]);
+
+        let outline: Outline = "; x".parse().unwrap();
+        assert_eq!(flatten(&outline), vec!["x"]);
+
+        let outline: Outline = "[file.txt]".parse().unwrap();
+        assert_eq!(flatten(&outline), vec!["[file.txt]"]);
+
+        let outline: Outline = "![image.jpg]".parse().unwrap();
+        assert_eq!(flatten(&outline), vec!["![image.jpg]"]);
+
+        let outline: Outline = "trail-indent>".parse().unwrap();
+        assert_eq!(flatten(&outline), vec!["trail-indent"]);
+
+        let outline: Outline = " space-indent>".parse().unwrap();
+        assert_eq!(flatten(&outline), vec!["space-indent>"]);
     }
 
     #[test]
@@ -892,13 +1014,10 @@ mod tests {
 
     #[test]
     fn test_syntax_info() {
+        assert_eq!(syntax_lang("julia"), Ok(("", ("julia".to_string(), false))));
         assert_eq!(
-            syntax_lang(S("julia")),
-            Ok((S(""), ("julia".to_string(), false)))
-        );
-        assert_eq!(
-            syntax_lang(S("julia-lib")),
-            Ok((S(""), ("julia".to_string(), true)))
+            syntax_lang("julia-lib"),
+            Ok(("", ("julia".to_string(), true)))
         );
 
         assert_eq!(
