@@ -17,6 +17,10 @@ stdenv.mkDerivation {
     html-tidy
   ];
   shellHook = ''
+    # For cargo-outdated
+    export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${
+      with pkgs.xlibs; lib.makeLibraryPath [ openssl zlib ]
+    }"
     export PATH=$PATH:~/.cargo/bin
     export RUST_BACKTRACE=1
 
