@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [workspace]
-members = ["parser", "scraper"]
+members = ["parser", "scraper", "anki-connect"]
 
 [dependencies]
 chrono = "0.4"

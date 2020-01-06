@@ -1,0 +1,19 @@
+[package]
+name = "anki-connect"
+version = "0.1.0"
+authors = ["Risto Saarelma <risto.saarelma@iki.fi>"]
+description = "Connectivity to Anki spaced repetition program"
+keywords = ["anki", "spaced-repetition"]
+license = "MIT OR Apache-2.0"
+edition = "2018"
+
+[dependencies]
+async-std = "1"
+json = "0.12"
+log = "0.4"
+reqwest = { version = "0.10", features = ["json", "blocking"] }
+serde = "1"
+serde_derive = "1"
+
+[dev-dependencies]
+env_logger = "0.7"
