@@ -22,7 +22,6 @@ stdenv.mkDerivation {
       with pkgs.xlibs; lib.makeLibraryPath [ openssl zlib ]
     }"
     export PATH=$PATH:~/.cargo/bin
-    export RUST_BACKTRACE=1
 
     # Basic compiler
     rustup install nightly
