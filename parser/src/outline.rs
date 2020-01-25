@@ -1,4 +1,6 @@
 use std::fmt;
+use std::io::{self};
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 #[derive(Eq, PartialEq, Debug, Default)]
@@ -7,15 +9,13 @@ pub struct Outline {
     /// Parent line at the element's level of indentation
     ///
     /// May be empty for elements that introduce multiple levels of indentation.
-    line: Option<String>,
+    headline: Option<String>,
     /// Child elements, indented one level below this element.
     children: Vec<Outline>,
 }
 
-impl FromStr for Outline {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+impl From<&str> for Outline {
+    fn from(s: &str) -> Outline {
         // Preprocess the indent depths of lines.
         //
         // Special case lines that are all whitespace into None values. (This parser does not
@@ -53,12 +53,12 @@ impl FromStr for Outline {
                 Some(None) => {
                     lines.next();
                     Outline {
-                        line: Some(String::new()),
+                        headline: Some(String::new()),
                         children: parse_children(depth + 1, lines),
                     }
                 }
                 Some(Some((d, text))) => {
-                    let line = if d == depth {
+                    let headline = if d == depth {
                         lines.next();
                         Some(String::from(text))
                     } else if d > depth {
@@ -67,31 +67,39 @@ impl FromStr for Outline {
                         panic!("Outline parser dropped out of depth")
                     };
                     Outline {
-                        line,
+                        headline,
                         children: parse_children(depth + 1, lines),
                     }
                 }
             }
         }
 
-        Ok(parse(-1, &mut s.lines().map(process_line).peekable()))
+        parse(-1, &mut s.lines().map(process_line).peekable())
+    }
+}
+
+impl FromStr for Outline {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(s.into())
     }
 }
 
 impl fmt::Display for Outline {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fn print(f: &mut fmt::Formatter, depth: i32, outline: &Outline) -> fmt::Result {
-            assert!(depth >= 0 || outline.line.is_none());
+            assert!(depth >= 0 || outline.headline.is_none());
 
-            if let Some(line) = &outline.line {
-                if line.is_empty() {
+            if let Some(headline) = &outline.headline {
+                if headline.is_empty() {
                     writeln!(f)?;
                 } else {
                     for _ in 0..depth {
                         write!(f, "\t")?;
                     }
 
-                    writeln!(f, "{}", line)?;
+                    writeln!(f, "{}", headline)?;
                 }
             }
 
@@ -102,7 +110,83 @@ impl fmt::Display for Outline {
             Ok(())
         }
 
-        print(f, if self.line.is_some() { 0 } else { -1 }, self)
+        print(f, if self.headline.is_some() { 0 } else { -1 }, self)
+    }
+}
+
+// Recursively turn a file or an entire directory into an outline.
+impl std::convert::TryFrom<&Path> for Outline {
+    type Error = std::io::Error;
+    fn try_from(path: &Path) -> Result<Outline, Self::Error> {
+        fn is_outline(path: impl AsRef<Path>) -> bool {
+            match path.as_ref().metadata() {
+                Ok(m) if m.is_dir() => true,
+                Ok(m) if m.is_file() && path.as_ref().to_str().unwrap_or("").ends_with(".otl") => {
+                    true
+                }
+                _ => false,
+            }
+        }
+        fn to_headline(path: impl AsRef<Path>) -> Option<String> {
+            if let Some(mut path) = path.as_ref().file_name().map_or(None, |p| p.to_str()) {
+                if path.ends_with(".otl") {
+                    path = &path[..path.len() - 4];
+                }
+
+                Some(path.into())
+            } else {
+                None
+            }
+        }
+
+        if !is_outline(path) {
+            // XXX: Random error content, just want to drop out and fail here.
+            return Err(io::Error::from_raw_os_error(0));
+        }
+
+        // It's a directory, crawl contents and build outline
+        if let Ok(iter) = std::fs::read_dir(path) {
+            let mut contents: Vec<PathBuf> =
+                iter.filter_map(|e| e.ok().map(|p| p.path())).collect();
+            contents.sort_by_key(|p| to_headline(p));
+
+            let children: Vec<Outline> = contents
+                .iter()
+                .filter_map(|p: &PathBuf| Outline::try_from(p.as_ref() as &Path).ok())
+                .collect();
+
+            if children.is_empty() {
+                return Err(io::Error::from_raw_os_error(0));
+            }
+
+            return Ok(Outline {
+                headline: to_headline(path),
+                children,
+            });
+        }
+
+        // It's a file
+        if let Ok(text) = std::fs::read_to_string(path) {
+            let mut ret: Outline = Outline::from(text.as_ref());
+
+            // Should get us an outline with no headline, just children.
+            debug_assert!(ret.headline.is_none());
+
+            // Put filename in as the headline.
+            ret.headline = to_headline(path);
+
+            // We should have bailed out earlier if this isn't a headlinable file.
+            debug_assert!(ret.headline.is_some());
+
+            // Special case, ".otl" shows up as headline-less
+            if ret.headline.as_ref().map_or(false, |s| s.is_empty()) {
+                ret.headline = None;
+            }
+
+            Ok(ret)
+        } else {
+            Err(io::Error::from_raw_os_error(0))
+        }
     }
 }
 
