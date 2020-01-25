@@ -3,19 +3,16 @@ use std::str::FromStr;
 
 #[derive(Eq, PartialEq, Debug, Default)]
 /// Base datatype for an indented outline file
-pub struct Outline<T> {
+pub struct Outline {
     /// Parent line at the element's level of indentation
     ///
     /// May be empty for elements that introduce multiple levels of indentation.
-    line: Option<T>,
+    line: Option<String>,
     /// Child elements, indented one level below this element.
-    children: Vec<Outline<T>>,
+    children: Vec<Outline>,
 }
 
-/// Starting point for outlines that extracts just the indent structure.
-pub type BasicOutline = Outline<String>;
-
-impl FromStr for BasicOutline {
+impl FromStr for Outline {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -32,10 +29,7 @@ impl FromStr for BasicOutline {
             }
         }
 
-        fn parse_children<'a, I>(
-            depth: i32,
-            lines: &mut std::iter::Peekable<I>,
-        ) -> Vec<BasicOutline>
+        fn parse_children<'a, I>(depth: i32, lines: &mut std::iter::Peekable<I>) -> Vec<Outline>
         where
             I: Iterator<Item = Option<(i32, &'a str)>>,
         {
@@ -50,12 +44,12 @@ impl FromStr for BasicOutline {
             }
         }
 
-        fn parse<'a, I>(depth: i32, lines: &mut std::iter::Peekable<I>) -> BasicOutline
+        fn parse<'a, I>(depth: i32, lines: &mut std::iter::Peekable<I>) -> Outline
         where
             I: Iterator<Item = Option<(i32, &'a str)>>,
         {
             match lines.peek().cloned() {
-                None => BasicOutline::default(),
+                None => Outline::default(),
                 Some(None) => {
                     lines.next();
                     Outline {
@@ -84,9 +78,9 @@ impl FromStr for BasicOutline {
     }
 }
 
-impl fmt::Display for BasicOutline {
+impl fmt::Display for Outline {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fn print(f: &mut fmt::Formatter, depth: i32, outline: &BasicOutline) -> fmt::Result {
+        fn print(f: &mut fmt::Formatter, depth: i32, outline: &Outline) -> fmt::Result {
             assert!(depth >= 0 || outline.line.is_none());
 
             if let Some(line) = &outline.line {
@@ -118,6 +112,6 @@ mod tests {
 
     #[test]
     fn test_outline() {
-        assert_eq!(BasicOutline::from_str(""), Ok(Outline::default()));
+        assert_eq!(Outline::from_str(""), Ok(Outline::default()));
     }
 }
