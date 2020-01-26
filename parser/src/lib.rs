@@ -15,7 +15,8 @@ use std::fs;
 use std::path::Path;
 use std::str::FromStr;
 
-mod outline;
+// TODO: Make outline::Outline the main Outline type, figure out what to do with the one below.
+pub mod outline;
 
 #[derive(Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
 /// Representation of an outliner-formatted text document.

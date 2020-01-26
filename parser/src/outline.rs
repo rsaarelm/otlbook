@@ -14,6 +14,23 @@ pub struct Outline {
     children: Vec<Outline>,
 }
 
+impl Outline {
+    pub fn new(headline: impl Into<String>, children: Vec<Outline>) -> Outline {
+        Outline {
+            headline: Some(headline.into()),
+            children
+        }
+    }
+
+    pub fn push(&mut self, outline: Outline) {
+        self.children.push(outline);
+    }
+
+    pub fn push_str(&mut self, line: impl Into<String>) {
+        self.push(Outline::new(line, Vec::new()));
+    }
+}
+
 impl From<&str> for Outline {
     fn from(s: &str) -> Outline {
         // Preprocess the indent depths of lines.

@@ -9,6 +9,8 @@ use walkdir::{DirEntry, WalkDir};
 mod eval;
 use eval::eval;
 
+mod scrape;
+
 fn main() {
     let opt = Otltool::from_args();
     match opt {
@@ -16,6 +18,7 @@ fn main() {
         Otltool::Tags => tags(),
         Otltool::Eval { force } => eval(force),
         Otltool::Extract { syntax } => extract(&syntax),
+        Otltool::Scrape { target } => scrape::scrape(&target),
         _ => unimplemented!(),
     }
 }
@@ -66,6 +69,15 @@ enum Otltool {
     Extract {
         #[structopt(parse(from_str))]
         syntax: String,
+    },
+
+    #[structopt(
+        name = "scrape",
+        about = "Scrape target resource for reference items"
+    )]
+    Scrape {
+        #[structopt(parse(from_str))]
+        target: String,
     },
 }
 

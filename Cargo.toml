@@ -9,6 +9,8 @@ edition = "2018"
 members = ["parser", "wasm" ]
 
 [dependencies]
+csv = "1"
+log = "0.4"
 md5 = "0.7"
 parser = { path = "parser" }
 ron = "0.5"
