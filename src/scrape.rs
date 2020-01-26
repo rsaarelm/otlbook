@@ -30,11 +30,17 @@ impl From<&Goodreads> for Outline {
         let mut ret = Outline::new(g.title.clone(), Vec::new());
         ret.push_str(format!("title {}", g.title));
         ret.push_str(format!("author {}", g.author));
-        ret.push_str(format!(
-            "uri isbn:{}",
-            g.isbn13.replace("\"", "").replace("=", "")
-        ));
-        ret.push_str(format!("year {}", g.year_published));
+        if !g.isbn13.is_empty() {
+            ret.push_str(format!(
+                "uri isbn:{}",
+                g.isbn13.replace("\"", "").replace("=", "")
+            ));
+        } else {
+            log::warn!("ISBN missing for book '{}'", g.title);
+        }
+        if !g.year_published.is_empty() {
+            ret.push_str(format!("year {}", g.year_published));
+        }
         if !g.date_added.is_empty() {
             ret.push_str(format!("added {}", g.date_added.replace("/", "-")));
         }
