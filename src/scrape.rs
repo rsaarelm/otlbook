@@ -77,6 +77,59 @@ pub fn try_goodreads(path: impl AsRef<Path>) -> Result<Vec<Goodreads>, Box<dyn E
     Ok(ret)
 }
 
+pub fn try_netscape_bookmarks(path: impl AsRef<Path>) -> Result<Outline, Box<dyn Error>> {
+    use select::document::Document;
+    use select::predicate::Name;
+
+    let text = std::fs::read_to_string(path)?;
+    if !text.starts_with("<!DOCTYPE NETSCAPE-Bookmark") {
+        return Err("not a bookmark file")?;
+    }
+    let doc = Document::from(text.as_ref());
+
+    let mut ret = vec![];
+
+    let mut node = doc.find(Name("dt")).next();
+    while let Some(item) = node {
+        if let Some("dt") = item.name() {
+            // TODO: Replace panicing unwraps with error handling.
+            let a = item.find(Name("a")).next().unwrap();
+            let title = a.text();
+            ret.insert(0, Outline::new(&title, vec![]));
+            ret[0].push_str(format!("title {}", title));
+            ret[0].push_str(format!("uri {}", a.attr("href").unwrap()));
+            let add_date = a.attr("add_date").unwrap().parse::<i64>().unwrap();
+            let add_date = Utc
+                .timestamp(add_date, 0)
+                .to_rfc3339_opts(SecondsFormat::Secs, true);
+            ret[0].push_str(format!("added {}", add_date));
+            ret[0].push_str(format!(
+                "tags {}",
+                a.attr("tags").unwrap().replace(",", " ")
+            ));
+        }
+        if let Some("dd") = item.name() {
+            if ret.is_empty() {
+                log::warn!("Malformed bookmark file");
+                continue;
+            }
+            ret[0].push(Outline::new(
+                "quote:",
+                item.text()
+                    .lines()
+                    .map(|s| Outline::new(s, vec![]))
+                    .collect(),
+            ));
+        }
+        node = item.next();
+    }
+
+    Ok(Outline {
+        headline: None,
+        children: ret,
+    })
+}
+
 pub fn try_url(maybe_url: &str) -> Result<Outline, Box<dyn Error>> {
     use select::document::Document;
     use select::predicate::Name;
@@ -95,7 +148,7 @@ pub fn try_url(maybe_url: &str) -> Result<Outline, Box<dyn Error>> {
     let localtime: DateTime<Local> = Local::now();
     ret.push_str(format!(
         "added {}",
-        localtime.to_rfc3339_opts(SecondsFormat::Secs, false)
+        localtime.to_rfc3339_opts(SecondsFormat::Secs, true)
     ));
 
     Ok(ret)
@@ -103,6 +156,8 @@ pub fn try_url(maybe_url: &str) -> Result<Outline, Box<dyn Error>> {
 
 pub fn scrape(target: &str) {
     if let Ok(outline) = try_url(target) {
+        print!("{}", outline);
+    } else if let Ok(outline) = try_netscape_bookmarks(target) {
         print!("{}", outline);
     } else if let Ok(mut goodreads) = try_goodreads(target) {
         // Oldest will be last, switch it to be first

@@ -9,9 +9,9 @@ pub struct Outline {
     /// Parent line at the element's level of indentation
     ///
     /// May be empty for elements that introduce multiple levels of indentation.
-    headline: Option<String>,
+    pub headline: Option<String>,
     /// Child elements, indented one level below this element.
-    children: Vec<Outline>,
+    pub children: Vec<Outline>,
 }
 
 impl Outline {
