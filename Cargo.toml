@@ -9,11 +9,14 @@ edition = "2018"
 members = ["parser", "wasm" ]
 
 [dependencies]
+chrono = "0.4"
 csv = "1"
 log = "0.4"
 md5 = "0.7"
 parser = { path = "parser" }
+reqwest = { version = "0.10", features = ["blocking"] }
 ron = "0.5"
+select = "0.4"
 serde = "1"
 structopt = "0.3"
 walkdir = "2"

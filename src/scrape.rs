@@ -1,3 +1,4 @@
+use chrono::prelude::*;
 use parser::outline::Outline;
 use serde::Deserialize;
 use std::error::Error;
@@ -76,8 +77,34 @@ pub fn try_goodreads(path: impl AsRef<Path>) -> Result<Vec<Goodreads>, Box<dyn E
     Ok(ret)
 }
 
+pub fn try_url(maybe_url: &str) -> Result<Outline, Box<dyn Error>> {
+    use select::document::Document;
+    use select::predicate::Name;
+
+    let body = reqwest::blocking::get(maybe_url)?.text()?;
+    let doc = Document::from(body.as_ref());
+
+    let title: Option<String> = doc.find(Name("title")).next().map(|e| e.text());
+
+    let mut ret = Outline::new(title.as_ref().map_or(maybe_url, |s| s.as_ref()), Vec::new());
+    if let Some(title) = title {
+        ret.push_str(format!("title {}", title));
+    }
+    ret.push_str(format!("uri {}", maybe_url));
+
+    let localtime: DateTime<Local> = Local::now();
+    ret.push_str(format!(
+        "added {}",
+        localtime.to_rfc3339_opts(SecondsFormat::Secs, false)
+    ));
+
+    Ok(ret)
+}
+
 pub fn scrape(target: &str) {
-    if let Ok(mut goodreads) = try_goodreads(target) {
+    if let Ok(outline) = try_url(target) {
+        print!("{}", outline);
+    } else if let Ok(mut goodreads) = try_goodreads(target) {
         // Oldest will be last, switch it to be first
         goodreads.reverse();
 
@@ -88,7 +115,3 @@ pub fn scrape(target: &str) {
     }
     log::info!("Unknown target '{}'", target);
 }
-/*
-fn scrape_url(url: Url) -> Result<Outline, ()> {
-}
-*/
