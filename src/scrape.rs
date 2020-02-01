@@ -3,6 +3,7 @@ use parser::outline::Outline;
 use serde::Deserialize;
 use std::error::Error;
 use std::path::Path;
+use std::time::Duration;
 
 #[derive(Debug, Deserialize)]
 pub struct Goodreads {
@@ -24,6 +25,26 @@ pub struct Goodreads {
     bookshelves: String,
     #[serde(rename = "Private Notes")]
     notes: String,
+}
+
+#[derive(Eq, PartialEq, Debug, Deserialize)]
+pub struct WaybackAvailable {
+    archived_snapshots: WaybackSnapshots,
+}
+
+#[derive(Eq, PartialEq, Debug, Deserialize)]
+pub struct WaybackSnapshots {
+    closest: Option<WaybackSnapshot>,
+}
+
+#[derive(Eq, PartialEq, Debug, Deserialize)]
+pub struct WaybackSnapshot {
+    available: bool,
+    url: String,
+    // XXX: Could use chrono::serde if this was an integer in the JSON. As it stands, just leave it
+    // as String, don't care that much.
+    timestamp: String,
+    status: String,
 }
 
 impl From<&Goodreads> for Outline {
@@ -131,10 +152,17 @@ pub fn try_netscape_bookmarks(path: impl AsRef<Path>) -> Result<Outline, Box<dyn
 }
 
 pub fn try_url(maybe_url: &str) -> Result<Outline, Box<dyn Error>> {
+    // TODO: Make timeout configurable in CLI parameters.
+    // Timeout is needed if you hit a weird site like http://robpike.io
+    const REQUEST_TIMEOUT: Duration = Duration::from_secs(2);
     use select::document::Document;
     use select::predicate::Name;
 
-    let body = reqwest::blocking::get(maybe_url)?.text()?;
+    let request = reqwest::blocking::Client::new()
+        .get(maybe_url)
+        .timeout(REQUEST_TIMEOUT)
+        .send()?;
+    let body = request.text()?;
     let doc = Document::from(body.as_ref());
 
     let title: Option<String> = doc.find(Name("title")).next().map(|e| e.text());
@@ -169,4 +197,30 @@ pub fn scrape(target: &str) {
         println!();
     }
     log::info!("Unknown target '{}'", target);
+}
+
+pub fn is_archived_on_wayback(url: &str) -> Result<bool, Box<dyn Error>> {
+    if url::Url::parse(url).is_err() {
+        return Err("Not a valid URL".into());
+    }
+
+    let result: WaybackAvailable = reqwest::blocking::get(&format!(
+        "https://archive.org/wayback/available?url={}",
+        url
+    ))?
+    .json()?;
+
+    Ok(result.archived_snapshots.closest.is_some())
+}
+
+pub fn generate_wayback_save_url(url: &str) -> String {
+    format!("https://web.archive.org/save/{}", url)
+}
+
+/// Print an archiving link for an URL that is not present on wayback machine yet
+pub fn check_wayback(url: &str) {
+    if let Ok(false) = is_archived_on_wayback(url) {
+        println!("URL not found on wayback machine");
+        println!("Click to save it now: {}", generate_wayback_save_url(url));
+    }
 }

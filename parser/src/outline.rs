@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::io::{self};
 use std::path::{Path, PathBuf};
@@ -18,7 +19,7 @@ impl Outline {
     pub fn new(headline: impl Into<String>, children: Vec<Outline>) -> Outline {
         Outline {
             headline: Some(headline.into()),
-            children
+            children,
         }
     }
 
@@ -28,6 +29,59 @@ impl Outline {
 
     pub fn push_str(&mut self, line: impl Into<String>) {
         self.push(Outline::new(line, Vec::new()));
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.headline.is_none() && self.children.is_empty()
+    }
+
+    fn metadata_block(&self) -> Option<&Outline> {
+        if self.children.is_empty() {
+            return None;
+        }
+        if self.children[0].headline.is_some() {
+            return None;
+        }
+        Some(&self.children[0])
+    }
+
+    /// Extract key-value fields from metadata block at top of outline,
+    ///
+    /// ```notrust
+    /// Outline headline
+    ///     key1 value1
+    ///     key2 value2
+    ///   Outline content
+    /// ```
+    ///
+    /// Would yield `("key1", "value1"), ("key2", "value2")`.
+    pub fn metadata(&self) -> HashMap<String, String> {
+        // TODO: Better idiom for destructuring outlines
+        if let Some(outline) = self.metadata_block() {
+            let mut ret = HashMap::new();
+            debug_assert!(outline.headline.is_none());
+
+            for c in outline.children.iter() {
+                if let Some(headline) = &c.headline {
+                    // FIXME: Does not handle multi-line values.
+                    let v: Vec<&str> = headline.splitn(2, ' ').collect();
+                    match v.as_slice() {
+                        [] => continue,
+                        [key] => {
+                            ret.insert(String::from(*key), String::new());
+                        }
+                        [key, val] => {
+                            ret.insert(String::from(*key), String::from(*val));
+                        }
+                        _ => panic!("Invalid splitn result"),
+                    }
+                }
+            }
+
+            ret
+        } else {
+            Default::default()
+        }
     }
 }
 

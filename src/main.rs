@@ -1,5 +1,6 @@
-use parser::{self, Outline, OutlineBody, TagAddress};
+use parser::{self, Outline, OutlineBody, TagAddress, outline};
 use std::collections::BTreeSet;
+use std::convert::TryFrom;
 use std::fmt;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
@@ -18,7 +19,7 @@ fn main() {
         Otltool::Tags => tags(),
         Otltool::Eval { force } => eval(force),
         Otltool::Extract { syntax } => extract(&syntax),
-        Otltool::Scrape { target } => scrape::scrape(&target),
+        Otltool::Save { target } => save(&target),
         _ => unimplemented!(),
     }
 }
@@ -71,11 +72,8 @@ enum Otltool {
         syntax: String,
     },
 
-    #[structopt(
-        name = "scrape",
-        about = "Scrape target resource for reference items"
-    )]
-    Scrape {
+    #[structopt(name = "save", about = "Save target into bookmarks")]
+    Save {
         #[structopt(parse(from_str))]
         target: String,
     },
@@ -158,8 +156,53 @@ fn extract(syntax: &str) {
     echo_blocks(syntax, &outline);
 }
 
-//////////////////////////////// Filesystem tools
+//////////////////////////////// Scraping
 
+trait KnowledgeBase {
+    fn uris(&self) -> Vec<String>;
+}
+
+impl KnowledgeBase for outline::Outline {
+    fn uris(&self) -> Vec<String> {
+        fn crawl_for_uris(acc: &mut Vec<String>, outline: &outline::Outline) {
+            let mut metadata = outline.metadata();
+            if let Some(uri) = metadata.remove("uri") {
+                acc.push(uri);
+            }
+            for o in &outline.children {
+                crawl_for_uris(acc, o);
+            }
+        }
+
+        let mut ret = Vec::new();
+        crawl_for_uris(&mut ret, self);
+        ret
+    }
+}
+
+pub fn save(target: &str) {
+    // TODO: Save to Bookmarks.otl
+    // let path = path_or_die();
+
+    let db = load_database_or_die();
+    let uris = db.uris();
+
+    if uris.iter().any(|t| t.as_ref() as &str == target) {
+        // TODO: Could tell where it's saved?
+        println!("URI is already saved in your notes");
+        return;
+    }
+
+    scrape::check_wayback(target);
+
+    scrape::scrape(target);
+
+    // TODO: Create an entry and save it.
+}
+
+//////////////////////////////// System utilities
+
+/// Find .otl files under a path.
 fn otl_paths(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf> {
     fn is_otl(entry: &DirEntry) -> bool {
         entry.file_type().is_file()
@@ -180,4 +223,32 @@ fn otl_paths(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf> {
                 None
             }
         })
+}
+
+/// Look for default otlbook path from OTLBOOK_PATH environment variable.
+fn otlbook_path() -> Option<PathBuf> {
+    let path = std::env::var("OTLBOOK_PATH").ok()?;
+    Some(path.into())
+}
+
+fn path_or_die() -> PathBuf {
+    match otlbook_path() {
+        Some(path) => path,
+        None => {
+            println!("Please define your .otl file directory in environment variable OTLBOOK_PATH");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn load_database_or_die() -> outline::Outline {
+    let path = path_or_die();
+    let outline: outline::Outline =
+        TryFrom::try_from(path.as_ref() as &Path).expect("Couldn't read OTLBOOK_PATH");
+    if outline.is_empty() {
+        println!("No outline files found in OTLBOOK_PATH");
+        std::process::exit(1);
+    }
+
+    outline
 }
