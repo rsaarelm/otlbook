@@ -4,7 +4,7 @@ use std::io::{self};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-#[derive(Eq, PartialEq, Debug, Default)]
+#[derive(Eq, PartialEq, Clone, Debug, Default)]
 /// Base datatype for an indented outline file
 pub struct Outline {
     /// Parent line at the element's level of indentation

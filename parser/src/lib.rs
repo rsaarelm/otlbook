@@ -16,6 +16,9 @@ use std::path::Path;
 use std::str::FromStr;
 
 // TODO: Make outline::Outline the main Outline type, figure out what to do with the one below.
+mod de;
+pub use de::from_outline;
+
 pub mod outline;
 
 #[derive(Eq, PartialEq, Debug, Default, Serialize, Deserialize)]

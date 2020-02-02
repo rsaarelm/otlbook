@@ -1,4 +1,4 @@
-use parser::{self, Outline, OutlineBody, TagAddress, outline};
+use parser::{self, outline, Outline, OutlineBody, TagAddress};
 use std::collections::BTreeSet;
 use std::convert::TryFrom;
 use std::fmt;
