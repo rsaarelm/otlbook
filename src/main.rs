@@ -1,3 +1,132 @@
+/*!
+Tool for working with VimOutliner files plus some conventions to embed extra stuff in them.
+
+## The outline data format
+
+Rust data structures can be embedded in outlines in a format somewhat inspired by
+[indentation-sensitive Scheme syntax](https://srfi.schemers.org/srfi-49/srfi-49.html). Whitespace
+and newline serve as separators and indentation serves as grouping.
+
+Outline notes can have deserializable metadata embedded in them by having a double-indented block
+right below the title line
+
+```notrust
+#[derive(Default)]
+struct ArticleData {
+    uri: Uri,
+    title: String,
+    tags: Vec<Tag>,
+    year: Option<Year>,
+}:
+
+NoteArticle
+		uri http://example.com/
+		title Human readable
+		tags foo bar
+	Actual notes lines
+	Go here
+```
+
+The deserialization format is not self-describing. The deserializer always operates based on the
+type it's deserializing into, and deserialization behavior changes based on the type.
+
+Primitive types like numbers and booleans are serialized the way they are printed and parsed by the
+Rust library.
+
+Strings are not quoted. String literals without newlines are inline and end at the end of the line.
+String literals with newlines are represented by indented blocks that end when the indentation goes
+back over the starting level:
+
+```notrust
+title Lorem ipsum
+body
+	Lorem ipsum dolor sit amet,
+	consectetur adipiscing elit,
+```
+
+Lists can be represented as inline sequences or vertical lists of lines.
+
+```notrust
+Vec<i32>:
+
+1 2 3
+
+	1
+	2
+	3
+```
+
+An inline string list is a special case where the string elements are separated by whitespace. This
+means that a list of strings can be inline only if none of the strings have any whitespace in them.
+This makes it possible to do things like the inline tag list in the `NoteArticle` example above.
+Strings with whitespace in them must be listed vertically.
+
+```notrust
+Vec<String>:
+
+foo bar baz
+
+	foo
+	bar
+	not baz
+```
+
+Structs and maps must have whitespace-less keys. The key is parsed in inline mode, then the value
+is parsed in regular mode. If struct values do not contain lists or strings with whitespace, the
+entire struct can be written inline.
+
+```notrust
+struct { x: i32, y: i32, z: i32 }:
+
+x 4 y 10 z 20
+
+	x 4
+	y 10
+	z 20
+```
+
+There is one piece of special syntax, the comma (`,`). There's no other way to separate elements in
+a list of indented blocks than dropping to a lower level of indentation and typing a non-whitespace
+character. To have an actual lone comma in a vertical string list, type two commas `,,` (and for a
+double comma, type three and so on, any run of nothing but commas will get one subtracted from
+it).
+
+```notrust
+Vec<String>:
+
+		Lorem ipsum dolor sit amet,
+		consectetur adipiscing elit,
+	,
+		sed do eiusmod tempor incididunt
+		ut labore et dolore magna aliqua.
+```
+
+The first item can be optionally preceded by comma to make things more consistent for procedural
+generators.
+
+### Outline data tricks
+
+To make an "option flags" type where just having the field present in the struct literal part of
+the outline data, use `Option<()>` as the value type. The unit type gets deserialized without any
+input parsed, and the fields will default to `None` if not present.
+
+```notrust
+#[derive(Default)]
+struct Options {
+    frobnicate: Option<()>,
+    despecle: Option<()>,
+    tesselate: Option<()>,
+}:
+
+	despecle
+
+=>
+
+Options { frobnicate: None, despecle: Some(()), tesselate: None }
+```
+
+*/
+
 use parser::{self, outline, Outline, OutlineBody, TagAddress};
 use std::collections::BTreeSet;
 use std::convert::TryFrom;
