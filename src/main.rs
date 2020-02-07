@@ -142,9 +142,9 @@ use walkdir::{DirEntry, WalkDir};
 mod eval;
 use eval::eval;
 
-mod scrape;
-
 fn main() {
+    env_logger::init();
+
     let opt = Otltool::from_args();
     match opt {
         Otltool::Echo { debug } => echo(debug),
@@ -325,9 +325,16 @@ pub fn save(target: &str) {
         return;
     }
 
-    scrape::check_wayback(target);
+    scraper::check_wayback(target);
 
-    scrape::scrape(target);
+    match scraper::scrape(target) {
+        Ok(ret) => {
+            println!("TODO scrape okay");
+        }
+        Err(err) => {
+            println!("Scrape error {}", err);
+        }
+    }
 
     // TODO: Create an entry and save it.
 }
