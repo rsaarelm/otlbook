@@ -10,6 +10,10 @@ and newline serve as separators and indentation serves as grouping.
 Outline notes can have deserializable metadata embedded in them by having a double-indented block
 right below the title line
 
+Outline files must be indented with physical tabs. The examples below assume a visual tab width of
+2 characters. (The examples in this file are indented with spaces because rustfmt does not like
+physical tabs in Rust source files.)
+
 ```notrust
 #[derive(Default)]
 struct ArticleData {
@@ -20,11 +24,11 @@ struct ArticleData {
 }:
 
 NoteArticle
-		uri http://example.com/
-		title Human readable
-		tags foo bar
-	Actual notes lines
-	Go here
+    uri http://example.com/
+    title Human readable
+    tags foo bar
+  Actual notes lines
+  Go here
 ```
 
 The deserialization format is not self-describing. The deserializer always operates based on the
@@ -40,8 +44,8 @@ back over the starting level:
 ```notrust
 title Lorem ipsum
 body
-	Lorem ipsum dolor sit amet,
-	consectetur adipiscing elit,
+  Lorem ipsum dolor sit amet,
+  consectetur adipiscing elit,
 ```
 
 Lists can be represented as inline sequences or vertical lists of lines.
@@ -51,9 +55,9 @@ Vec<i32>:
 
 1 2 3
 
-	1
-	2
-	3
+  1
+  2
+  3
 ```
 
 An inline string list is a special case where the string elements are separated by whitespace. This
@@ -66,9 +70,9 @@ Vec<String>:
 
 foo bar baz
 
-	foo
-	bar
-	not baz
+  foo
+  bar
+  not baz
 ```
 
 Structs and maps must have whitespace-less keys. The key is parsed in inline mode, then the value
@@ -80,9 +84,9 @@ struct { x: i32, y: i32, z: i32 }:
 
 x 4 y 10 z 20
 
-	x 4
-	y 10
-	z 20
+  x 4
+  y 10
+  z 20
 ```
 
 There is one piece of special syntax, the comma (`,`). There's no other way to separate elements in
@@ -94,11 +98,11 @@ it).
 ```notrust
 Vec<String>:
 
-		Lorem ipsum dolor sit amet,
-		consectetur adipiscing elit,
-	,
-		sed do eiusmod tempor incididunt
-		ut labore et dolore magna aliqua.
+    Lorem ipsum dolor sit amet,
+    consectetur adipiscing elit,
+  ,
+    sed do eiusmod tempor incididunt
+    ut labore et dolore magna aliqua.
 ```
 
 The first item can be optionally preceded by comma to make things more consistent for procedural
@@ -118,13 +122,12 @@ struct Options {
     tesselate: Option<()>,
 }:
 
-	despecle
+  despecle
 
 =>
 
 Options { frobnicate: None, despecle: Some(()), tesselate: None }
 ```
-
 */
 
 use parser::{self, outline, Outline, OutlineBody, TagAddress};
