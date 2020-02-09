@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
+use parser::into_outline;
 use std::convert::TryFrom;
 use std::error::Error;
+use parser::outline::Outline;
 
 mod goodreads;
 mod netscape_bookmarks;
@@ -25,6 +27,34 @@ pub struct LibraryEntry {
     pub added: Option<String>, // TODO: Special variable-precision date type
     pub links: Vec<Uri>,
     pub notes: Option<String>,
+}
+
+impl From<LibraryEntry> for Outline {
+    fn from(mut e: LibraryEntry) -> Outline {
+        let notes = if let Some(n) = &e.notes {
+            n.clone()
+        } else {
+            String::new()
+        };
+
+        let title = if let Some(t) = &e.title {
+            t.clone()
+        } else if let Some(u) = &e.uri {
+            u.clone()
+        } else {
+            "n/a".to_string()
+        };
+
+        // Don't want notes text copied in the metadata
+        e.notes = None;
+
+        let metadata = into_outline(e).unwrap();
+        let mut ret = Outline::new(title, vec![metadata]);
+        for line in notes.lines() {
+            ret.push_str(line);
+        }
+        ret
+    }
 }
 
 impl LibraryEntry {

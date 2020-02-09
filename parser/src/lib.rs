@@ -19,7 +19,13 @@ use std::str::FromStr;
 mod de;
 pub use de::from_outline;
 
+mod ser;
+pub use ser::into_outline;
+
 pub mod outline;
+
+#[cfg(test)]
+mod tests;
 
 #[derive(Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
 /// Representation of an outliner-formatted text document.
@@ -875,9 +881,9 @@ fn nom_err<I, T>(input: I) -> nom::IResult<I, T> {
 }
 
 #[cfg(test)]
-mod tests {
+mod outline_tests {
     use super::*;
-    use pretty_assertions::{assert_eq, assert_ne};
+    use pretty_assertions::assert_eq;
     use ron;
 
     fn parse_test(input: &str, output: &str) {

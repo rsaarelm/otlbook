@@ -23,8 +23,24 @@ impl Outline {
         }
     }
 
+    pub fn list(children: Vec<Outline>) -> Outline {
+        Outline {
+            headline: None,
+            children,
+        }
+    }
+
     pub fn push(&mut self, outline: Outline) {
-        self.children.push(outline);
+        // Prevent a degenerate structure, empty headline past the first child means the outline
+        // should be the child of the last child instead.
+        if !self.children.is_empty() && outline.headline.is_none() {
+            let idx = self.children.len() - 1;
+            for c in outline.children {
+                self.children[idx].push(c)
+            }
+        } else {
+            self.children.push(outline);
+        }
     }
 
     pub fn push_str(&mut self, line: impl Into<String>) {
@@ -81,6 +97,59 @@ impl Outline {
             ret
         } else {
             Default::default()
+        }
+    }
+
+    /// Join another outline to this one in a way that makes sense for the data format.
+    ///
+    /// If this outline's headline has no children, the other outline's headline will be catenated
+    /// to this one's with a space between the headlines.
+    ///
+    /// Otherwise the other outline will be added to the children of this outline, but if either
+    /// child has an empty headline, which indicates that the children are blocks that can't be
+    /// told apart, the special comma element will be added in between them.
+    pub(crate) fn concatenate(&mut self, other: Outline) {
+        if other.is_empty() {
+            return;
+        }
+
+        if self.children.is_empty() {
+            if let Some(o) = other.headline {
+                self.headline = Some(
+                    self.headline
+                        .as_ref()
+                        .map(|s| format!("{} {}", s, o))
+                        .unwrap_or(o),
+                );
+            }
+            self.children = other.children;
+        } else {
+            self.concatenate_child(other);
+        }
+    }
+
+    /// Like `concatenate`, but never tries to merge into headline.
+    pub(crate) fn concatenate_child(&mut self, mut other: Outline) {
+        if !self.children.is_empty()
+            && (other.headline.is_none()
+                || self.children[self.children.len() - 1].headline.is_none())
+        {
+            self.push_str(",");
+        }
+        other.escape_comma();
+        self.push(other);
+    }
+
+    /// Escape outlines that are literal commas when constructing data with comma separation.
+    fn escape_comma(&mut self) {
+        if self.children.is_empty()
+            && self
+                .headline
+                .as_ref()
+                .map_or(false, |s| s.chars().all(|c| c == ','))
+        {
+            let s = format!("{},", self.headline.as_ref().unwrap_or(&String::new()));
+            self.headline = Some(s);
         }
     }
 }

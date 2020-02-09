@@ -107,27 +107,6 @@ Vec<String>:
 
 The first item can be optionally preceded by comma to make things more consistent for procedural
 generators.
-
-### Outline data tricks
-
-To make an "option flags" type where just having the field present in the struct literal part of
-the outline data, use `Option<()>` as the value type. The unit type gets deserialized without any
-input parsed, and the fields will default to `None` if not present.
-
-```notrust
-#[derive(Default)]
-struct Options {
-    frobnicate: Option<()>,
-    despecle: Option<()>,
-    tesselate: Option<()>,
-}:
-
-  despecle
-
-=>
-
-Options { frobnicate: None, despecle: Some(()), tesselate: None }
-```
 */
 
 use parser::{self, outline, Outline, OutlineBody, TagAddress};
@@ -328,8 +307,11 @@ pub fn save(target: &str) {
     scraper::check_wayback(target);
 
     match scraper::scrape(target) {
-        Ok(_ret) => {
-            println!("TODO scrape okay");
+        Ok(rs) => {
+            for r in rs {
+                let outline = outline::Outline::from(r);
+                print!("{}", outline);
+            }
         }
         Err(err) => {
             println!("Scrape error {}", err);

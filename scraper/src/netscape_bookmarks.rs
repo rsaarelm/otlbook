@@ -4,10 +4,7 @@
 
 use crate::{LibraryEntry, Scrapeable};
 use chrono::{TimeZone, Utc};
-use select::{
-    document::Document,
-    predicate::Name,
-};
+use select::{document::Document, predicate::Name};
 use std::convert::TryFrom;
 use std::error::Error;
 

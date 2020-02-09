@@ -9,7 +9,7 @@ use std::str::FromStr;
 
 type Result<T> = std::result::Result<T, Error>;
 
-pub struct Deserializer<'de> {
+struct Deserializer<'de> {
     outline: &'de Outline,
     offset: usize,
     is_inline_seq: bool,
@@ -166,15 +166,9 @@ impl<'de> Deserializer<'de> {
 impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     type Error = Error;
 
-    // This is limited since the data format is not self-describing. End of data is parsed as unit
-    // (this allows the pattern of using Option<()> for flag values), otherwise data is treated as
-    // a string.
+    // This is limited since the data format is not self-describing.
     fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
-        if self.end().is_ok() {
-            visitor.visit_unit()
-        } else {
-            self.deserialize_str(visitor)
-        }
+        self.deserialize_str(visitor)
     }
 
     // Primitive types just use the default FromStr behavior
@@ -279,20 +273,19 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         visitor.visit_some(self)
     }
 
-    // Parsing an unit value always succeeds and doesn't advance parser state.
-    fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_unit<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_unit()
+        unimplemented!();
     }
 
     // Unit struct means a named value containing no data.
-    fn deserialize_unit_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
+    fn deserialize_unit_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_unit()
+        unimplemented!();
     }
 
     // As is done here, serializers are encouraged to treat newtype structs as
@@ -564,35 +557,9 @@ impl fmt::Display for Error {
 }
 
 #[cfg(test)]
-mod tests {
+mod de_tests {
     use super::*;
-    use pretty_assertions::assert_eq;
-    use serde::de;
-    use std::fmt;
-
-    fn test<T: de::DeserializeOwned + fmt::Debug + PartialEq>(outline: &str, value: T) {
-        let mut outline = Outline::from(outline);
-
-        // String to outline always produces empty headline and content in children.
-        // Extract the first child as the unit to deserialize the type from.
-        if !outline.children.is_empty() {
-            outline = outline.children[0].clone();
-        }
-
-        let outline_value: T = from_outline(&outline).expect("Outline did not parse into value");
-
-        assert_eq!(value, outline_value);
-    }
-
-    fn not_parsed<T: de::DeserializeOwned + fmt::Debug + PartialEq>(outline: &str) {
-        let mut outline = Outline::from(outline);
-
-        if !outline.children.is_empty() {
-            outline = outline.children[0].clone();
-        }
-
-        assert!((from_outline(&outline) as Result<T>).is_err());
-    }
+    use crate::outline::Outline;
 
     #[test]
     fn test_tokenizer() {
@@ -608,366 +575,5 @@ mod tests {
         assert_eq!(de.next_token(), Some("foo"));
         assert_eq!(de.next_token(), Some("bar"));
         assert_eq!(de.next_token(), Some("baz"));
-    }
-
-    #[test]
-    fn test_simple() {
-        test("", ());
-        test("123", 123u32);
-        test("2.71828", 2.71828f32);
-        test("true", true);
-        test("false", false);
-        test("symbol", "symbol".to_string());
-        test("two words", "two words".to_string());
-
-        test("a", 'a');
-        not_parsed::<char>("aa");
-        test("殺", '殺');
-        not_parsed::<char>("殺殺殺殺殺殺殺");
-
-        not_parsed::<u32>("123 junk");
-    }
-
-    #[test]
-    fn test_tuple() {
-        test("123", (123u32,));
-        test("123 zomg", (123u32, "zomg".to_string()));
-    }
-
-    #[test]
-    fn test_struct() {
-        #[derive(Debug, PartialEq, Deserialize)]
-        struct Simple {
-            num: i32,
-            title: String,
-            tags: Vec<String>,
-        }
-
-        test(
-            "\
-\tnum 32
-\ttitle foo bar
-\ttags foo bar",
-            Simple {
-                num: 32,
-                title: "foo bar".into(),
-                tags: vec!["foo".into(), "bar".into()],
-            },
-        );
-
-        not_parsed::<Simple>(
-            "\
-\tnum 32 garbage
-\ttitle foo bar
-\ttags foo bar",
-        );
-
-        test(
-            "\
-\tnum 32
-\ttitle
-\t\tmany
-\t\tlines
-\ttags
-\t\tfoo
-\t\tbar",
-            Simple {
-                num: 32,
-                title: "many\nlines\n".into(),
-                tags: vec!["foo".into(), "bar".into()],
-            },
-        );
-
-        not_parsed::<Simple>(
-            "\
-\tnom 32
-\ttitle foo bar
-\ttags foo bar",
-        );
-    }
-
-    #[test]
-    fn test_inline_struct() {
-        #[derive(Default, Debug, PartialEq, Deserialize)]
-        struct Vec {
-            x: i32,
-            y: i32,
-        }
-
-        test("x -5 y 10", Vec { x: -5, y: 10 });
-    }
-
-    #[test]
-    fn test_nested_struct() {
-        #[derive(Default, Debug, PartialEq, Deserialize)]
-        struct Nesting {
-            x: i32,
-            y: i32,
-            tail: Option<Box<Nesting>>,
-        }
-
-        test(
-            "\
-\tx 1
-\ty 2
-\ttail
-\t\tx 3
-\t\ty 4",
-            Nesting {
-                x: 1,
-                y: 2,
-                tail: Some(Box::new(Nesting {
-                    x: 3,
-                    y: 4,
-                    tail: None,
-                })),
-            },
-        );
-
-        test(
-            "\
-\tx 1
-\ty 2
-\ttail x 3 y 4",
-            Nesting {
-                x: 1,
-                y: 2,
-                tail: Some(Box::new(Nesting {
-                    x: 3,
-                    y: 4,
-                    tail: None,
-                })),
-            },
-        );
-    }
-
-    #[test]
-    fn test_inline_list() {
-        test("1 2 3", vec![1u32, 2u32, 3u32]);
-
-        test(
-            "foo bar baz",
-            vec!["foo".to_string(), "bar".to_string(), "baz".to_string()],
-        );
-    }
-
-    #[test]
-    fn test_nested_inline_list() {
-        // They shouldn't be parseable.
-        not_parsed::<Vec<Vec<u32>>>("1 2 3");
-        not_parsed::<Vec<Vec<String>>>("foo bar baz");
-    }
-
-    #[test]
-    fn test_simple_vertical_list() {
-        test(
-            "\
-\t1
-\t2
-\t3",
-            vec![1u32, 2u32, 3u32],
-        );
-    }
-
-    #[test]
-    fn test_string_block() {
-        test(
-            "\
-\tEs brillig war. Die schlichte Toven
-\tWirrten und wimmelten in Waben;",
-            "Es brillig war. Die schlichte Toven\nWirrten und wimmelten in Waben;\n".to_string(),
-        );
-    }
-
-    #[test]
-    fn test_string_list() {
-        // Vertical list
-        test(
-            "\
-\tfoo bar
-\tbaz",
-            vec!["foo bar".to_string(), "baz".to_string()],
-        );
-
-        // XXX: Should this be made to be an error?
-        //        // Must have comma before the nested item.
-        //        not_parsed::<Vec<String>>(
-        //            "\
-        //\tfoo
-        //\t\tbar
-        //\t\tbaz",
-        //        );
-    }
-
-    /* FIXME: Get this working
-        #[test]
-        fn test_nested_string_list() {
-            test(
-                r#"\
-    \tfoo bar
-    \tbaz xyzzy"#,
-                vec![
-                    vec!["foo".to_string(), "bar".to_string()],
-                    vec!["baz".to_string(), "xyzzy".to_string()],
-                ],
-            );
-        }
-    */
-
-    #[test]
-    fn test_comma() {
-        // A single inline comma is a magic extra element to separate indented objects. It can be
-        // escaped by doubling it (any sequence of more than 1 comma gets one comma removed from
-        // it). A comma is just a comma in an multi-line string block, no escaping needed there.
-        test(
-            "\
-\t\tEs brillig war. Die schlichte Toven
-\t\tWirrten und wimmelten in Waben;
-\t,
-\t\tUnd aller-mümsige Burggoven
-\t\tDie mohmen Räth' ausgraben.",
-            vec![
-                "Es brillig war. Die schlichte Toven\nWirrten und wimmelten in Waben;\n"
-                    .to_string(),
-                "Und aller-mümsige Burggoven\nDie mohmen Räth' ausgraben.\n".to_string(),
-            ],
-        );
-
-        // An optional starting comma is allowed
-        test(
-            "\
-\t,
-\t\tEs brillig war. Die schlichte Toven
-\t\tWirrten und wimmelten in Waben;
-\t,
-\t\tUnd aller-mümsige Burggoven
-\t\tDie mohmen Räth' ausgraben.",
-            vec![
-                "Es brillig war. Die schlichte Toven\nWirrten und wimmelten in Waben;\n"
-                    .to_string(),
-                "Und aller-mümsige Burggoven\nDie mohmen Räth' ausgraben.\n".to_string(),
-            ],
-        );
-
-        // Need to also separate an indented block with comma
-        test(
-            "\
-\tfoo
-\t,
-\t\tbar
-\t\tbaz",
-            vec!["foo".to_string(), "bar\nbaz\n".to_string()],
-        );
-    }
-
-    #[test]
-    fn test_escaped_comma() {
-        // Double comma in vertical list becomes single comma
-        test(
-            "\
-\tfoo
-\t,,
-\t,,,
-\tbar",
-            vec![
-                "foo".to_string(),
-                ",".to_string(),
-                ",,".to_string(),
-                "bar".to_string(),
-            ],
-        );
-
-        // Text block can have comma lines.
-        test(
-            "\
-\t\t,",
-            vec![",\n".to_string()],
-        );
-    }
-
-    #[derive(Default, Debug, PartialEq, Deserialize)]
-    struct Options {
-        foo: Option<()>,
-        bar: Option<()>,
-        baz: Option<()>,
-    }
-
-    #[test]
-    fn test_option_struct() {
-        test("", Options::default());
-
-        test(
-            "\
-\tfoo",
-            Options {
-                foo: Some(()),
-                ..Options::default()
-            },
-        );
-        test(
-            "\
-\tbar
-\tbaz",
-            Options {
-                bar: Some(()),
-                baz: Some(()),
-                ..Options::default()
-            },
-        );
-
-        test("", vec![] as Vec<Options>);
-    }
-
-    #[test]
-    fn test_option_struct_list() {
-        test(
-            "\
-\t\tbar
-\t\tbaz
-\t,
-\t\tfoo",
-            vec![
-                Options {
-                    bar: Some(()),
-                    baz: Some(()),
-                    ..Options::default()
-                },
-                Options {
-                    foo: Some(()),
-                    ..Options::default()
-                },
-            ],
-        );
-
-        // Use comma to mark options with all flags off
-        test(
-            "\
-\t\tbar
-\t\tbaz
-\t,
-\t\tfoo
-\t,",
-            vec![
-                Options {
-                    bar: Some(()),
-                    baz: Some(()),
-                    ..Options::default()
-                },
-                Options {
-                    foo: Some(()),
-                    ..Options::default()
-                },
-                Options::default(),
-            ],
-        );
-
-        test("\t,", vec![Options::default()]);
-
-        test(
-            "\
-\t,
-\t,",
-            vec![Options::default(), Options::default()],
-        );
     }
 }
