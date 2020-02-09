@@ -186,7 +186,7 @@ enum Otltool {
             long = "dump",
             help = "Print tab-separated plaintext export instead of uploading to Anki"
         )]
-        dump: bool,
+        _dump: bool,
     },
 
     #[structopt(
@@ -328,7 +328,7 @@ pub fn save(target: &str) {
     scraper::check_wayback(target);
 
     match scraper::scrape(target) {
-        Ok(ret) => {
+        Ok(_ret) => {
             println!("TODO scrape okay");
         }
         Err(err) => {
