@@ -55,6 +55,7 @@ impl TryFrom<&Scrapeable> for Entries {
                     .unwrap_or("")
                     .split(",")
                     .map(|s| s.to_string())
+                    .filter(|s| !s.is_empty())
                     .collect();
 
                 ret.insert(

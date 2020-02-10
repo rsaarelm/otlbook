@@ -82,7 +82,12 @@ impl From<GoodreadsEntry> for LibraryEntry {
             ret.read = Some(e.date_read.replace("/", "-"));
         }
 
-        ret.tags = e.bookshelves.split(", ").map(|s| s.to_string()).collect();
+        ret.tags = e
+            .bookshelves
+            .split(", ")
+            .map(|s| s.to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
 
         if !e.notes.is_empty() {
             ret.notes = Some(e.notes);

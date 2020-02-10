@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
 use parser::into_outline;
+use parser::outline::Outline;
+use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::error::Error;
-use parser::outline::Outline;
 
 mod goodreads;
 mod netscape_bookmarks;

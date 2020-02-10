@@ -66,6 +66,7 @@ impl TryFrom<&Scrapeable> for Entries {
                 .unwrap_or("")
                 .split(",")
                 .map(|x| x.to_string())
+                .filter(|s| !s.is_empty())
                 .collect();
 
             ret.push(PocketEntry {
