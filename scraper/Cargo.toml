@@ -12,4 +12,4 @@ parser = { path = "../parser" }
 reqwest = { version = "0.10", features = ["blocking", "json"] }
 select = "0.4"
 serde = "1"
-url = "1"
+url = "2"
