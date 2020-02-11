@@ -88,8 +88,8 @@ impl TryFrom<&Scrapeable> for Entries {
 impl From<NetscapeBookmarksEntry> for LibraryEntry {
     fn from(e: NetscapeBookmarksEntry) -> LibraryEntry {
         LibraryEntry {
+            uri: e.uri,
             title: Some(e.title),
-            uri: Some(e.uri),
             added: Some(format!("{}", e.added)),
             tags: e.tags,
             notes: e.notes,

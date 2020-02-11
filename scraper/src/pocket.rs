@@ -86,8 +86,8 @@ impl TryFrom<&Scrapeable> for Entries {
 impl From<PocketEntry> for LibraryEntry {
     fn from(e: PocketEntry) -> LibraryEntry {
         LibraryEntry {
+            uri: e.uri,
             title: Some(e.title),
-            uri: Some(e.uri),
             read: Some(format!("{}", e.added)),
             tags: e.tags,
             ..Default::default()

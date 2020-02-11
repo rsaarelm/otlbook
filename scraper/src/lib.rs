@@ -15,8 +15,8 @@ pub type Uri = String;
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct LibraryEntry {
+    pub uri: Uri,
     pub title: Option<String>,
-    pub uri: Option<Uri>,
     pub author: Option<String>,
     pub tags: Vec<String>,
     /// Publication year of item
@@ -26,6 +26,7 @@ pub struct LibraryEntry {
     /// When the item was added to read list
     pub added: Option<String>, // TODO: Special variable-precision date type
     pub links: Vec<Uri>,
+    pub rating: Option<String>,
     pub notes: Option<String>,
 }
 
@@ -39,10 +40,8 @@ impl From<LibraryEntry> for Outline {
 
         let title = if let Some(t) = &e.title {
             t.clone()
-        } else if let Some(u) = &e.uri {
-            u.clone()
         } else {
-            "n/a".to_string()
+            e.uri.clone()
         };
 
         // Don't want notes text copied in the metadata
@@ -58,14 +57,6 @@ impl From<LibraryEntry> for Outline {
 }
 
 impl LibraryEntry {
-    /// Return whether the entry looks like it's describing a thing.
-    ///
-    /// Different sources don't guarantee either titles or uris, so entry validity can't be ensured
-    /// at type level but must be verified after the fact.
-    pub fn is_valid(&self) -> bool {
-        self.title.is_some() || self.uri.is_some()
-    }
-
     pub fn from_html(uri: &str, html: &str) -> LibraryEntry {
         use chrono::prelude::*;
         use select::{document::Document, predicate::Name};
@@ -76,7 +67,7 @@ impl LibraryEntry {
         let localtime: DateTime<Local> = Local::now();
 
         LibraryEntry {
-            uri: Some(uri.to_string()),
+            uri: uri.to_string(),
             added: Some(format!(
                 "{}",
                 localtime.to_rfc3339_opts(SecondsFormat::Secs, true)

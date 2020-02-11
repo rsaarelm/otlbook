@@ -24,6 +24,9 @@ pub use ser::into_outline;
 
 pub mod outline;
 
+mod util;
+pub use util::normalize_title;
+
 #[cfg(test)]
 mod tests;
 

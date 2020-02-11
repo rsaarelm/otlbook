@@ -17,12 +17,14 @@ pub struct GoodreadsEntry {
     isbn: String,
     #[serde(rename = "ISBN13")]
     isbn13: String,
+    #[serde(rename = "My Rating")]
+    my_rating: i32,
     #[serde(rename = "Year Published")]
     year_published: String,
-    #[serde(rename = "Date Added")]
-    date_added: String,
     #[serde(rename = "Date Read")]
     date_read: String,
+    #[serde(rename = "Date Added")]
+    date_added: String,
     #[serde(rename = "Bookshelves")]
     bookshelves: String,
     #[serde(rename = "Private Notes")]
@@ -50,18 +52,53 @@ impl TryFrom<&Scrapeable> for Entries {
     }
 }
 
+fn normalize_isbn_13(isbn: &str) -> String {
+    let mut digits: Vec<u32> = isbn.chars().filter_map(|c| c.to_digit(10)).collect();
+
+    // ISBN-13 check digit algorithm
+    // https://en.wikipedia.org/wiki/ISBN#ISBN-13_check_digit_calculation
+    let sum: u32 = digits
+        .iter()
+        .enumerate()
+        .take(digits.len() - 1)
+        .map(|(i, &x)| if i % 2 == 0 { x } else { x * 3 })
+        .sum::<u32>()
+        % 10;
+    let idx = digits.len() - 1;
+    digits[idx] = 10 - sum;
+
+    digits
+        .into_iter()
+        .filter_map(|i| std::char::from_digit(i, 10))
+        .collect()
+}
+
+fn isbn_10_to_13(isbn10: &str) -> String {
+    normalize_isbn_13(&format!("978{}", isbn10))
+}
+
 impl From<GoodreadsEntry> for LibraryEntry {
     fn from(e: GoodreadsEntry) -> LibraryEntry {
         let mut ret = LibraryEntry::default();
 
-        let isbn13 = e.isbn13.replace("\"", "").replace("=", "");
+        let mut isbn13 = e.isbn13.replace("\"", "").replace("=", "");
+        let isbn10 = e.isbn.replace("\"", "").replace("=", "");
+
+        if isbn13.is_empty() && !isbn10.is_empty() {
+            isbn13 = isbn_10_to_13(&isbn10);
+        }
+
         if !isbn13.is_empty() {
-            ret.uri = Some(format!(
-                "isbn:{}",
-                isbn13.replace("\"", "").replace("=", "")
-            ));
+            ret.uri = format!("isbn:{}", isbn13);
         } else {
+            ret.uri = format!(
+                "title:{}",
+                parser::normalize_title(&format!("{} {}", e.title, e.author))
+            );
             log::info!("{:?} has no ISBN value", e);
+            if e.title.is_empty() {
+                log::warn!("{:?} has no title!", e);
+            }
         }
 
         ret.title = Some(e.title);
@@ -82,6 +119,10 @@ impl From<GoodreadsEntry> for LibraryEntry {
             ret.read = Some(e.date_read.replace("/", "-"));
         }
 
+        if e.my_rating != 0 {
+            ret.rating = Some(format!("{}", e.my_rating));
+        }
+
         ret.tags = e
             .bookshelves
             .split(", ")
@@ -94,5 +135,16 @@ impl From<GoodreadsEntry> for LibraryEntry {
         }
 
         ret
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_isbn_13() {
+        assert_eq!(isbn_10_to_13("0262510871"), "9780262510875");
+        assert_eq!(isbn_10_to_13("0465026567"), "9780465026562");
     }
 }

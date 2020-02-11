@@ -5,6 +5,7 @@ authors = ["Risto Saarelma <risto.saarelma@iki.fi>"]
 edition = "2018"
 
 [dependencies]
+deunicode = "1"
 log = "0.4"
 md5 = "0.7"
 nom = "5"
