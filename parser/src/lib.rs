@@ -15,13 +15,16 @@ use std::fs;
 use std::path::Path;
 use std::str::FromStr;
 
-// TODO: Make outline::Outline the main Outline type, figure out what to do with the one below.
+mod date;
+pub use date::VagueDate;
+
 mod de;
 pub use de::from_outline;
 
 mod ser;
 pub use ser::into_outline;
 
+// TODO: Make outline::Outline the main Outline type, figure out what to do with the one below.
 pub mod outline;
 
 mod util;
