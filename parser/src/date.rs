@@ -1,4 +1,8 @@
-use chrono::{naive::NaiveDate, offset::FixedOffset, DateTime, Datelike};
+use chrono::{
+    naive::NaiveDate,
+    offset::{FixedOffset, TimeZone},
+    DateTime, Datelike,
+};
 use std::cmp::Ordering;
 use std::fmt;
 use std::str::FromStr;
@@ -24,9 +28,16 @@ pub enum VagueDate {
     DateTime(DateTime<FixedOffset>),
 }
 
+serde_plain::derive_deserialize_from_str!(VagueDate, "date value");
+serde_plain::derive_serialize_from_display!(VagueDate);
+
 use VagueDate::*;
 
 impl VagueDate {
+    pub fn from_timestamp(seconds_since_epoch: i64) -> VagueDate {
+        DateTime(FixedOffset::east(0).timestamp(seconds_since_epoch, 0))
+    }
+
     /// Reduce precision to the level of the other date.
     ///
     /// Ie if the other date is YearMonth, 2006-01-02 becomes 2006-01.
@@ -90,11 +101,11 @@ impl FromStr for VagueDate {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(dt) = DateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%z") {
             Ok(DateTime(dt))
-        } else if let Ok(dt) = DateTime::parse_from_str(s, "%Y-%m-%d") {
-            Ok(Date(dt.date().naive_local()))
-        } else if let Ok(dt) = DateTime::parse_from_str(s, "%Y-%m") {
+        } else if let Ok(nd) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+            Ok(Date(nd))
+        } else if let Ok(dt) = NaiveDate::parse_from_str(&format!("{}-01", s), "%Y-%m-%d") {
             Ok(YearMonth(dt.year(), dt.month()))
-        } else if let Ok(dt) = DateTime::parse_from_str(s, "%Y") {
+        } else if let Ok(dt) = NaiveDate::parse_from_str(&format!("{}-01-01", s), "%Y-%m-%d") {
             Ok(Year(dt.year()))
         } else {
             Err(())
@@ -110,5 +121,70 @@ impl fmt::Display for VagueDate {
             Date(date) => write!(f, "{}", date.format("%Y-%m-%d")),
             DateTime(date_time) => write!(f, "{}", date_time.format("%Y-%m-%dT%H:%M:%S%z")),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::outline::Outline;
+    use pretty_assertions::assert_eq;
+    use serde::{Deserialize, Serialize};
+
+    fn example_date() -> VagueDate {
+        VagueDate::DateTime(
+            FixedOffset::west(7 * 3600)
+                .ymd(2006, 1, 2)
+                .and_hms(15, 4, 5),
+        )
+    }
+
+    const EXAMPLE_DATE_STR: &str = "2006-01-02T15:04:05-0700";
+
+    #[test]
+    fn test_parse() {
+        use VagueDate::*;
+
+        assert_eq!(EXAMPLE_DATE_STR.parse(), Ok(example_date()));
+        assert_eq!(
+            "2006-01-02".parse(),
+            Ok(Date(chrono::naive::NaiveDate::from_ymd(2006, 1, 2)))
+        );
+        assert_eq!("2006-01".parse(), Ok(YearMonth(2006, 1)));
+        assert_eq!("2006".parse(), Ok(Year(2006)));
+    }
+
+    #[test]
+    fn test_serialization() {
+        let example_date = example_date();
+
+        assert_eq!(
+            ron::de::from_str(&format!("\"{}\"", EXAMPLE_DATE_STR)),
+            Ok(example_date)
+        );
+
+        assert_eq!(
+            ron::ser::to_string(&example_date),
+            Ok(format!("\"{}\"", EXAMPLE_DATE_STR))
+        );
+    }
+
+    #[test]
+    fn test_outline_serialization() {
+        let example_date = example_date();
+
+        #[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
+        struct Info {
+            date: VagueDate,
+        }
+
+        let outline = Outline::from(
+            "\
+Entry
+\t\tdate 2006-01-02T15:04:05-0700",
+        )
+        .children[0]
+            .clone();
+        assert_eq!(outline.extract(), Some(Info { date: example_date }));
     }
 }

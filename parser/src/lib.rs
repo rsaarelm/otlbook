@@ -890,7 +890,6 @@ fn nom_err<I, T>(input: I) -> nom::IResult<I, T> {
 mod outline_tests {
     use super::*;
     use pretty_assertions::assert_eq;
-    use ron;
 
     fn parse_test(input: &str, output: &str) {
         let outline: Outline = input.parse().unwrap();
