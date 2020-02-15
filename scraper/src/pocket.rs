@@ -90,6 +90,7 @@ impl From<PocketEntry> for LibraryEntry {
             title: Some(e.title),
             read: Some(e.added),
             tags: e.tags,
+            via: Some("getpocket.com".into()),
             ..Default::default()
         }
     }

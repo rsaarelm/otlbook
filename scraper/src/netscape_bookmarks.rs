@@ -93,6 +93,7 @@ impl From<NetscapeBookmarksEntry> for LibraryEntry {
             added: Some(e.added),
             tags: e.tags,
             notes: e.notes,
+            via: Some("Netscape bookmarks".into()),
             ..Default::default()
         }
     }

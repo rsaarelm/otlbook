@@ -44,6 +44,8 @@ pub struct LibraryEntry {
     pub links: Vec<Uri>,
     pub rating: Option<String>,
     pub notes: Option<String>,
+    /// Where was this imported from
+    pub via: Option<String>,
 }
 
 impl From<LibraryEntry> for Outline {

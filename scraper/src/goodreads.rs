@@ -82,6 +82,7 @@ fn isbn_10_to_13(isbn10: &str) -> String {
 impl From<GoodreadsEntry> for LibraryEntry {
     fn from(e: GoodreadsEntry) -> LibraryEntry {
         let mut ret = LibraryEntry::default();
+        ret.via = Some("goodreads.com".into());
 
         let mut isbn13 = e.isbn13.replace("\"", "").replace("=", "");
         let isbn10 = e.isbn.replace("\"", "").replace("=", "");
