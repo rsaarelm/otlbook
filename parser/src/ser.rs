@@ -5,7 +5,7 @@ use std::error;
 use std::fmt;
 
 /// Maximum line length for inlined compound expressions.
-const MAX_INLINE_EXPRESSION_LENGTH: usize = 100;
+const MAX_INLINE_EXPRESSION_LENGTH: usize = 80;
 
 type Result<T> = std::result::Result<T, Error>;
 
