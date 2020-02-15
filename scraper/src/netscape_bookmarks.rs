@@ -3,7 +3,7 @@
 // http://fileformats.archiveteam.org/wiki/Netscape_bookmarks
 
 use crate::{LibraryEntry, Scrapeable};
-use chrono::{TimeZone, Utc};
+use parser::VagueDate;
 use select::{document::Document, predicate::Name};
 use std::convert::TryFrom;
 use std::error::Error;
@@ -12,7 +12,7 @@ use std::error::Error;
 pub struct NetscapeBookmarksEntry {
     pub title: String,
     pub uri: String,
-    pub added: chrono::DateTime<chrono::Utc>,
+    pub added: VagueDate,
     pub tags: Vec<String>,
     pub notes: Option<String>,
 }
@@ -49,7 +49,7 @@ impl TryFrom<&Scrapeable> for Entries {
                     .attr("add_date")
                     .and_then(|a| a.parse::<i64>().ok())
                     .unwrap_or(0);
-                let added = Utc.timestamp(added, 0);
+                let added = VagueDate::from_timestamp(added);
                 let tags = a
                     .attr("tags")
                     .unwrap_or("")
@@ -90,7 +90,7 @@ impl From<NetscapeBookmarksEntry> for LibraryEntry {
         LibraryEntry {
             uri: e.uri,
             title: Some(e.title),
-            added: Some(format!("{}", e.added)),
+            added: Some(e.added),
             tags: e.tags,
             notes: e.notes,
             ..Default::default()

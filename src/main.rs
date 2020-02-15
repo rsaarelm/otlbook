@@ -110,7 +110,9 @@ generators.
 */
 
 use parser::{self, outline, Outline, OutlineBody, TagAddress};
+use scraper::LibraryEntry;
 use std::collections::BTreeSet;
+use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::fmt;
 use std::io::{self, Read};
@@ -269,52 +271,30 @@ fn extract(syntax: &str) {
 
 //////////////////////////////// Scraping
 
-trait KnowledgeBase {
-    fn uris(&self) -> Vec<String>;
-}
-
-impl KnowledgeBase for outline::Outline {
-    fn uris(&self) -> Vec<String> {
-        fn crawl_for_uris(acc: &mut Vec<String>, outline: &outline::Outline) {
-            let mut metadata = outline.metadata();
-            if let Some(uri) = metadata.remove("uri") {
-                acc.push(uri);
-            }
-            for o in &outline.children {
-                crawl_for_uris(acc, o);
-            }
-        }
-
-        let mut ret = Vec::new();
-        crawl_for_uris(&mut ret, self);
-        ret
-    }
-}
-
 pub fn save(target: &str) {
     // TODO: Save to Bookmarks.otl
-    // let path = path_or_die();
+
+    let mut results = match scraper::scrape(target) {
+        Ok(ret) => ret,
+        _ => return,
+    };
 
     let db = load_database_or_die();
-    let uris = db.uris();
+    let uris: HashSet<String> = db
+        .iter()
+        .filter_map(|o| o.extract().map(|e: LibraryEntry| e.uri))
+        .collect();
 
-    if uris.iter().any(|t| t.as_ref() as &str == target) {
-        // TODO: Could tell where it's saved?
-        println!("URI is already saved in your notes");
-        return;
+    results.retain(|e| !uris.contains(&e.uri));
+
+    for e in &results {
+        print!("{}", outline::Outline::from(e.clone()));
     }
 
-    scraper::check_wayback(target);
-
-    match scraper::scrape(target) {
-        Ok(rs) => {
-            for r in rs {
-                let outline = outline::Outline::from(r);
-                print!("{}", outline);
-            }
-        }
-        Err(err) => {
-            println!("Scrape error {}", err);
+    // Only do wayback check for single links, this can take a while when crawling a bunch of URLs
+    if results.len() == 1 {
+        for e in &results {
+            scraper::check_wayback(e.uri.as_ref());
         }
     }
 

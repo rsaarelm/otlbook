@@ -3,7 +3,7 @@
 // https://getpocket.com/
 
 use crate::{LibraryEntry, Scrapeable};
-use chrono::TimeZone;
+use parser::VagueDate;
 use select::{
     document::Document,
     node::Node,
@@ -15,7 +15,7 @@ use std::error::Error;
 #[derive(Debug)]
 pub struct PocketEntry {
     pub title: String,
-    pub added: chrono::DateTime<chrono::Utc>,
+    pub added: VagueDate,
     pub uri: String,
     pub tags: Vec<String>,
 }
@@ -59,7 +59,7 @@ impl TryFrom<&Scrapeable> for Entries {
                 .attr("time_added")
                 .and_then(|a| a.parse::<i64>().ok())
                 .unwrap_or(0);
-            let added = chrono::Utc.timestamp(added, 0);
+            let added = VagueDate::from_timestamp(added);
 
             let tags = item
                 .attr("tags")
@@ -88,7 +88,7 @@ impl From<PocketEntry> for LibraryEntry {
         LibraryEntry {
             uri: e.uri,
             title: Some(e.title),
-            read: Some(format!("{}", e.added)),
+            read: Some(e.added),
             tags: e.tags,
             ..Default::default()
         }

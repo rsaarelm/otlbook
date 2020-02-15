@@ -1,5 +1,4 @@
-use parser::into_outline;
-use parser::outline::Outline;
+use parser::{outline::Outline, VagueDate};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::error::Error;
@@ -13,18 +12,35 @@ pub use wayback::check_wayback;
 
 pub type Uri = String;
 
+/// Data for bookmarks and bibliography.
+///
+/// ```
+/// use parser::outline::Outline;
+///
+/// let outline = Outline::from("\
+/// Feynman Lectures on Physics
+/// \t\turi https://www.feynmanlectures.caltech.edu/
+/// \t\ttitle The Feynman Lectures on Physics
+/// \t\tyear 1964
+/// \t\ttags physics
+/// \t\tread 2006-01-02").children[0].clone();
+///
+/// assert!(outline.extract::<scraper::LibraryEntry>().is_some());
+/// ```
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct LibraryEntry {
     pub uri: Uri,
     pub title: Option<String>,
     pub author: Option<String>,
+    #[serde(default)]
     pub tags: Vec<String>,
     /// Publication year of item
-    pub year: Option<String>, // TODO: Special type for Year
+    pub year: Option<i32>,
     /// When the item was read
-    pub read: Option<String>, // TODO: Special variable-precision date type
+    pub read: Option<VagueDate>,
     /// When the item was added to read list
-    pub added: Option<String>, // TODO: Special variable-precision date type
+    pub added: Option<VagueDate>,
+    #[serde(default)]
     pub links: Vec<Uri>,
     pub rating: Option<String>,
     pub notes: Option<String>,
@@ -47,11 +63,10 @@ impl From<LibraryEntry> for Outline {
         // Don't want notes text copied in the metadata
         e.notes = None;
 
-        let metadata = into_outline(e).unwrap();
-        let mut ret = Outline::new(title, vec![metadata]);
-        for line in notes.lines() {
-            ret.push_str(line);
-        }
+        let mut ret = Outline::new(title, vec![]);
+        ret.inject(e);
+        notes.lines().for_each(|line| ret.push_str(line));
+
         ret
     }
 }
@@ -65,13 +80,13 @@ impl LibraryEntry {
 
         let title: Option<String> = doc.find(Name("title")).next().map(|e| e.text());
         let localtime: DateTime<Local> = Local::now();
+        let localtime: DateTime<FixedOffset> = localtime.with_timezone(localtime.offset());
+
+        println!("{:?}", localtime);
 
         LibraryEntry {
             uri: uri.to_string(),
-            added: Some(format!(
-                "{}",
-                localtime.to_rfc3339_opts(SecondsFormat::Secs, true)
-            )),
+            added: Some(VagueDate::DateTime(localtime)),
             title,
             ..Default::default()
         }

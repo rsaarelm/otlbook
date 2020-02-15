@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use crate::{from_outline, into_outline};
 use std::fmt;
 use std::io::{self};
 use std::path::{Path, PathBuf};
@@ -73,6 +73,59 @@ impl Outline {
         self.headline.is_none() && self.children.is_empty()
     }
 
+    /// Extract embedded metadata block from the outline.
+    ///
+    /// The metadata block is a twice-indented section right below the headline,
+    ///
+    /// ```
+    /// use parser::outline::Outline;
+    /// use serde::Deserialize;
+    ///
+    /// #[derive(Eq, PartialEq, Debug, Deserialize)]
+    /// struct Pt {
+    ///     x: i32,
+    ///     a: String,
+    ///     #[serde(default)]
+    ///     z: Vec<i32>,
+    /// }
+    ///
+    /// let outline = Outline::from("\
+    /// First item
+    /// \t\tx 12
+    /// \t\ta foobar
+    /// \tOutline content starts here");
+    /// let first_item = outline.children[0].clone();
+    ///
+    /// assert_eq!(first_item.extract(), Some(Pt { x: 12, a: "foobar".into(), z: vec![] }));
+    ///
+    /// let one_line_metadata = Outline::from("\
+    /// Item
+    /// \t\t123
+    /// \tContent").children[0].clone();
+    ///
+    /// assert_eq!(one_line_metadata.extract::<i32>(), Some(123));
+    /// ```
+    pub fn extract<T: serde::de::DeserializeOwned>(&self) -> Option<T> {
+        if let Some(outline) = self.metadata_block() {
+            from_outline(outline).ok()
+        } else {
+            None
+        }
+    }
+
+    /// Inject embedded metadata into outline, replacing any existing metadata.
+    pub fn inject<T: serde::Serialize>(&mut self, data: T) {
+        if self.metadata_block().is_some() {
+            self.children.remove(0);
+        }
+        let mut data = into_outline(data).expect("Couldn't serialize metadata");
+        if data.headline.is_some() {
+            // Single-liner item, add extra level of identation.
+            data = Outline::list(vec![data]);
+        }
+        self.children.insert(0, data);
+    }
+
     fn metadata_block(&self) -> Option<&Outline> {
         if self.children.is_empty() {
             return None;
@@ -80,46 +133,12 @@ impl Outline {
         if self.children[0].headline.is_some() {
             return None;
         }
-        Some(&self.children[0])
-    }
-
-    /// Extract key-value fields from metadata block at top of outline,
-    ///
-    /// ```notrust
-    /// Outline headline
-    ///     key1 value1
-    ///     key2 value2
-    ///   Outline content
-    /// ```
-    ///
-    /// Would yield `("key1", "value1"), ("key2", "value2")`.
-    pub fn metadata(&self) -> HashMap<String, String> {
-        // TODO: Better idiom for destructuring outlines
-        if let Some(outline) = self.metadata_block() {
-            let mut ret = HashMap::new();
-            debug_assert!(outline.headline.is_none());
-
-            for c in outline.children.iter() {
-                if let Some(headline) = &c.headline {
-                    // FIXME: Does not handle multi-line values.
-                    let v: Vec<&str> = headline.splitn(2, ' ').collect();
-                    match v.as_slice() {
-                        [] => continue,
-                        [key] => {
-                            ret.insert(String::from(*key), String::new());
-                        }
-                        [key, val] => {
-                            ret.insert(String::from(*key), String::from(*val));
-                        }
-                        _ => panic!("Invalid splitn result"),
-                    }
-                }
-            }
-
-            ret
+        // Remove the extra indentation level if it's a single line of data
+        Some(if self.children[0].children.len() == 1 {
+            &self.children[0].children[0]
         } else {
-            Default::default()
-        }
+            &self.children[0]
+        })
     }
 
     /// Join another outline to this one in a way that makes sense for the data format.
@@ -359,5 +378,29 @@ mod tests {
     #[test]
     fn test_outline() {
         assert_eq!(Outline::from_str(""), Ok(Outline::default()));
+    }
+
+    #[test]
+    fn test_metadata_block() {
+        let outline = Outline::from(
+            "\
+Outline headline
+\t\tx 12
+\t\ta foobar
+\tOutline content starts here",
+        )
+        .children[0]
+            .clone();
+
+        let metadata = Outline::from(
+            "\
+\tx 12
+\ta foobar",
+        )
+        .children[0]
+            .clone();
+
+        assert_eq!(outline.metadata_block(), Some(&metadata));
+        assert_eq!(metadata.metadata_block(), None);
     }
 }

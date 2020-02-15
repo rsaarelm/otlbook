@@ -27,6 +27,8 @@ pub struct GoodreadsEntry {
     date_added: String,
     #[serde(rename = "Bookshelves")]
     bookshelves: String,
+    #[serde(rename = "Exclusive Shelf")]
+    exclusive_shelf: String,
     #[serde(rename = "Private Notes")]
     notes: String,
 }
@@ -108,15 +110,15 @@ impl From<GoodreadsEntry> for LibraryEntry {
         }
 
         if !e.year_published.is_empty() {
-            ret.year = Some(e.year_published);
+            ret.year = e.year_published.parse().ok();
         }
 
         if !e.date_added.is_empty() {
-            ret.added = Some(e.date_added.replace("/", "-"));
+            ret.added = e.date_added.replace("/", "-").parse().ok();
         }
 
         if !e.date_read.is_empty() {
-            ret.read = Some(e.date_read.replace("/", "-"));
+            ret.read = e.date_read.replace("/", "-").parse().ok();
         }
 
         if e.my_rating != 0 {
@@ -129,6 +131,10 @@ impl From<GoodreadsEntry> for LibraryEntry {
             .map(|s| s.to_string())
             .filter(|s| !s.is_empty())
             .collect();
+
+        if !e.exclusive_shelf.is_empty() && !ret.tags.contains(&e.exclusive_shelf) {
+            ret.tags.push(e.exclusive_shelf);
+        }
 
         if !e.notes.is_empty() {
             ret.notes = Some(e.notes);
