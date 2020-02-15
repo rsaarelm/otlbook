@@ -15,6 +15,23 @@ pub struct Outline {
     pub children: Vec<Outline>,
 }
 
+pub struct OutlineIter<'a>(Vec<&'a Outline>);
+
+impl<'a> Iterator for OutlineIter<'a> {
+    type Item = &'a Outline;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(next) = self.0.pop() {
+            for c in next.children.iter().rev() {
+                self.0.push(c);
+            }
+            Some(next)
+        } else {
+            None
+        }
+    }
+}
+
 impl Outline {
     pub fn new(headline: impl Into<String>, children: Vec<Outline>) -> Outline {
         Outline {
@@ -28,6 +45,11 @@ impl Outline {
             headline: None,
             children,
         }
+    }
+
+    /// Return an iterator that recursively traverses the outline and its children.
+    pub fn iter(&self) -> OutlineIter<'_> {
+        OutlineIter(vec![self])
     }
 
     pub fn push(&mut self, outline: Outline) {
