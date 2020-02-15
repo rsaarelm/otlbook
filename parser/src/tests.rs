@@ -119,6 +119,7 @@ fn test_struct() {
         },
     );
 
+    // Default value for missing field
     test(
         "\
 \tnum 32
@@ -127,6 +128,20 @@ fn test_struct() {
             num: 32,
             title: "foo bar".into(),
             tags: Vec::new(),
+        },
+    );
+
+    // Extra field in input
+    test_no_pp(
+        "\
+\tnum 32
+\ttitle foo bar
+\ttags foo bar
+\tthe-wot um",
+        Simple {
+            num: 32,
+            title: "foo bar".into(),
+            tags: vec!["foo".into(), "bar".into()],
         },
     );
 
