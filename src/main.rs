@@ -133,6 +133,7 @@ fn main() {
         Otltool::Eval { force } => eval(force),
         Otltool::Extract { syntax } => extract(&syntax),
         Otltool::Save { target } => save(&target),
+        Otltool::BookmarksBatch => bookmarks_batch(),
         _ => unimplemented!(),
     }
 }
@@ -190,6 +191,9 @@ enum Otltool {
         #[structopt(parse(from_str))]
         target: String,
     },
+
+    #[structopt(name = "bookmarks-batch", about = "Process bookmakrs list from stdin")]
+    BookmarksBatch,
 }
 
 fn echo(debug: bool) {
@@ -279,26 +283,51 @@ pub fn save(target: &str) {
         _ => return,
     };
 
-    let db = load_database_or_die();
-    let uris: HashSet<String> = db
-        .iter()
-        .filter_map(|o| o.extract().map(|e: LibraryEntry| e.uri))
-        .collect();
-
-    results.retain(|e| !uris.contains(&e.uri));
-
-    for e in &results {
-        print!("{}", outline::Outline::from(e.clone()));
-    }
-
     // Only do wayback check for single links, this can take a while when crawling a bunch of URLs
     if results.len() == 1 {
         for e in &results {
             scraper::check_wayback(e.uri.as_ref());
         }
+
+        // For single links, also check if they're already in the DB
+        let db = load_database_or_die();
+        let uris: HashSet<String> = db
+            .iter()
+            .filter_map(|o| o.extract().map(|e: LibraryEntry| e.uri))
+            .collect();
+
+        results.retain(|e| !uris.contains(&e.uri));
+    }
+
+    for e in &results {
+        print!("{}", outline::Outline::from(e.clone()));
     }
 
     // TODO: Create an entry and save it.
+}
+
+pub fn bookmarks_batch() {
+    use std::io::prelude::*;
+
+    let mut buffer = String::new();
+    io::stdin().read_to_string(&mut buffer).unwrap();
+
+    let mut outline = outline::Outline::from(buffer.as_ref());
+
+    outline.children.sort_by_key(|o|
+        o.extract::<LibraryEntry>().map(|e| e.read.or(e.added))
+    );
+
+    outline.children.retain(|o| {
+        if let Some(e) = o.extract::<LibraryEntry>() {
+            // Filter out Goodreads entries for unread books, permanent record is for read things.
+            e.via != Some("goodreads.com".into()) || e.tags.contains(&"read".into())
+        } else {
+            true
+        }
+    });
+
+    print!("{}", outline);
 }
 
 //////////////////////////////// System utilities
