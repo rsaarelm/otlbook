@@ -15,6 +15,9 @@ use std::fs;
 use std::path::Path;
 use std::str::FromStr;
 
+mod anki;
+pub use anki::parse_cloze;
+
 mod date;
 pub use date::VagueDate;
 

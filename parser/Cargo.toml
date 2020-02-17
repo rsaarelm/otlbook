@@ -5,6 +5,7 @@ authors = ["Risto Saarelma <risto.saarelma@iki.fi>"]
 edition = "2018"
 
 [dependencies]
+anki-connect = { path = "../anki-connect" }
 chrono = "0.4"
 deunicode = "1"
 log = "0.4"
