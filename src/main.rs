@@ -314,9 +314,9 @@ pub fn bookmarks_batch() {
 
     let mut outline = outline::Outline::from(buffer.as_ref());
 
-    outline.children.sort_by_key(|o|
-        o.extract::<LibraryEntry>().map(|e| e.read.or(e.added))
-    );
+    outline
+        .children
+        .sort_by_key(|o| o.extract::<LibraryEntry>().map(|e| e.read.or(e.added)));
 
     outline.children.retain(|o| {
         if let Some(e) = o.extract::<LibraryEntry>() {
