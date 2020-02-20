@@ -192,20 +192,17 @@ enum Otltool {
         target: String,
     },
 
-    #[structopt(name = "bookmarks-batch", about = "Process bookmakrs list from stdin")]
+    #[structopt(name = "bookmarks-batch", about = "Process bookmarks list from stdin")]
     BookmarksBatch,
 }
 
 fn echo(debug: bool) {
     let mut buf = String::new();
     io::stdin().read_to_string(&mut buf).unwrap();
-    let outline: Outline = buf.parse().unwrap();
+    let outline = parser::outline::Outline::from(buf.as_str());
 
     if debug {
-        println!(
-            "{}",
-            ron::ser::to_string_pretty(&outline, Default::default()).unwrap()
-        );
+        print!("{:?}", outline);
     } else {
         print!("{}", outline);
     }
