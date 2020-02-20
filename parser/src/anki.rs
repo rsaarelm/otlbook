@@ -8,7 +8,9 @@ use anki_connect::Card;
 ///
 /// One card will be generated for each cloze where that cloze is occluded in the front of the
 /// card.
-pub fn parse_cloze(tags: &[String], s: &str) -> Result<Vec<Card>, ()> {
+pub fn parse_cloze(tags: &[String], s: impl AsRef<str>) -> Result<Vec<Card>, ()> {
+    let s = s.as_ref();
+
     #[derive(Copy, Clone, Debug)]
     enum Fragment<'a> {
         Text(&'a str),

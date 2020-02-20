@@ -31,6 +31,8 @@ impl OutlineUtils for Outline {
             let mut tags = tags.clone();
             tags.extend_from_slice(&o.tags());
 
+            // Filter out comments that start with ; before processing cards.
+            // XXX: Maybe the comment parsing should be a whole separate phase?
             let new_cards = o
                 .headline
                 .as_ref()
