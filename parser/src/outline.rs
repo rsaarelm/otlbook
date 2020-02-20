@@ -4,7 +4,7 @@ use std::io::{self};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-#[derive(Eq, PartialEq, Clone, Debug, Default)]
+#[derive(Eq, PartialEq, Clone, Default)]
 /// Base datatype for an indented outline file
 pub struct Outline {
     /// Parent line at the element's level of indentation
@@ -294,6 +294,33 @@ impl fmt::Display for Outline {
         }
 
         print(f, if self.headline.is_some() { 0 } else { -1 }, self)
+    }
+}
+
+impl fmt::Debug for Outline {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fn indent(f: &mut fmt::Formatter, depth: i32) -> fmt::Result {
+            for _ in 0..depth {
+                write!(f, "  ")?;
+            }
+            Ok(())
+        }
+
+        fn print(f: &mut fmt::Formatter, depth: i32, outline: &Outline) -> fmt::Result {
+            indent(f, depth)?;
+            match &outline.headline {
+                None => writeln!(f, "ε")?,
+                Some(h) => writeln!(f, "{:?}", h)?,
+            }
+
+            for c in &outline.children {
+                print(f, depth + 1, c)?;
+            }
+
+            Ok(())
+        }
+
+        print(f, 0, self)
     }
 }
 
