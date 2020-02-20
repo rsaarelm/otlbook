@@ -36,7 +36,7 @@ const ANKI_SERVER_URL: &str = "http://127.0.0.1:8765";
 
 pub type ErrBox = Box<dyn Error + Send + Sync + 'static>;
 
-type AnkiResult<T> = Result<T, ErrBox>;
+pub type AnkiResult<T> = Result<T, ErrBox>;
 
 pub type NoteId = u64;
 
@@ -148,7 +148,7 @@ impl<T> Into<AnkiResult<T>> for Response<T> {
     }
 }
 
-struct AnkiConnection {
+pub struct AnkiConnection {
     anki_process: Option<process::Child>,
 }
 
@@ -196,13 +196,13 @@ impl AnkiConnection {
         self.request(Action::AddNotes { notes })
     }
 
-    fn find_notes(&self) -> AnkiResult<Vec<NoteId>> {
+    pub fn find_notes(&self) -> AnkiResult<Vec<NoteId>> {
         self.request(Action::FindNotes {
             query: "deck:current".into(),
         })
     }
 
-    fn notes_info(&self, notes: Vec<NoteId>) -> AnkiResult<Vec<NoteInfo>> {
+    pub fn notes_info(&self, notes: Vec<NoteId>) -> AnkiResult<Vec<NoteInfo>> {
         self.request(Action::NotesInfo { notes })
     }
 

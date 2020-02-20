@@ -120,6 +120,9 @@ use std::path::{Path, PathBuf};
 use structopt::{self, StructOpt};
 use walkdir::{DirEntry, WalkDir};
 
+mod anki;
+use anki::anki;
+
 mod eval;
 use eval::eval;
 
@@ -131,6 +134,7 @@ fn main() {
         Otltool::Echo { debug } => echo(debug),
         Otltool::Tags => tags(),
         Otltool::Eval { force } => eval(force),
+        Otltool::Anki { dump } => anki(dump),
         Otltool::Extract { syntax } => extract(&syntax),
         Otltool::Save { target } => save(&target),
         Otltool::BookmarksBatch => bookmarks_batch(),
@@ -168,7 +172,7 @@ enum Otltool {
             long = "dump",
             help = "Print tab-separated plaintext export instead of uploading to Anki"
         )]
-        _dump: bool,
+        dump: bool,
     },
 
     #[structopt(
@@ -371,7 +375,7 @@ fn path_or_die() -> PathBuf {
     }
 }
 
-fn load_database_or_die() -> outline::Outline {
+pub fn load_database_or_die() -> outline::Outline {
     let path = path_or_die();
     let outline: outline::Outline =
         TryFrom::try_from(path.as_ref() as &Path).expect("Couldn't read OTLBOOK_PATH");
