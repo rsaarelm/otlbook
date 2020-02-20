@@ -47,24 +47,6 @@ impl<'de> Deserializer<'de> {
         }
     }
 
-    /// Return whether this line is a sequence-separating comma and normalize it in case it's an
-    /// escaped literal comma.
-    ///
-    /// ",," becomes a literal ",", ",,," a literal ",," and so on.
-    fn normalize_comma(&mut self) -> bool {
-        if self.outline.headline == Some(",".to_string()) {
-            self.offset = 1;
-            return true;
-        }
-        // Check for escaped comma
-        if let Some(headline) = &self.outline.headline {
-            if headline.chars().all(|c| c == ',') && self.offset == 0 {
-                self.offset = 1;
-            }
-        }
-        false
-    }
-
     fn next_char(&mut self) -> Result<char> {
         if let Some(headline) = &self.outline.headline {
             if let Some(c) = &headline[self.offset..].chars().next() {
@@ -467,7 +449,6 @@ impl<'a, 'de> de::SeqAccess<'de> for Sequence<'a, 'de> {
                         offset: offset,
                         is_inline_seq: false,
                     };
-                    child_de.normalize_comma();
                     self.cursor = Cursor::Child(n + 1, 0);
                     seed.deserialize(&mut child_de).map(Some)
                 }
@@ -500,7 +481,6 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
                         offset: offset,
                         is_inline_seq: true,
                     };
-                    child_de.normalize_comma();
                     let ret = seed.deserialize(&mut child_de).map(Some);
                     // Save parse offset from key
                     // XXX: keys must always be inline values

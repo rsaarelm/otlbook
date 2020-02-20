@@ -32,6 +32,18 @@ impl<'a> Iterator for OutlineIter<'a> {
     }
 }
 
+fn is_comma_string(s: &str) -> bool {
+    s.chars().all(|c| c == ',')
+}
+
+fn unescape_comma_string(s: &str) -> &str {
+    if is_comma_string(s) {
+        &s[1..]
+    } else {
+        s
+    }
+}
+
 impl Outline {
     pub fn new(headline: impl Into<String>, children: Vec<Outline>) -> Outline {
         Outline {
@@ -53,16 +65,7 @@ impl Outline {
     }
 
     pub fn push(&mut self, outline: Outline) {
-        // Prevent a degenerate structure, empty headline past the first child means the outline
-        // should be the child of the last child instead.
-        if !self.children.is_empty() && outline.headline.is_none() {
-            let idx = self.children.len() - 1;
-            for c in outline.children {
-                self.children[idx].push(c)
-            }
-        } else {
-            self.children.push(outline);
-        }
+        self.children.push(outline);
     }
 
     pub fn push_str(&mut self, line: impl Into<String>) {
@@ -170,28 +173,8 @@ impl Outline {
     }
 
     /// Like `concatenate`, but never tries to merge into headline.
-    pub(crate) fn concatenate_child(&mut self, mut other: Outline) {
-        if !self.children.is_empty()
-            && (other.headline.is_none()
-                || self.children[self.children.len() - 1].headline.is_none())
-        {
-            self.push_str(",");
-        }
-        other.escape_comma();
+    pub(crate) fn concatenate_child(&mut self, other: Outline) {
         self.push(other);
-    }
-
-    /// Escape outlines that are literal commas when constructing data with comma separation.
-    fn escape_comma(&mut self) {
-        if self.children.is_empty()
-            && self
-                .headline
-                .as_ref()
-                .map_or(false, |s| s.chars().all(|c| c == ','))
-        {
-            let s = format!("{},", self.headline.as_ref().unwrap_or(&String::new()));
-            self.headline = Some(s);
-        }
     }
 }
 
@@ -230,7 +213,9 @@ impl From<&str> for Outline {
             I: Iterator<Item = Option<(i32, &'a str)>>,
         {
             match lines.peek().cloned() {
+                // End of input
                 None => Outline::default(),
+                // Empty line
                 Some(None) => {
                     lines.next();
                     Outline {
@@ -241,7 +226,13 @@ impl From<&str> for Outline {
                 Some(Some((d, text))) => {
                     let headline = if d == depth {
                         lines.next();
-                        Some(String::from(text))
+                        // Group separator comma, is equivalent to empty headline in a place where
+                        // an empty line isn't syntactically possible
+                        if text == "," {
+                            None
+                        } else {
+                            Some(String::from(unescape_comma_string(text)))
+                        }
                     } else if d > depth {
                         None
                     } else {
@@ -269,22 +260,33 @@ impl FromStr for Outline {
 
 impl fmt::Display for Outline {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fn print_line(f: &mut fmt::Formatter, depth: i32, s: &str) -> fmt::Result {
+            debug_assert!(depth >= 0);
+            for _ in 0..depth {
+                write!(f, "\t")?;
+            }
+            writeln!(f, "{}", s)
+        }
+
         fn print(f: &mut fmt::Formatter, depth: i32, outline: &Outline) -> fmt::Result {
             assert!(depth >= 0 || outline.headline.is_none());
 
             if let Some(headline) = &outline.headline {
                 if headline.is_empty() {
                     writeln!(f)?;
+                } else if is_comma_string(headline) {
+                    // Escape literal comma in output by turning , into ,,
+                    print_line(f, depth, &format!(",{}", headline))?;
                 } else {
-                    for _ in 0..depth {
-                        write!(f, "\t")?;
-                    }
-
-                    writeln!(f, "{}", headline)?;
+                    print_line(f, depth, headline)?;
                 }
             }
 
-            for c in &outline.children {
+            for (i, c) in outline.children.iter().enumerate() {
+                // Add separator commas for group outlines after the first one
+                if i > 0 && c.headline.is_none() {
+                    print_line(f, depth + 1, ",")?;
+                }
                 print(f, depth + 1, c)?;
             }
 
@@ -382,25 +384,40 @@ mod tests {
 
     #[test]
     fn test_metadata_block() {
-        let outline = Outline::from(
-            "\
+        let outline = "\
 Outline headline
 \t\tx 12
 \t\ta foobar
-\tOutline content starts here",
-        )
-        .children[0]
+\tOutline content starts here"
+            .parse::<Outline>()
+            .unwrap()
+            .children[0]
             .clone();
 
-        let metadata = Outline::from(
-            "\
+        let metadata = "\
 \tx 12
-\ta foobar",
-        )
-        .children[0]
+\ta foobar"
+            .parse::<Outline>()
+            .unwrap()
+            .children[0]
             .clone();
 
         assert_eq!(outline.metadata_block(), Some(&metadata));
         assert_eq!(metadata.metadata_block(), None);
+    }
+
+    #[test]
+    fn test_comma_escape() {
+        assert_eq!(
+            Outline::from_str(",,").unwrap().children[0],
+            Outline::new(",", Vec::new())
+        );
+        assert_eq!(
+            Outline::from_str(",,,").unwrap().children[0],
+            Outline::new(",,", Vec::new())
+        );
+
+        assert_eq!(format!("{}", Outline::new(",", Vec::new())), ",,\n");
+        assert_eq!(format!("{}", Outline::new(",,", Vec::new())), ",,,\n");
     }
 }

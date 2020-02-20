@@ -46,7 +46,7 @@ fn _test<T: de::DeserializeOwned + Serialize + fmt::Debug + PartialEq>(
         from_outline(&ser_outline).expect("Serialized outline did not parse into value");
     assert_eq!(
         roundtrip_value, value,
-        "Value changed after serialization roundntrip"
+        "Value changed after serialization roundtrip"
     );
 
     println!("test ok");
@@ -373,12 +373,5 @@ fn test_escaped_comma() {
             ",,".to_string(),
             "dolor sit".to_string(),
         ],
-    );
-
-    // Text block can have comma lines.
-    test(
-        "\
-\t\t,",
-        vec![",\n".to_string()],
     );
 }
