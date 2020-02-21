@@ -283,8 +283,9 @@ impl fmt::Display for Outline {
             }
 
             for (i, c) in outline.children.iter().enumerate() {
-                // Add separator commas for group outlines after the first one
-                if i > 0 && c.headline.is_none() {
+                // Add separator commas for group outlines after the first one.
+                // The first one also needs the preceding comma if it's completely empty.
+                if c.headline.is_none() && (i > 0 || c.children.is_empty()) {
                     print_line(f, depth + 1, ",")?;
                 }
                 print(f, depth + 1, c)?;
@@ -403,6 +404,16 @@ impl std::convert::TryFrom<&Path> for Outline {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
+
+    fn test_roundtrip(outline: &Outline) {
+        let text = format!("{}", outline);
+        let mut parsed = Outline::from(text.as_str());
+        if !outline.headline.is_none() {
+            parsed = parsed.children[0].clone();
+        }
+        assert_eq!(&parsed, outline);
+    }
 
     #[test]
     fn test_outline() {
@@ -420,6 +431,7 @@ Outline headline
             .unwrap()
             .children[0]
             .clone();
+        test_roundtrip(&outline);
 
         let metadata = "\
 \tx 12
@@ -446,5 +458,8 @@ Outline headline
 
         assert_eq!(format!("{}", Outline::new(",", Vec::new())), ",,\n");
         assert_eq!(format!("{}", Outline::new(",,", Vec::new())), ",,,\n");
+
+        test_roundtrip(&Outline::from(","));
+        test_roundtrip(&Outline::from(",,"));
     }
 }
