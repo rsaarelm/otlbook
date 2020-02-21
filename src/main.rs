@@ -123,6 +123,8 @@ use walkdir::{DirEntry, WalkDir};
 mod eval;
 use eval::eval;
 
+mod outline_utils;
+
 fn main() {
     env_logger::init();
 

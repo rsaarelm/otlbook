@@ -36,6 +36,11 @@ pub use util::normalize_title;
 #[cfg(test)]
 mod tests;
 
+/// String-alike that must not contain whitespace characters.
+///
+/// Used in outline data declarations, inline lists must consist of symbol-like values.
+pub type Symbol = String;
+
 #[derive(Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
 /// Representation of an outliner-formatted text document.
 pub struct Outline {

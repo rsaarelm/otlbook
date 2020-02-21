@@ -1,4 +1,4 @@
-use parser::{outline::Outline, VagueDate};
+use parser::{outline::Outline, Symbol, VagueDate};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::error::Error;
@@ -33,7 +33,7 @@ pub struct LibraryEntry {
     pub title: Option<String>,
     pub author: Option<String>,
     #[serde(default)]
-    pub tags: Vec<String>,
+    pub tags: Vec<Symbol>,
     /// Publication year of item
     pub year: Option<i32>,
     /// When the item was read
