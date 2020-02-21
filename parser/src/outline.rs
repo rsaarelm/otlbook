@@ -100,13 +100,6 @@ impl Outline {
     /// let first_item = outline.children[0].clone();
     ///
     /// assert_eq!(first_item.extract(), Some(Pt { x: 12, a: "foobar".into(), z: vec![] }));
-    ///
-    /// let one_line_metadata = Outline::from("\
-    /// Item
-    /// \t\t123
-    /// \tContent").children[0].clone();
-    ///
-    /// assert_eq!(one_line_metadata.extract::<i32>(), Some(123));
     /// ```
     pub fn extract<T: serde::de::DeserializeOwned>(&self) -> Option<T> {
         if let Some(outline) = self.metadata_block() {
@@ -136,12 +129,7 @@ impl Outline {
         if self.children[0].headline.is_some() {
             return None;
         }
-        // Remove the extra indentation level if it's a single line of data
-        Some(if self.children[0].children.len() == 1 {
-            &self.children[0].children[0]
-        } else {
-            &self.children[0]
-        })
+        Some(&self.children[0])
     }
 
     /// Join another outline to this one in a way that makes sense for the data format.
@@ -461,5 +449,23 @@ Outline headline
 
         test_roundtrip(&Outline::from(","));
         test_roundtrip(&Outline::from(",,"));
+    }
+
+    #[test]
+    fn test_oneline_metadata_struct() {
+        use serde::Deserialize;
+
+        #[derive(Eq, PartialEq, Debug, Deserialize)]
+        struct Data {
+            info: Vec<String>,
+        }
+
+        let mut outline = Outline::from("\
+Headline
+\t\tinfo foo bar
+\tstuff");
+        outline = outline.children[0].clone();
+
+        assert_eq!(outline.extract::<Data>(), Some(Data { info: vec!["foo".into(), "bar".into()] }));
     }
 }
