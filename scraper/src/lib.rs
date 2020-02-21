@@ -40,12 +40,16 @@ pub struct LibraryEntry {
     pub read: Option<VagueDate>,
     /// When the item was added to read list
     pub added: Option<VagueDate>,
+    /// Preferred live location for dead links.
+    ///
+    /// If `mirror` is defined, assume the main `uri` is dead.
+    pub mirror: Option<Uri>,
+    /// Additional links
     #[serde(default)]
     pub links: Vec<Uri>,
-    pub rating: Option<String>,
-    pub notes: Option<String>,
     /// Where was this imported from
     pub via: Option<String>,
+    pub notes: Option<String>,
 }
 
 impl From<LibraryEntry> for Outline {

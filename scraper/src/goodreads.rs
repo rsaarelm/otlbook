@@ -122,10 +122,6 @@ impl From<GoodreadsEntry> for LibraryEntry {
             ret.read = e.date_read.replace("/", "-").parse().ok();
         }
 
-        if e.my_rating != 0 {
-            ret.rating = Some(format!("{}", e.my_rating));
-        }
-
         ret.tags = e
             .bookshelves
             .split(", ")
@@ -135,6 +131,10 @@ impl From<GoodreadsEntry> for LibraryEntry {
 
         if !e.exclusive_shelf.is_empty() && !ret.tags.contains(&e.exclusive_shelf) {
             ret.tags.push(e.exclusive_shelf);
+        }
+
+        if e.my_rating != 0 {
+            ret.tags.push(format!("rating-{}", e.my_rating));
         }
 
         if !e.notes.is_empty() {
