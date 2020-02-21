@@ -61,13 +61,20 @@ impl TryFrom<&Scrapeable> for Entries {
                 .unwrap_or(0);
             let added = VagueDate::from_timestamp(added);
 
-            let tags = item
+            let mut tags = item
                 .attr("tags")
                 .unwrap_or("")
                 .split(",")
-                .map(|x| x.to_string())
+                .map(|x: &str| x.to_string())
                 .filter(|s| !s.is_empty())
-                .collect();
+                .collect::<Vec<String>>();
+
+            // Bring "*" tag to end so tags line so it gets punned as the "important item"
+            // highlight syntax.
+            if let Some(pos) = tags.iter().position(|x| x == "*") {
+                tags.remove(pos);
+                tags.push("*".into());
+            }
 
             ret.push(PocketEntry {
                 title,
