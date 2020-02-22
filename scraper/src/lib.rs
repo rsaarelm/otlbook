@@ -88,8 +88,6 @@ impl LibraryEntry {
         let localtime: DateTime<Local> = Local::now();
         let localtime: DateTime<FixedOffset> = localtime.with_timezone(localtime.offset());
 
-        println!("{:?}", localtime);
-
         LibraryEntry {
             uri: uri.to_string(),
             added: Some(VagueDate::DateTime(localtime)),
