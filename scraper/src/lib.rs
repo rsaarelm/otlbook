@@ -4,6 +4,7 @@ use std::convert::TryFrom;
 use std::error::Error;
 
 mod goodreads;
+mod google_reader;
 mod netscape_bookmarks;
 mod pocket;
 
@@ -35,7 +36,7 @@ pub struct LibraryEntry {
     #[serde(default)]
     pub tags: Vec<Symbol>,
     /// Publication year of item
-    pub year: Option<i32>,
+    pub published: Option<VagueDate>,
     /// When the item was read
     pub read: Option<VagueDate>,
     /// When the item was added to read list
@@ -135,6 +136,8 @@ pub fn scrape(target: &str) -> Result<Vec<LibraryEntry>, Box<dyn Error>> {
     let ret = Scrapeable::get(target)?;
     if let Ok(goodreads) = goodreads::Entries::try_from(&ret) {
         Ok(goodreads.0.into_iter().map(|x| x.into()).collect())
+    } else if let Ok(google_takeout) = google_reader::GoogleReaderTakeout::try_from(&ret) {
+        Ok(google_takeout.items.into_iter().map(|x| x.into()).collect())
     } else if let Ok(pocket) = pocket::Entries::try_from(&ret) {
         Ok(pocket.0.into_iter().map(|x| x.into()).collect())
     } else if let Ok(pocket) = netscape_bookmarks::Entries::try_from(&ret) {

@@ -2,7 +2,7 @@
 //
 // https://goodreads.com/
 
-use crate::{LibraryEntry, Scrapeable};
+use crate::{LibraryEntry, Scrapeable, VagueDate};
 use serde::Deserialize;
 use std::convert::TryFrom;
 use std::error::Error;
@@ -111,7 +111,7 @@ impl From<GoodreadsEntry> for LibraryEntry {
         }
 
         if !e.year_published.is_empty() {
-            ret.year = e.year_published.parse().ok();
+            ret.published = e.year_published.parse().map(|x| VagueDate::Year(x)).ok();
         }
 
         if !e.date_added.is_empty() {
