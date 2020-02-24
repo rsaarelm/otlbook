@@ -7,6 +7,8 @@ use std::error::Error;
 use std::io::Write;
 use std::process::{Command, Stdio};
 
+// Don't convert the cached contents into notes, this makes for larger files VimOutliner can
+// handle. Notes isn't really supposed to be a mirroring mechanism, more for handwritten stuff.
 const PANDOC_NOTES: bool = false;
 
 #[derive(Debug, Deserialize)]
@@ -85,6 +87,8 @@ impl From<GoogleReaderItem> for LibraryEntry {
 }
 
 fn html2md(html: &str) -> Result<String, Box<dyn Error>> {
+    // Could also use some Markdown for the output, though that tends to be noisier. Plaintext
+    // version loses URLs.
     let mut pandoc = Command::new("pandoc")
         .arg("-f")
         .arg("html")
