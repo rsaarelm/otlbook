@@ -1,10 +1,10 @@
 PROJECT=otlbook
 
-all: ${PROJECT}_bg.wasm target/release/otltool
+all: ${PROJECT}_bg.wasm target/release/olt
 
-.PHONY: target/release/otltool
+.PHONY: target/release/olt
 
-target/release/otltool:
+target/release/olt:
 	cargo build --release
 
 ${PROJECT}_bg.wasm:
