@@ -1,5 +1,6 @@
 use parser::{outline::Outline, Symbol, VagueDate};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 use std::convert::TryFrom;
 use std::error::Error;
 
@@ -34,7 +35,7 @@ pub struct LibraryEntry {
     pub title: Option<String>,
     pub author: Option<String>,
     #[serde(default)]
-    pub tags: Vec<Symbol>,
+    pub tags: BTreeSet<Symbol>,
     /// Publication year of item
     pub published: Option<VagueDate>,
     /// When the item was read

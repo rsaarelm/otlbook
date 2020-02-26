@@ -27,8 +27,8 @@ impl OutlineUtils for Outline {
     }
 
     fn anki_cards(&self) -> Vec<Card> {
-        fn traverse(cards: &mut Vec<Card>, tags: &Vec<String>, o: &Outline) {
-            let mut tags = tags.clone();
+        fn traverse(cards: &mut Vec<Card>, tags: &[Symbol], o: &Outline) {
+            let mut tags = tags.to_owned();
             tags.extend_from_slice(&o.tags());
 
             // Filter out comments that start with ; before processing cards.

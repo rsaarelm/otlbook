@@ -3,12 +3,13 @@
 // https://getpocket.com/
 
 use crate::{LibraryEntry, Scrapeable};
-use parser::VagueDate;
+use parser::{Symbol, VagueDate};
 use select::{
     document::Document,
     node::Node,
     predicate::{Name, Predicate},
 };
+use std::collections::BTreeSet;
 use std::convert::TryFrom;
 use std::error::Error;
 
@@ -17,7 +18,7 @@ pub struct PocketEntry {
     pub title: String,
     pub added: VagueDate,
     pub uri: String,
-    pub tags: Vec<String>,
+    pub tags: BTreeSet<Symbol>,
 }
 
 #[derive(Debug)]
@@ -61,20 +62,12 @@ impl TryFrom<&Scrapeable> for Entries {
                 .unwrap_or(0);
             let added = VagueDate::from_timestamp(added);
 
-            let mut tags = item
+            let tags = item
                 .attr("tags")
                 .unwrap_or("")
-                .split(",")
-                .map(|x: &str| x.to_string())
-                .filter(|s| !s.is_empty())
-                .collect::<Vec<String>>();
-
-            // Bring "*" tag to end so tags line so it gets punned as the "important item"
-            // highlight syntax.
-            if let Some(pos) = tags.iter().position(|x| x == "*") {
-                tags.remove(pos);
-                tags.push("*".into());
-            }
+                .split(',')
+                .filter_map(|x: &str| Symbol::new(x).ok())
+                .collect::<BTreeSet<Symbol>>();
 
             ret.push(PocketEntry {
                 title,

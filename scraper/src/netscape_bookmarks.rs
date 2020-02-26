@@ -3,8 +3,9 @@
 // http://fileformats.archiveteam.org/wiki/Netscape_bookmarks
 
 use crate::{LibraryEntry, Scrapeable};
-use parser::VagueDate;
+use parser::{Symbol, VagueDate};
 use select::{document::Document, predicate::Name};
+use std::collections::BTreeSet;
 use std::convert::TryFrom;
 use std::error::Error;
 
@@ -13,7 +14,7 @@ pub struct NetscapeBookmarksEntry {
     pub title: String,
     pub uri: String,
     pub added: VagueDate,
-    pub tags: Vec<String>,
+    pub tags: BTreeSet<Symbol>,
     pub notes: Option<String>,
 }
 
@@ -54,7 +55,7 @@ impl TryFrom<&Scrapeable> for Entries {
                     .attr("tags")
                     .unwrap_or("")
                     .split(",")
-                    .map(|s| s.to_string())
+                    .filter_map(|s| Symbol::new(s).ok())
                     .filter(|s| !s.is_empty())
                     .collect();
 

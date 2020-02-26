@@ -3,6 +3,7 @@
 // https://goodreads.com/
 
 use crate::{LibraryEntry, Scrapeable, VagueDate};
+use parser::{sym, Symbol};
 use serde::Deserialize;
 use std::convert::TryFrom;
 use std::error::Error;
@@ -125,16 +126,17 @@ impl From<GoodreadsEntry> for LibraryEntry {
         ret.tags = e
             .bookshelves
             .split(", ")
-            .map(|s| s.to_string())
-            .filter(|s| !s.is_empty())
+            .filter_map(|s| Symbol::new(s).ok())
             .collect();
 
-        if !e.exclusive_shelf.is_empty() && !ret.tags.contains(&e.exclusive_shelf) {
-            ret.tags.push(e.exclusive_shelf);
+        if let Ok(exclusive_shelf) = Symbol::new(e.exclusive_shelf) {
+            if !ret.tags.contains(&exclusive_shelf) {
+                ret.tags.insert(exclusive_shelf);
+            }
         }
 
         if e.my_rating != 0 {
-            ret.tags.push(format!("rating-{}", e.my_rating));
+            ret.tags.insert(sym!("rating-{}", e.my_rating));
         }
 
         if !e.notes.is_empty() {

@@ -1,3 +1,4 @@
+use crate::Symbol;
 use anki_connect::Card;
 
 /// Parse a cloze line into a set of Anki cards.
@@ -8,7 +9,7 @@ use anki_connect::Card;
 ///
 /// One card will be generated for each cloze where that cloze is occluded in the front of the
 /// card.
-pub fn parse_cloze(tags: &[String], s: impl AsRef<str>) -> Result<Vec<Card>, ()> {
+pub fn parse_cloze(tags: &[Symbol], s: impl AsRef<str>) -> Result<Vec<Card>, ()> {
     let s = s.as_ref();
 
     #[derive(Copy, Clone, Debug)]
@@ -141,7 +142,7 @@ pub fn parse_cloze(tags: &[String], s: impl AsRef<str>) -> Result<Vec<Card>, ()>
         .map(|f| Card {
             front: f,
             back: back.clone(),
-            tags: tags.to_vec(),
+            tags: tags.iter().map(|t| t.to_string()).collect(),
         })
         .collect())
 }

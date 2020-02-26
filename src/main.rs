@@ -109,7 +109,7 @@ The first item can be optionally preceded by comma to make things more consisten
 generators.
 */
 
-use parser::{self, outline, Outline, OutlineBody, TagAddress};
+use parser::{self, outline, sym, Outline, OutlineBody, TagAddress};
 use scraper::LibraryEntry;
 use std::collections::BTreeSet;
 use std::collections::HashSet;
@@ -324,7 +324,7 @@ pub fn bookmarks_batch() {
     outline.children.retain(|o| {
         if let Some(e) = o.extract::<LibraryEntry>() {
             // Filter out Goodreads entries for unread books, permanent record is for read things.
-            e.via != Some("goodreads.com".into()) || e.tags.contains(&"read".into())
+            e.via != Some("goodreads.com".into()) || e.tags.contains(&sym!("read"))
         } else {
             true
         }
