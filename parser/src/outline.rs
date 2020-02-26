@@ -460,12 +460,19 @@ Outline headline
             info: Vec<String>,
         }
 
-        let mut outline = Outline::from("\
+        let mut outline = Outline::from(
+            "\
 Headline
 \t\tinfo foo bar
-\tstuff");
+\tstuff",
+        );
         outline = outline.children[0].clone();
 
-        assert_eq!(outline.extract::<Data>(), Some(Data { info: vec!["foo".into(), "bar".into()] }));
+        assert_eq!(
+            outline.extract::<Data>(),
+            Some(Data {
+                info: vec!["foo".into(), "bar".into()]
+            })
+        );
     }
 }

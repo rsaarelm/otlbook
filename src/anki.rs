@@ -102,13 +102,15 @@ pub fn anki(dump: bool) {
             let new = &new_cards[*k];
 
             for t in &old.tags {
-                anki.remove_tag(vec![id], t.clone()).expect("Remove tag failed");
+                anki.remove_tag(vec![id], t.clone())
+                    .expect("Remove tag failed");
             }
             for t in &new.tags {
                 anki.add_tag(vec![id], t.clone()).expect("Add tag failed");
             }
 
-            anki.update_note_fields(id, new.front.clone(), new.back.clone()).expect("Update note fields failed");
+            anki.update_note_fields(id, new.front.clone(), new.back.clone())
+                .expect("Update note fields failed");
         }
 
         anki.sync().unwrap();
