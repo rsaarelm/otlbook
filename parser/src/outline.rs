@@ -327,7 +327,7 @@ impl std::convert::TryFrom<&Path> for Outline {
             }
         }
         fn to_headline(path: impl AsRef<Path>) -> Option<String> {
-            if let Some(mut path) = path.as_ref().file_name().map_or(None, |p| p.to_str()) {
+            if let Some(mut path) = path.as_ref().file_name().and_then(|p| p.to_str()) {
                 if path.ends_with(".otl") {
                     path = &path[..path.len() - 4];
                 }

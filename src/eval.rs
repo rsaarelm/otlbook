@@ -27,7 +27,7 @@ impl EvalState {
                 ..
             } = SyntaxInfo::new(s)
             {
-                let code = self.libraries.entry(lang).or_insert(String::new());
+                let code = self.libraries.entry(lang).or_insert_with(String::new);
                 for line in lines {
                     code.push_str(line);
                     code.push('\n');
@@ -67,7 +67,11 @@ impl EvalState {
                 // interpreter) from the otlbook side stuff (Using NBSP to mark output lines).
                 if lang == "julia" {
                     // Code that gets executed by interpreter.
-                    let lib = self.libraries.entry(lang).or_insert(String::new()).clone();
+                    let lib = self
+                        .libraries
+                        .entry(lang)
+                        .or_insert_with(String::new)
+                        .clone();
 
                     // Text where the checksum is derived from. Code and output.
                     let mut checksum_text = lib.clone();
@@ -98,7 +102,7 @@ impl EvalState {
                             // outputs scrubbed.
                             //
                             // The hackery should be removed when the Julia bug has been fixed.
-                            if line.ends_with(";") {
+                            if line.ends_with(';') {
                                 code.push_str("println('\\u241E');");
                             }
 
@@ -155,7 +159,7 @@ impl EvalState {
 
                     // Compute new checksum and update the outline with the checksum and the new
                     // output.
-                    let mut new_checksum_text = lib.clone();
+                    let mut new_checksum_text = lib;
                     new_checksum_text.push_str(&script_code);
                     new_checksum_text.push_str(&script_output);
 

@@ -150,7 +150,7 @@ pub struct Response<T> {
 }
 
 impl Response<()> {
-    fn as_result(self) -> AnkiResult<()> {
+    fn to_result(self) -> AnkiResult<()> {
         match self.error {
             Some(e) => Err(Box::new(ResponseError(e))),
             _ => Ok(()),
@@ -219,7 +219,7 @@ impl AnkiConnection {
         let client = reqwest::blocking::Client::new();
         let query: AnkiRequest = query.into();
         let ret: Response<()> = client.post(ANKI_SERVER_URL).json(&query).send()?.json()?;
-        ret.as_result()
+        ret.to_result()
     }
 
     fn _add_note(&self, note: Note) -> AnkiResult<()> {

@@ -40,7 +40,7 @@ impl<'de> Deserializer<'de> {
             let offset = s[first_char_width..]
                 .find(' ')
                 .map(|x| x + first_char_width)
-                .unwrap_or(s.len());
+                .unwrap_or_else(|| s.len());
             Some(self.offset + offset)
         } else {
             None
@@ -446,7 +446,7 @@ impl<'a, 'de> de::SeqAccess<'de> for Sequence<'a, 'de> {
                 } else {
                     let mut child_de = Deserializer {
                         outline: &self.de.outline.children[n],
-                        offset: offset,
+                        offset,
                         is_inline_seq: false,
                     };
                     self.cursor = Cursor::Child(n + 1, 0);
@@ -503,7 +503,7 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
                 // Need to apply parse after key is taken
                 let mut child_de = Deserializer {
                     outline: &self.de.outline.children[n],
-                    offset: offset,
+                    offset,
                     is_inline_seq: false,
                 };
                 self.cursor = Cursor::Child(n + 1, 0);

@@ -139,7 +139,7 @@ pub fn parse_cloze(tags: &[String], s: impl AsRef<str>) -> Result<Vec<Card>, ()>
     Ok(cloze_fronts
         .into_iter()
         .map(|f| Card {
-            front: f.clone(),
+            front: f,
             back: back.clone(),
             tags: tags.to_vec(),
         })

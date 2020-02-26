@@ -61,7 +61,7 @@ impl From<GoogleReaderItem> for LibraryEntry {
                 .iter()
                 .next()
                 .map(|a| a.href.clone())
-                .unwrap_or("err".into());
+                .unwrap_or_else(|| "err".into());
         } else if let Some(alt) = e.alternate.iter().next() {
             ret.uri = alt.href.clone();
         }
@@ -106,8 +106,8 @@ fn html2md(html: &str) -> Result<String, Box<dyn Error>> {
     let output = pandoc.wait_with_output()?;
     if output.status.success() {
         let output = String::from_utf8(output.stdout)?;
-        return Ok(output);
+        Ok(output)
     } else {
-        return Err("pandoc failed")?;
+        Err("pandoc failed")?
     }
 }

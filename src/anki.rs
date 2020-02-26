@@ -21,7 +21,7 @@ pub fn anki(dump: bool) {
         let mut ids = BTreeMap::new();
         let mut old_cards = BTreeMap::new();
 
-        for info in anki.notes_info(notes.clone()).unwrap() {
+        for info in anki.notes_info(notes).unwrap() {
             let id = info.note_id;
             let card = Card::from(info);
             let front = card.front.clone();

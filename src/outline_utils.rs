@@ -36,9 +36,9 @@ impl OutlineUtils for Outline {
             let new_cards = o
                 .headline
                 .as_ref()
-                .filter(|h| !h.starts_with(";"))
-                .map_or(None, |h| parser::parse_cloze(&tags, h).ok())
-                .unwrap_or(Vec::new());
+                .filter(|h| !h.starts_with(';'))
+                .and_then(|h| parser::parse_cloze(&tags, h).ok())
+                .unwrap_or_else(Vec::new);
             cards.extend_from_slice(&new_cards);
 
             for c in &o.children {
