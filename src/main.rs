@@ -131,22 +131,22 @@ mod outline_utils;
 fn main() {
     env_logger::init();
 
-    let opt = Otltool::from_args();
+    let opt = Olt::from_args();
     match opt {
-        Otltool::Echo { debug } => echo(debug),
-        Otltool::Tags => tags(),
-        Otltool::Eval { force } => eval(force),
-        Otltool::Anki { dump } => anki(dump),
-        Otltool::Extract { syntax } => extract(&syntax),
-        Otltool::Save { target } => save(&target),
-        Otltool::BookmarksBatch => bookmarks_batch(),
+        Olt::Echo { debug } => echo(debug),
+        Olt::Tags => tags(),
+        Olt::Eval { force } => eval(force),
+        Olt::Anki { dump } => anki(dump),
+        Olt::Extract { syntax } => extract(&syntax),
+        Olt::Save { target } => save(&target),
+        Olt::BookmarksBatch => bookmarks_batch(),
         _ => unimplemented!(),
     }
 }
 
 #[derive(StructOpt)]
-#[structopt(name = "otltool", about = "Outline file processing tool")]
-enum Otltool {
+#[structopt(name = "olt", about = "Outline file processing tool")]
+enum Olt {
     #[structopt(name = "echo", about = "Test by parsing and echoing stdin input")]
     Echo {
         #[structopt(long = "debug", help = "Print debug versions of tokens")]
