@@ -138,7 +138,7 @@ fn main() {
         Olt::Eval { force } => eval(force),
         Olt::Anki { dump } => anki(dump),
         Olt::Extract { syntax } => extract(&syntax),
-        Olt::Save { target } => save(&target),
+        Olt::Scrape { target } => scrape(&target),
         Olt::BookmarksBatch => bookmarks_batch(),
         _ => unimplemented!(),
     }
@@ -192,8 +192,8 @@ enum Olt {
         syntax: String,
     },
 
-    #[structopt(name = "save", about = "Save target into bookmarks")]
-    Save {
+    #[structopt(name = "scrape", about = "Scrape target into bookmarks")]
+    Scrape {
         #[structopt(parse(from_str))]
         target: String,
     },
@@ -278,7 +278,7 @@ fn extract(syntax: &str) {
 
 //////////////////////////////// Scraping
 
-pub fn save(target: &str) {
+pub fn scrape(target: &str) {
     // TODO: Save to Bookmarks.otl
 
     let mut results = match scraper::scrape(target) {
