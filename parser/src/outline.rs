@@ -1,7 +1,7 @@
 use crate::{from_outline, into_outline};
 use std::fmt;
 use std::io::{self};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::str::FromStr;
 
 #[derive(Eq, PartialEq, Clone, Default)]
@@ -327,12 +327,10 @@ impl std::convert::TryFrom<&Path> for Outline {
             }
         }
         fn to_headline(path: impl AsRef<Path>) -> Option<String> {
-            if let Some(mut path) = path.as_ref().file_name().and_then(|p| p.to_str()) {
-                if path.ends_with(".otl") {
-                    path = &path[..path.len() - 4];
-                }
-
-                Some(path.into())
+            if let Some(path) = path.as_ref().file_name().and_then(|p| p.to_str()) {
+                // Headline is ASCII file separator plus path, the separator's presence can be used
+                // for special semantics later.
+                Some(format!("\x1c{}", path))
             } else {
                 None
             }
@@ -343,25 +341,22 @@ impl std::convert::TryFrom<&Path> for Outline {
             return Err(io::Error::from_raw_os_error(0));
         }
 
-        // It's a directory, crawl contents and build outline
-        if let Ok(iter) = std::fs::read_dir(path) {
-            let mut contents: Vec<PathBuf> =
-                iter.filter_map(|e| e.ok().map(|p| p.path())).collect();
-            contents.sort_by_key(|p| to_headline(p));
-
-            let children: Vec<Outline> = contents
-                .iter()
-                .filter_map(|p: &PathBuf| Outline::try_from(p.as_ref() as &Path).ok())
-                .collect();
-
-            if children.is_empty() {
-                return Err(io::Error::from_raw_os_error(0));
+        // It's a directory, crawl all files under it.
+        if path.is_dir() {
+            let mut ret = Vec::new();
+            for e in walkdir::WalkDir::new(path)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                let p = e.path();
+                if p.is_file() {
+                    if let Ok(o) = Outline::try_from(p) {
+                        ret.push(o);
+                    }
+                }
             }
 
-            return Ok(Outline {
-                headline: to_headline(path),
-                children,
-            });
+            return Ok(Outline::list(ret));
         }
 
         // It's a file
