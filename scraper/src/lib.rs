@@ -1,4 +1,4 @@
-use parser::{outline::Outline, Symbol, VagueDate};
+use parser::{Outline, Symbol, VagueDate};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::convert::TryFrom;

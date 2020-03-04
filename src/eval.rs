@@ -1,5 +1,8 @@
 use md5;
-use parser::{self, Outline, OutlineBody, SyntaxInfo};
+use parser::{
+    self,
+    old_outline::{Outline, OutlineBody, SyntaxInfo},
+};
 use std::collections::HashMap;
 use std::io::{self, Read, Write};
 use std::process::{Command, Stdio};

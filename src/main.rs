@@ -109,7 +109,7 @@ The first item can be optionally preceded by comma to make things more consisten
 generators.
 */
 
-use parser::{self, outline, sym, Outline, OutlineBody, TagAddress};
+use parser::{self, old_outline, sym, Outline};
 use scraper::LibraryEntry;
 use std::collections::BTreeSet;
 use std::collections::HashSet;
@@ -205,7 +205,7 @@ enum Olt {
 fn echo(debug: bool) {
     let mut buf = String::new();
     io::stdin().read_to_string(&mut buf).unwrap();
-    let outline = parser::outline::Outline::from(buf.as_str());
+    let outline = Outline::from(buf.as_str());
 
     if debug {
         print!("{:?}", outline);
@@ -221,7 +221,7 @@ struct CTags {
     // Include depth in key so that tags deeper in the outline are give a lower priority in case
     // there are multiple instances of the same tag name. Want the higher-up version to be more
     // authoritative.
-    tags: BTreeSet<(String, usize, String, TagAddress)>,
+    tags: BTreeSet<(String, usize, String, old_outline::TagAddress)>,
 }
 
 impl fmt::Display for CTags {
@@ -238,7 +238,7 @@ fn tags() {
 
     for path in otl_paths("./") {
         let path = path.strip_prefix("./").unwrap().to_str().unwrap();
-        let outline = Outline::load(path).unwrap();
+        let outline = old_outline::Outline::load(path).unwrap();
         tags.tags.extend(outline.ctags(0, path));
     }
 
@@ -248,9 +248,9 @@ fn tags() {
 //////////////////////////////// Code block extraction
 
 fn extract(syntax: &str) {
-    fn echo_blocks(syntax: &str, outline: &Outline) {
+    fn echo_blocks(syntax: &str, outline: &old_outline::Outline) {
         match outline.body() {
-            OutlineBody::Block {
+            old_outline::OutlineBody::Block {
                 syntax: Some(s),
                 lines,
                 ..
@@ -271,7 +271,7 @@ fn extract(syntax: &str) {
 
     let mut buf = String::new();
     io::stdin().read_to_string(&mut buf).unwrap();
-    let outline: Outline = buf.parse().unwrap();
+    let outline: old_outline::Outline = buf.parse().unwrap();
 
     echo_blocks(syntax, &outline);
 }
@@ -303,7 +303,7 @@ pub fn scrape(target: &str) {
     }
 
     for e in &results {
-        print!("{}", outline::Outline::from(e.clone()));
+        print!("{}", Outline::from(e.clone()));
     }
 
     // TODO: Create an entry and save it.
@@ -315,7 +315,7 @@ pub fn bookmarks_batch() {
     let mut buffer = String::new();
     io::stdin().read_to_string(&mut buffer).unwrap();
 
-    let mut outline = outline::Outline::from(buffer.as_ref());
+    let mut outline = Outline::from(buffer.as_ref());
 
     outline
         .children
@@ -358,28 +358,28 @@ fn otl_paths(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf> {
         })
 }
 
-/// Look for default otlbook path from OTLBOOK_PATH environment variable.
-fn otlbook_path() -> Option<PathBuf> {
-    let path = std::env::var("OTLBOOK_PATH").ok()?;
+/// Look for default otlbook path from OLT_PATH environment variable.
+fn olt_path() -> Option<PathBuf> {
+    let path = std::env::var("OLT_PATH").ok()?;
     Some(path.into())
 }
 
 fn path_or_die() -> PathBuf {
-    match otlbook_path() {
+    match olt_path() {
         Some(path) => path,
         None => {
-            println!("Please define your .otl file directory in environment variable OTLBOOK_PATH");
+            println!("Please define your .otl file directory in environment variable OLT_PATH");
             std::process::exit(1);
         }
     }
 }
 
-pub fn load_database_or_die() -> outline::Outline {
+pub fn load_database_or_die() -> Outline {
     let path = path_or_die();
-    let outline: outline::Outline =
-        TryFrom::try_from(path.as_ref() as &Path).expect("Couldn't read OTLBOOK_PATH");
+    let outline: Outline =
+        TryFrom::try_from(path.as_ref() as &Path).expect("Couldn't read OLT_PATH");
     if outline.is_empty() {
-        println!("No outline files found in OTLBOOK_PATH");
+        println!("No outline files found in OLT_PATH");
         std::process::exit(1);
     }
 

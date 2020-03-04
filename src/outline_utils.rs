@@ -1,5 +1,5 @@
 use anki_connect::Card;
-use parser::{outline::Outline, Symbol};
+use parser::{Outline, Symbol};
 use serde::Deserialize;
 
 pub trait OutlineUtils {
