@@ -384,6 +384,19 @@ impl std::convert::TryFrom<&Path> for Outline {
     }
 }
 
+// Return a path if the outline describes a whole file
+impl<'a> std::convert::TryFrom<&'a Outline> for &'a Path {
+    type Error = ();
+    fn try_from(outline: &'a Outline) -> Result<&'a Path, Self::Error> {
+        if let Some(h) = &outline.headline {
+            if h.starts_with('\x1c') {
+                return Ok(Path::new(&h[1..]));
+            }
+        }
+        Err(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

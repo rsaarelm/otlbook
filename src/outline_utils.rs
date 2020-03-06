@@ -1,6 +1,8 @@
 use anki_connect::Card;
 use parser::{Outline, Symbol};
 use serde::Deserialize;
+use std::convert::TryFrom;
+use std::path::Path;
 
 pub trait OutlineUtils {
     /// Return list of tags defined in this outline node.
@@ -8,6 +10,11 @@ pub trait OutlineUtils {
 
     /// Recursively find Anki cards for the whole outline.
     fn anki_cards(&self) -> Vec<anki_connect::Card>;
+
+    /// Does this outline describe a file repository?
+    ///
+    /// The headline must be empty and all child outlines must be file outlines.
+    fn is_repository_outline(&self) -> bool;
 }
 
 impl OutlineUtils for Outline {
@@ -49,5 +56,9 @@ impl OutlineUtils for Outline {
         let mut cards = Vec::new();
         traverse(&mut cards, &Vec::new(), self);
         cards
+    }
+
+    fn is_repository_outline(&self) -> bool {
+        self.headline.is_none() && self.children.iter().all(|o| <&Path>::try_from(o).is_ok())
     }
 }
