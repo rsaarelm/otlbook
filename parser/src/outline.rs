@@ -1,4 +1,5 @@
 use crate::{from_outline, into_outline};
+use std::convert::TryFrom;
 use std::fmt;
 use std::io::{self};
 use std::path::Path;
@@ -13,35 +14,6 @@ pub struct Outline {
     pub headline: Option<String>,
     /// Child elements, indented one level below this element.
     pub children: Vec<Outline>,
-}
-
-pub struct OutlineIter<'a>(Vec<&'a Outline>);
-
-impl<'a> Iterator for OutlineIter<'a> {
-    type Item = &'a Outline;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(next) = self.0.pop() {
-            for c in next.children.iter().rev() {
-                self.0.push(c);
-            }
-            Some(next)
-        } else {
-            None
-        }
-    }
-}
-
-fn is_comma_string(s: &str) -> bool {
-    s.chars().all(|c| c == ',')
-}
-
-fn unescape_comma_string(s: &str) -> &str {
-    if is_comma_string(s) {
-        &s[1..]
-    } else {
-        s
-    }
 }
 
 impl Outline {
@@ -62,6 +34,21 @@ impl Outline {
     /// Return an iterator that recursively traverses the outline and its children.
     pub fn iter(&self) -> OutlineIter<'_> {
         OutlineIter(vec![self])
+    }
+
+    /// Iterate outline giving files and line numbers that correspond to a headline.
+    ///
+    /// Headlines that start with ASCII file separator char are assumed to be file paths. They will
+    /// get the line number 0. Empty outline headlines (not blank lines in the text file, the
+    /// internal representation for multiple levels of indetation) will not increment line number,
+    /// will also have line number 0 if encountered at the start of the iteration. Otherwise they
+    /// will have the line number of the last line that had a non-empty headline.
+    pub fn file_line_iter(&self) -> OutlineFileLineIter<'_> {
+        OutlineFileLineIter {
+            iter: self.iter(),
+            path: None,
+            line: 0,
+        }
     }
 
     pub fn push(&mut self, outline: Outline) {
@@ -314,7 +301,7 @@ impl fmt::Debug for Outline {
 }
 
 // Recursively turn a file or an entire directory into an outline.
-impl std::convert::TryFrom<&Path> for Outline {
+impl TryFrom<&Path> for Outline {
     type Error = std::io::Error;
     fn try_from(path: &Path) -> Result<Outline, Self::Error> {
         fn is_outline(path: impl AsRef<Path>) -> bool {
@@ -385,7 +372,7 @@ impl std::convert::TryFrom<&Path> for Outline {
 }
 
 // Return a path if the outline describes a whole file
-impl<'a> std::convert::TryFrom<&'a Outline> for &'a Path {
+impl<'a> TryFrom<&'a Outline> for &'a Path {
     type Error = ();
     fn try_from(outline: &'a Outline) -> Result<&'a Path, Self::Error> {
         if let Some(h) = &outline.headline {
@@ -394,6 +381,60 @@ impl<'a> std::convert::TryFrom<&'a Outline> for &'a Path {
             }
         }
         Err(())
+    }
+}
+
+fn is_comma_string(s: &str) -> bool {
+    s.chars().all(|c| c == ',')
+}
+
+fn unescape_comma_string(s: &str) -> &str {
+    if is_comma_string(s) {
+        &s[1..]
+    } else {
+        s
+    }
+}
+
+pub struct OutlineIter<'a>(Vec<&'a Outline>);
+
+impl<'a> Iterator for OutlineIter<'a> {
+    type Item = &'a Outline;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(next) = self.0.pop() {
+            for c in next.children.iter().rev() {
+                self.0.push(c);
+            }
+            Some(next)
+        } else {
+            None
+        }
+    }
+}
+
+pub struct OutlineFileLineIter<'a> {
+    iter: OutlineIter<'a>,
+    path: Option<&'a Path>,
+    line: usize,
+}
+
+impl<'a> Iterator for OutlineFileLineIter<'a> {
+    type Item = (Option<&'a Path>, usize, &'a Outline);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(next) = self.iter.next() {
+            if let Ok(path) = <&Path>::try_from(next) {
+                // This outline describes a whole file
+                self.path = Some(path);
+                self.line = 0;
+            } else if next.headline.is_some() {
+                self.line += 1;
+            }
+            Some((self.path, self.line, next))
+        } else {
+            None
+        }
     }
 }
 
