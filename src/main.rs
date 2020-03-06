@@ -283,7 +283,10 @@ pub fn scrape(target: &str) {
 
     let mut results = match scraper::scrape(target) {
         Ok(ret) => ret,
-        _ => return,
+        _ => {
+            eprintln!("Scrape failed");
+            return;
+        }
     };
 
     // Only do wayback check for single links, this can take a while when crawling a bunch of URLs
@@ -300,6 +303,10 @@ pub fn scrape(target: &str) {
             .collect();
 
         results.retain(|e| !uris.contains(&e.uri));
+
+        if results.is_empty() {
+            eprintln!("Link is already saved");
+        }
     }
 
     for e in &results {
