@@ -22,7 +22,6 @@ scraper = { path = "scraper" }
 serde = "1"
 structopt = "0.3"
 termion = "1"
-walkdir = "2"
 
 [dev-dependencies]
 pretty_assertions = "0.6"

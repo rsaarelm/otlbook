@@ -114,11 +114,9 @@ use scraper::LibraryEntry;
 use std::collections::BTreeSet;
 use std::collections::HashSet;
 use std::convert::TryFrom;
-use std::fmt;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use structopt::{self, StructOpt};
-use walkdir::{DirEntry, WalkDir};
 
 mod anki;
 use anki::anki;
@@ -127,6 +125,7 @@ mod eval;
 use eval::eval;
 
 mod outline_utils;
+use outline_utils::OutlineUtils;
 
 fn main() {
     env_logger::init();
@@ -216,33 +215,22 @@ fn echo(debug: bool) {
 
 //////////////////////////////// Tag generation
 
-#[derive(Default)]
-struct CTags {
-    // Include depth in key so that tags deeper in the outline are give a lower priority in case
-    // there are multiple instances of the same tag name. Want the higher-up version to be more
-    // authoritative.
-    tags: BTreeSet<(String, usize, String, old_outline::TagAddress)>,
-}
-
-impl fmt::Display for CTags {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for (tag, _, path, addr) in &self.tags {
-            writeln!(f, "{}\t{}\t{}", tag, path, addr)?;
-        }
-        Ok(())
-    }
-}
-
 fn tags() {
-    let mut tags = CTags::default();
+    let tags: BTreeSet<(String, String, String)> = load_database_or_die()
+        .file_line_iter()
+        .filter_map(|(path, _, o)| {
+            if let Some(path) = path {
+                if let (Some(title), Some(cmd)) = (o.wiki_title(), o.ctags_search_string()) {
+                    return Some((title.into(), path.to_str().unwrap().into(), cmd));
+                }
+            }
+            None
+        })
+        .collect();
 
-    for path in otl_paths("./") {
-        let path = path.strip_prefix("./").unwrap().to_str().unwrap();
-        let outline = old_outline::Outline::load(path).unwrap();
-        tags.tags.extend(outline.ctags(0, path));
+    for (tag, path, cmd) in &tags {
+        println!("{}\t{}\t{}", tag, path, cmd);
     }
-
-    println!("{}", tags);
 }
 
 //////////////////////////////// Code block extraction
@@ -341,29 +329,6 @@ pub fn bookmarks_batch() {
 }
 
 //////////////////////////////// System utilities
-
-/// Find .otl files under a path.
-fn otl_paths(root: impl AsRef<Path>) -> impl Iterator<Item = PathBuf> {
-    fn is_otl(entry: &DirEntry) -> bool {
-        entry.file_type().is_file()
-            && entry
-                .file_name()
-                .to_str()
-                .map_or(false, |s| s.ends_with(".otl"))
-    }
-
-    WalkDir::new(root)
-        .follow_links(true)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter_map(|e| {
-            if is_otl(&e) {
-                Some(e.into_path())
-            } else {
-                None
-            }
-        })
-}
 
 /// Look for default otlbook path from OLT_PATH environment variable.
 fn olt_path() -> Option<PathBuf> {

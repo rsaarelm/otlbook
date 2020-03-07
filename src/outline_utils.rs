@@ -26,6 +26,9 @@ pub trait OutlineUtils {
 
     /// Return title of wiki article if outline headline defines one.
     fn wiki_title(&self) -> Option<&str>;
+
+    /// Return ctags search command for this node if it should get one.
+    fn ctags_search_string(&self) -> Option<String>;
 }
 
 impl OutlineUtils for Outline {
@@ -97,6 +100,22 @@ impl OutlineUtils for Outline {
             if let Ok(alias_word) = complete(alias_name)(filename) {
                 return Some(alias_word.1);
             }
+        }
+        None
+    }
+
+    fn ctags_search_string(&self) -> Option<String> {
+        if self.wiki_title().is_none() {
+            return None;
+        }
+
+        if <&Path>::try_from(self).is_ok() {
+            // This looks like it's a full file, return "line number 0"
+            return Some("0".into());
+        }
+
+        if let Some(headline) = &self.headline {
+            return Some(format!("/^\\t\\*{}$/", headline));
         }
         None
     }
