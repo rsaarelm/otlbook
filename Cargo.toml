@@ -15,6 +15,7 @@ dialoguer = "0.5"
 env_logger = "0.7"
 log = "0.4"
 md5 = "0.7"
+nom = "5"
 parser = { path = "parser" }
 ron = "0.5"
 scraper = { path = "scraper" }
@@ -22,3 +23,6 @@ serde = "1"
 structopt = "0.3"
 termion = "1"
 walkdir = "2"
+
+[dev-dependencies]
+pretty_assertions = "0.6"
