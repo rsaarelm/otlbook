@@ -35,6 +35,9 @@ pub trait OutlineUtils {
     /// By convention this is a concise definition of a wiki concept.
     fn lead(&self) -> Option<&Self>;
 
+    /// Return whether first non-empty headline starts with prefix
+    fn starts_with(&self, prefix: &str) -> bool;
+
     /// Return whether last descendant headline of outline ends in suffix.
     fn ends_with(&self, suffix: &str) -> bool;
 }
@@ -69,6 +72,26 @@ impl OutlineUtils for Outline {
                 .and_then(|h| parser::parse_cloze(&tags, h).ok())
                 .unwrap_or_else(Vec::new);
             cards.extend_from_slice(&new_cards);
+
+            // Is this a wiki concept with a definition in the lead paragraph?
+            if let (Some(headline), Some(lead)) = (o.headline.as_ref(), o.lead()) {
+                if lead.starts_with("* ") && lead.ends_with(".") {
+                    // TODO: Better Outline to Anki conversion?
+                    let back = format!("{}", lead);
+
+                    let front = if let Some(wiki_title) = o.wiki_title() {
+                        pretty_title(wiki_title)
+                    } else {
+                        headline.to_string()
+                    };
+
+                    cards.push(Card {
+                        front,
+                        back: back.trim_end().into(),
+                        tags: tags.iter().map(|t| t.to_string()).collect(),
+                    });
+                }
+            }
 
             for c in &o.children {
                 traverse(cards, &tags, c);
@@ -137,6 +160,14 @@ impl OutlineUtils for Outline {
         None
     }
 
+    fn starts_with(&self, prefix: &str) -> bool {
+        if let Some(first) = self.iter().filter_map(|o| o.headline.as_ref()).next() {
+            first.starts_with(prefix)
+        } else {
+            false
+        }
+    }
+
     fn ends_with(&self, suffix: &str) -> bool {
         if let Some(last) = self.iter().filter_map(|o| o.headline.as_ref()).last() {
             last.ends_with(suffix)
@@ -190,6 +221,19 @@ fn alias_name(i: &str) -> IResult<&str, &str> {
     }
 
     take_while1(is_alias_char)(i)
+}
+
+/// Convert WikiTitles into Wiki Titles.
+fn pretty_title(title: &str) -> String {
+    let mut chars = title.chars().peekable();
+    let mut ret = String::new();
+    while let Some(c) = chars.next() {
+        ret.push(c);
+        if !c.is_whitespace() && chars.peek().map_or(false, |c| c.is_uppercase()) {
+            ret.push(' ');
+        }
+    }
+    ret
 }
 
 #[cfg(test)]
