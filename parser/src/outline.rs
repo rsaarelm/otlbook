@@ -2,6 +2,7 @@ use crate::{from_outline, into_outline};
 use std::convert::TryFrom;
 use std::fmt;
 use std::io::{self};
+use std::iter::IntoIterator;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -150,6 +151,26 @@ impl Outline {
     /// Like `concatenate`, but never tries to merge into headline.
     pub(crate) fn concatenate_child(&mut self, other: Outline) {
         self.push(other);
+    }
+
+    /// Simplify outlines with empty headline and single child.
+    ///
+    /// Lift the child into the outline headline. Used when parsing an outline from a multiline
+    /// string, which always generates an empty parent headline.
+    pub fn lift_singleton(&mut self) {
+        while self.headline.is_none() && self.children.len() == 1 {
+            std::mem::swap(&mut self.headline, &mut self.children[0].headline);
+            self.children = std::mem::take(&mut self.children[0].children);
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a Outline {
+    type Item = &'a Outline;
+    type IntoIter = OutlineIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 

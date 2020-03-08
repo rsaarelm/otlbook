@@ -543,8 +543,8 @@ mod de_tests {
 
     #[test]
     fn test_tokenizer() {
-        let outline = Outline::from("foo bar baz");
-        let outline = outline.children[0].clone();
+        let mut outline = Outline::from("foo bar baz");
+        outline.lift_singleton();
         let mut de = Deserializer {
             outline: &outline,
             offset: 0,

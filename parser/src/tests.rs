@@ -16,9 +16,7 @@ fn _test<T: de::DeserializeOwned + Serialize + fmt::Debug + PartialEq>(
 
     // String to outline always produces empty headline and content in children.
     // Extract the first child as the unit to deserialize the type from.
-    if !outline.children.is_empty() {
-        outline = outline.children[0].clone();
-    }
+    outline.lift_singleton();
 
     let outline_value: T = from_outline(&outline).expect("Outline did not parse into value");
 
@@ -67,9 +65,7 @@ fn test_no_pp<T: de::DeserializeOwned + Serialize + fmt::Debug + PartialEq>(
 fn not_parsed<T: de::DeserializeOwned + fmt::Debug + PartialEq>(outline: &str) {
     let mut outline = Outline::from(outline);
 
-    if !outline.children.is_empty() {
-        outline = outline.children[0].clone();
-    }
+    outline.lift_singleton();
 
     assert!((from_outline(&outline) as Result<T, _>).is_err());
 }

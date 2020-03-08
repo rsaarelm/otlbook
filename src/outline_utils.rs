@@ -29,6 +29,14 @@ pub trait OutlineUtils {
 
     /// Return ctags search command for this node if it should get one.
     fn ctags_search_string(&self) -> Option<String>;
+
+    /// Return first child with non-empty headline.
+    ///
+    /// By convention this is a concise definition of a wiki concept.
+    fn lead(&self) -> Option<&Self>;
+
+    /// Return whether last descendant headline of outline ends in suffix.
+    fn ends_with(&self, suffix: &str) -> bool;
 }
 
 impl OutlineUtils for Outline {
@@ -119,6 +127,23 @@ impl OutlineUtils for Outline {
         }
         None
     }
+
+    fn lead(&self) -> Option<&Self> {
+        for c in &self.children {
+            if c.headline.is_some() {
+                return Some(c);
+            }
+        }
+        None
+    }
+
+    fn ends_with(&self, suffix: &str) -> bool {
+        if let Some(last) = self.iter().filter_map(|o| o.headline.as_ref()).last() {
+            last.ends_with(suffix)
+        } else {
+            false
+        }
+    }
 }
 
 fn complete<'a, F>(f: F) -> impl Fn(&'a str) -> IResult<&'a str, &'a str>
@@ -177,6 +202,12 @@ mod tests {
         Outline::new(text, Vec::new())
     }
 
+    fn o(text: &str) -> Outline {
+        let mut o: Outline = text.into();
+        o.lift_singleton();
+        o
+    }
+
     #[test]
     fn test_wiki_title() {
         assert_eq!(h("WikiWord").wiki_title(), Some("WikiWord"));
@@ -192,5 +223,15 @@ mod tests {
         assert_eq!(h("\x1cpath/to/Filename.otl").wiki_title(), Some("Filename"));
         assert_eq!(h("\x1cpath/to/$$garbage$$.otl").wiki_title(), None);
         assert_eq!(h("\x1cpath/to/.otl").wiki_title(), None);
+    }
+
+    #[test]
+    fn test_lead() {
+        assert_eq!(
+            o("Headline
+\tLead")
+            .lead(),
+            Some(&o("Lead"))
+        );
     }
 }
