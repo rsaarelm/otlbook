@@ -68,7 +68,7 @@ impl Outline {
     /// The metadata block is a twice-indented section right below the headline,
     ///
     /// ```
-    /// use parser::outline::Outline;
+    /// use parser::Outline;
     /// use serde::Deserialize;
     ///
     /// #[derive(Eq, PartialEq, Debug, Deserialize)]

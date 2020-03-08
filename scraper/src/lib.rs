@@ -17,7 +17,7 @@ pub type Uri = String;
 /// Data for bookmarks and bibliography.
 ///
 /// ```
-/// use parser::outline::Outline;
+/// use parser::Outline;
 ///
 /// let outline = Outline::from("\
 /// Feynman Lectures on Physics
