@@ -17,6 +17,9 @@ pub struct Outline {
     pub children: Vec<Outline>,
 }
 
+serde_plain::derive_deserialize_from_str!(Outline, "outline");
+serde_plain::derive_serialize_from_display!(Outline);
+
 impl Outline {
     pub fn new(headline: impl Into<String>, children: Vec<Outline>) -> Outline {
         Outline {

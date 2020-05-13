@@ -356,6 +356,28 @@ fn test_string_list() {
 */
 
 #[test]
+fn test_serialize_outline() {
+    #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
+    struct OutlineContainer {
+        content: Outline,
+    }
+
+    test(
+        "\
+\tcontent
+\t\tfoo
+\t\t\tbar",
+        OutlineContainer {
+            content: Outline::from(
+                "\
+foo
+\tbar",
+            ),
+        },
+    );
+}
+
+#[test]
 fn test_comma() {
     // A single inline comma is a magic extra element to separate indented objects. It can be
     // escaped by doubling it (any sequence of more than 1 comma gets one comma removed from
