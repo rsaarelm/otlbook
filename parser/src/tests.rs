@@ -173,6 +173,51 @@ fn test_struct() {
 }
 
 #[test]
+fn test_heading_struct() {
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    struct Item {
+        #[serde(rename = "__heading__")]
+        title: String,
+        a: i32,
+        b: i32,
+    }
+
+    test(
+        "\
+\tFoo
+\t\ta 1
+\t\tb 2",
+        Item {
+            title: "Foo".into(),
+            a: 1,
+            b: 2,
+        },
+    );
+
+    test(
+        "\
+\tFoo
+\t\ta 1
+\t\tb 2
+\tBar
+\t\ta 3
+\t\tb 4",
+        vec![
+            Item {
+                title: "Foo".into(),
+                a: 1,
+                b: 2,
+            },
+            Item {
+                title: "Bar".into(),
+                a: 3,
+                b: 4,
+            },
+        ],
+    );
+}
+
+#[test]
 fn test_inline_struct() {
     #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
     struct Vec {

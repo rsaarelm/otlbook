@@ -1,4 +1,5 @@
 use crate::outline::Outline;
+use lazy_static::lazy_static;
 use serde::{
     de::{self, Visitor},
     Deserialize, Serialize,
@@ -6,6 +7,28 @@ use serde::{
 use std::error;
 use std::fmt::{self, Write};
 use std::str::FromStr;
+
+// Magic __heading__ field, this means we're deserialing
+//
+//     title
+//       x 1
+//       y 2
+//
+// instead of
+//
+//       heading title
+//       x 1
+//       y 2
+pub(crate) const MAGIC_HEADING_NAME: &str = "__heading__";
+
+lazy_static! {
+    static ref MAGIC_OUTLINE: Outline = {
+        Outline {
+            headline: Some(MAGIC_HEADING_NAME.into()),
+            children: Vec::new(),
+        }
+    };
+}
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -227,8 +250,6 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         self.deserialize_str(visitor)
     }
 
-    // The `Serializer` implementation on the previous page serialized byte
-    // arrays as JSON arrays of bytes. Handle that representation here.
     fn deserialize_bytes<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -373,13 +394,28 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     fn deserialize_struct<V>(
         self,
         _name: &'static str,
-        _fields: &'static [&'static str],
+        fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        self.deserialize_map(visitor)
+        if fields.contains(&MAGIC_HEADING_NAME) {
+            if self.is_inline_seq {
+                // Double nesting detected
+                return Err(Error::default());
+            }
+            let seq = Sequence {
+                de: self,
+                cursor: Cursor::MagicHeading,
+            };
+
+            let ret = visitor.visit_map(seq);
+            self.set_fully_consumed();
+            ret
+        } else {
+            self.deserialize_map(visitor)
+        }
     }
 
     fn deserialize_enum<V>(
@@ -415,6 +451,11 @@ enum Cursor {
     Inline,
     /// Cursor for vertical data, parameters are nth child, kth offset in headline
     Child(usize, usize),
+    /// Cursor in magic headline of vertical data.
+    ///
+    /// After parsing the headline into magic heading field name, the cursor will change into
+    /// Child(0, 0) and start parsing vertical data.
+    MagicHeading,
 }
 
 /// Sequence accessor for items in a single line.
@@ -453,6 +494,12 @@ impl<'a, 'de> de::SeqAccess<'de> for Sequence<'a, 'de> {
                     seed.deserialize(&mut child_de).map(Some)
                 }
             }
+            Cursor::MagicHeading => {
+                // Turn the cursor into a regular vertical data cursor.
+                self.cursor = Cursor::Child(0, 0);
+                // Deserialize actual contents of the heading line into the value.
+                seed.deserialize(&mut *self.de).map(Some)
+            }
         }
     }
 }
@@ -488,6 +535,15 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
                     ret
                 }
             }
+            Cursor::MagicHeading => {
+                // Create the magic heading key name out of nowhere.
+                let mut temp_de = Deserializer {
+                    outline: &MAGIC_OUTLINE,
+                    offset: 0,
+                    is_inline_seq: true,
+                };
+                seed.deserialize(&mut temp_de).map(Some)
+            }
         }
     }
 
@@ -510,6 +566,10 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
                 let ret = seed.deserialize(&mut child_de);
                 child_de.end()?;
                 ret
+            }
+            Cursor::MagicHeading => {
+                self.cursor = Cursor::Child(0, 0);
+                seed.deserialize(&mut *self.de)
             }
         }
     }

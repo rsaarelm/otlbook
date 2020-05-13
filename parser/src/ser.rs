@@ -1,3 +1,4 @@
+use crate::de::MAGIC_HEADING_NAME;
 use crate::outline::Outline;
 use serde::{ser, Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -25,8 +26,15 @@ enum Value {
 #[derive(Eq, PartialEq, Clone, Debug)]
 enum Expr {
     Atom(Value),
-    Entry { key: Value, value: Box<Expr> },
+    Entry {
+        key: Value,
+        value: Box<Expr>,
+    },
     List(Vec<Expr>),
+    Titled {
+        heading: Box<Expr>,
+        contents: Vec<Expr>,
+    },
 }
 
 use {Expr::*, Value::*};
@@ -150,6 +158,16 @@ impl Expr {
                     Ok(())
                 }
             }
+            Titled { heading, contents } => {
+                heading.is_valid()?;
+                for e in contents {
+                    if let Entry { .. } = e {
+                    } else {
+                        return Err(Error::default());
+                    }
+                }
+                Ok(())
+            }
         }
     }
 
@@ -159,6 +177,7 @@ impl Expr {
             Entry { key, value } => key.len() + 1 + value.len(),
             List(es) if !es.is_empty() => es.iter().map(|e| e.len()).sum::<usize>() + es.len() - 1,
             List(_) => 0,
+            Titled { heading, contents } => heading.len() + 1 + contents.len(),
         }
     }
 }
@@ -208,18 +227,39 @@ impl TryFrom<Expr> for Outline {
                 }
                 Ok(ret)
             }
+
+            Titled { heading, contents } => {
+                let mut ret = Outline::try_from(*heading)?;
+                if ret.headline.is_none() || !ret.children.is_empty() {
+                    Err("Bad heading")?;
+                }
+                for e in contents {
+                    ret.concatenate_child(Outline::try_from(e)?);
+                }
+                Ok(ret)
+            }
         }
     }
 }
 
 #[derive(Default)]
 struct Serializer {
+    heading: Option<Expr>,
     acc: Vec<Expr>,
 }
 
 impl Serializer {
     fn consume_acc(&mut self) -> Result<Expr> {
-        Ok(List(std::mem::replace(&mut self.acc, Vec::new())))
+        let contents = std::mem::replace(&mut self.acc, Vec::new());
+
+        if let Some(heading) = std::mem::replace(&mut self.heading, None) {
+            Ok(Titled {
+                heading: Box::new(heading),
+                contents,
+            })
+        } else {
+            Ok(List(contents))
+        }
     }
 }
 
@@ -371,7 +411,6 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         unimplemented!();
     }
 
-    // Maps are represented in JSON as `{ K: V, K: V, ... }`.
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         Ok(self)
     }
@@ -518,10 +557,14 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
     {
         let value = value.serialize(&mut Serializer::default())?;
         if !value.is_empty() {
-            self.acc.push(Entry {
-                key: Value::new(key),
-                value: Box::new(value),
-            });
+            if key == MAGIC_HEADING_NAME {
+                self.heading = Some(value);
+            } else {
+                self.acc.push(Entry {
+                    key: Value::new(key),
+                    value: Box::new(value),
+                });
+            }
         }
         Ok(())
     }
