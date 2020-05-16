@@ -91,6 +91,16 @@ fn test_simple() {
 fn test_tuple() {
     test("123", (123u32,));
     test("123 zomg", (123u32, "zomg".to_string()));
+
+    let tuple: (Vec<i32>, String) = (vec![1, 2, 3], "two\nlines\n".into());
+    test(
+        "\
+\t1 2 3
+\t,
+\t\ttwo
+\t\tlines",
+        tuple,
+    );
 }
 
 #[test]
