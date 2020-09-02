@@ -7,5 +7,6 @@
 /.lein-*
 /.nrepl-history
 /.nrepl-port
+/.lsp
 .hgignore
 .hg/
