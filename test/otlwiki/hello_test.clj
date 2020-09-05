@@ -9,7 +9,8 @@
 
 (deftest outline-parse-test
   (testing "Outline conversion"
-    (pair [] "")
+    (pair "" "")
+    (pair [] ",")
     (pair "a"
 "a")
     (pair ["a" "b"]

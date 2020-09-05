@@ -26,6 +26,8 @@
         ; Turn [nil] to [] and [nil a] to [a]
         ; Only keep prefix nil on list of at least two elements.
         (and (nil? (first expr)) (< len 3)) (subvec expr 1)
+        ; turn [nil [..] ..] into [[..] ..]
+        (and (nil? (first expr)) (vector? (second expr))) (subvec expr 1)
         ; Turn [a] to a
         (and (vector? expr) (= len 1)) (first expr)
         :else expr)))
