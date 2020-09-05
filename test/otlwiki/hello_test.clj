@@ -6,7 +6,7 @@
   (is (= (otl->expr otl) expr))
   (is (= (expr->otl expr) otl)))
 
-(deftest a-test
+(deftest outline-parse-test
   (testing "Outline conversion"
     (pair [] "")
     (pair '["a"]
@@ -32,6 +32,11 @@
 \t\ta
 \tb
 \tc")
+    (pair '[[["a"]] "b" "c"]
+",
+\t\t\ta
+\tb
+\tc")
     (pair '["a" ["b"] "c"]
 "a
 \t\tb
@@ -46,6 +51,16 @@
 \t\tb
 \t,
 \t\tc")
+    (pair '["a" [] "c"]
+"a
+\t,
+\tc")
+    ; Empty lines don't break structure
+    (pair '["a" "b" "" "c"]
+"a
+\tb
+
+\tc")
     (pair '[nil "a" "b" "c"]
 "\ta
 \tb
@@ -62,4 +77,16 @@
 \t\tc
 \t,
 \t\td
-\t\te")))
+\t\te")
+    (pair '["a" [[nil "b" "c"]] [nil "d" "e"]]
+"a
+\t\t\tb
+\t\t\tc
+\t,
+\t\td
+\t\te")
+    ; Escape literal comma
+    (pair '[","]
+",,")
+    (pair '[",,"]
+",,,")))
