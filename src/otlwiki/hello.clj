@@ -14,13 +14,14 @@
   (server/run-server handler {:port port}))
 
 (defn otl->expr
+  "Extra one S-expr from a sequence of outline text lines."
   ([lines] (otl->expr lines 0))
   ([lines current-depth]
+   (let [
+    depth (fn [line] (count (take-while #{\tab} line)))
 
-   (defn depth [line] (count (take-while #(= % \tab) line)))
-
-   (defn sanitize [expr]
-     "Remove prefix nil from short exprs"
+    sanitize (fn [expr]
+     "Prettify prefix nil and nesting hackery."
      (let [len (count expr)]
       (cond
         ; Turn [nil] to [] and [nil a] to [a]
@@ -32,38 +33,30 @@
         (and (vector? expr) (= len 1)) (first expr)
         :else expr)))
 
-   (defn escape [line]
+    escape (fn [line]
      "Escape commas that are used to denote a nil separator."
      (cond
        (= line ",") nil
        (and (not (empty? line)) (every? #{\,} line)) (subs line 1)
        :else line))
 
-   ; TODO: Different expr and lines if first line is deeper than cur-depth,
-   ; inject ,/nil then
-   (loop [
-          expr (if (= (depth (first lines)) current-depth)
-                 [(escape (subs (first lines) current-depth))]
-                 [nil])
-          input (if (= (depth (first lines)) current-depth)
-                  (rest lines)
-                  lines)
-          ]
-     (let [next-depth (depth (first input))
-           line (first input)]
-       (cond
-         ; More than one indent level
-         (> next-depth (inc current-depth))
-         (let [[sub-expr remaining-input] (otl->expr input (+ current-depth 2))]
-           (recur (conj expr (sanitize (conj [nil] sub-expr))) remaining-input))
-         (> next-depth current-depth)
-         (let [[sub-expr remaining-input] (otl->expr input (inc current-depth))]
-           (recur (conj expr sub-expr) remaining-input))
-         ; Empty lines have depth 0, but are always assumed to go in current
-         ; depth.
-         (empty? input) [(sanitize expr) []]
-         (empty? line) (recur (conj expr "") (rest input))
-         :else [(sanitize expr) input])))))
+    first-line-depth (depth (first lines))]
+
+     (loop [expr (if (= first-line-depth current-depth)
+                   [(escape (subs (first lines) current-depth))]
+                   [nil])
+            input (if (= first-line-depth current-depth)
+                    (rest lines)
+                    lines)]
+       (let [next-depth (depth (first input))
+             line (first input)]
+         (cond
+           (> next-depth current-depth)
+           (let [[sub-expr remaining-input] (otl->expr input (inc current-depth))]
+             (recur (conj expr sub-expr) remaining-input))
+           ; Merge empty line to current depth.
+           (= line "") (recur (conj expr "") (rest input))
+           :else [(sanitize expr) input]))))))
 
 (defn otl->exprs [otl]
   ; TODO: Get more than first one
