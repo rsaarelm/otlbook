@@ -37,7 +37,7 @@
      "Escape commas that are used to denote a nil separator."
      (cond
        (= line ",") nil
-       (and (not (empty? line)) (every? #{\,} line)) (subs line 1)
+       (and (seq line) (every? #{\,} line)) (subs line 1)
        :else line))
 
     first-line-depth (depth (first lines))]
