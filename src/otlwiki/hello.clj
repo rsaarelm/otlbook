@@ -17,30 +17,29 @@
   "Extra one S-expr from a sequence of outline text lines."
   ([lines] (otl->expr lines 0))
   ([lines current-depth]
-   (let [
-    depth (fn [line] (count (take-while #{\tab} line)))
+   (let [depth (fn [line] (count (take-while #{\tab} line)))
 
-    sanitize (fn [expr]
-     "Prettify prefix nil and nesting hackery."
-     (let [len (count expr)]
-      (cond
+         sanitize (fn [expr]
+                    "Prettify prefix nil and nesting hackery."
+                    (let [len (count expr)]
+                      (cond
         ; Turn [nil] to [] and [nil a] to [a]
         ; Only keep prefix nil on list of at least two elements.
-        (and (nil? (first expr)) (< len 3)) (subvec expr 1)
+                        (and (nil? (first expr)) (< len 3)) (subvec expr 1)
         ; turn [nil [..] ..] into [[..] ..]
-        (and (nil? (first expr)) (vector? (second expr))) (subvec expr 1)
+                        (and (nil? (first expr)) (vector? (second expr))) (subvec expr 1)
         ; Turn [a] to a
-        (and (vector? expr) (= len 1)) (first expr)
-        :else expr)))
+                        (and (vector? expr) (= len 1)) (first expr)
+                        :else expr)))
 
-    escape (fn [line]
-     "Escape commas that are used to denote a nil separator."
-     (cond
-       (= line ",") nil
-       (and (seq line) (every? #{\,} line)) (subs line 1)
-       :else line))
+         escape (fn [line]
+                  "Escape commas that are used to denote a nil separator."
+                  (cond
+                    (= line ",") nil
+                    (and (seq line) (every? #{\,} line)) (subs line 1)
+                    :else line))
 
-    first-line-depth (depth (first lines))]
+         first-line-depth (depth (first lines))]
 
      (loop [expr (if (= first-line-depth current-depth)
                    [(escape (subs (first lines) current-depth))]
@@ -67,5 +66,7 @@
 
 (defn -main
   [& args]
-  (println "Starting server in http://localhost:8080/")
-  (create-server 8080))
+  (println "Hello, world!")
+ ; (println "Starting server in http://localhost:8080/")
+ ; (create-server 8080)
+  )

@@ -7,81 +7,84 @@
   ;(is (= (expr->otl expr) otl))
   )
 
+; TODO: Put the suite into *test-pairs* global var
+; TODO: Multi-expr cases (add leading nil?)
+
 (deftest outline-parse-test
   (testing "Outline conversion"
     (pair "" "")
     (pair [] ",")
     (pair "a"
-"a")
+          "a")
     (pair ["a" "b"]
-"a
+          "a
 \tb")
     (pair ["a" "b" "c"]
-"a
+          "a
 \tb
 \tc")
     (pair ["a" ["b" "c"]]
-"a
+          "a
 \tb
 \t\tc")
     (pair [["a" "b"] "c"]
-",
+          ",
 \ta
 \t\tb
 \tc")
     (pair [["a"] "b" "c"]
-",
+          ",
 \t\ta
 \tb
 \tc")
     (pair [[["a"]] "b" "c"]
-",
+          ",
 \t\t\ta
 \tb
 \tc")
     (pair ["a" ["b"] "c"]
-"a
+          "a
 \t\tb
 \tc")
     (pair ["a" "b" ["c"]]
-"a
+          "a
 \tb
 \t,
 \t\tc")
     (pair ["a" ["b"] ["c"]]
-"a
+          "a
 \t\tb
 \t,
 \t\tc")
     (pair ["a" [] "c"]
-"a
+          "a
 \t,
 \tc")
     ; Empty lines don't break structure
     (pair ["a" ["b" ""] "c"]
-"a
+          "a
 \tb
 
 \tc")
     (pair [nil "a" "b" "c"]
-"\ta
+          "\ta
 \tb
 \tc")
     (pair ["a" ["b" "c"] ["d" "e"]]
-"a
+          "a
 \tb
 \t\tc
 \td
 \t\te")
     (pair ["a" [nil "b" "c"] [nil "d" "e"]]
-"a
+          "a
 \t\tb
 \t\tc
 \t,
 \t\td
 \t\te")
     (pair ["a" [[nil "b" "c"]] [nil "d" "e"]]
-"a
+          "a
 \t\t\tb
 \t\t\tc
 \t,
@@ -89,6 +92,6 @@
 \t\te")
     ; Escape literal comma
     (pair ","
-",,")
+          ",,")
     (pair ",,"
-",,,")))
+          ",,,")))
