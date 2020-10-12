@@ -1,6 +1,28 @@
 (ns otlwiki.hello-test
   (:require [clojure.test :refer :all]
+            [otlwiki.util :refer [sl]]
             [otlwiki.hello :refer :all]))
+
+(deftest sl-test
+  (is (= (sl "") ""))
+  (is (= (sl "a") "a"))
+  (is (= (sl "
+              a") "a"))
+  (is (= (sl "a
+              b") "a\nb"))
+  (is (= (sl "a
+              b
+                c") "a\nb\n  c"))
+  (is (= (sl {:tab 2} "
+             foo
+               bar
+                   baz")
+         "foo\n\tbar\n\t\t\tbaz"))
+  (is (= (sl {:tab 2} "
+             foo
+               bar
+                  baz")
+         "foo\n\tbar\n\t\t baz")))
 
 (defn pair [expr otl]
   (is (= (otl->exprs otl) expr))
@@ -17,8 +39,9 @@
     (pair "a"
           "a")
     (pair ["a" "b"]
-          "a
-\tb")
+          (sl {:tab 2} "
+           a
+             b"))
     (pair ["a" "b" "c"]
           "a
 \tb
