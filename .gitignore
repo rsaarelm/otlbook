@@ -10,3 +10,4 @@
 /.lsp
 .hgignore
 .hg/
+/.clj-kondo
