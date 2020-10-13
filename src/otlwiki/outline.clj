@@ -1,5 +1,6 @@
 (ns otlwiki.outline
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str])
+  (:refer-clojure :exclude [print]))
 
 (defn- line
   "Consume input to newline or EOF.
@@ -52,16 +53,16 @@
       ; Input is at correct depth, format and return as headline.
       :else [(escape-separator-syntax (subs line depth)) rest])))
 
-(declare parse-at-indent)
+(declare parse-at)
 
 (defn- parse-children
   [depth expr input]
-  (let [[child rest] (parse-at-indent (inc depth) input)]
+  (let [[child rest] (parse-at (inc depth) input)]
     (if child
       (recur depth (conj expr child) rest)
       [(simplify expr) input])))
 
-(defn- parse-at-indent
+(defn- parse-at
   [depth input]
   (let [[headline rest] (parse-headline depth input)]
     (when headline
@@ -70,7 +71,48 @@
 (defn parse
   [input]
   (loop [expr [], input input]
-    (let [[outline rest] (parse-at-indent 0 input)]
+    (let [[outline rest] (parse-at 0 input)]
       (if outline
         (recur (conj expr outline) rest)
         expr))))
+
+(defn- print-line
+  [depth first-line? content]
+  (let
+   [indent (fn [] (dotimes [_ depth] (clojure.core/print \tab)))]
+    ; Don't print group separator on first line of new indetation level.
+    ; Grouping will be expressed as subsequent indetation there.
+    (when-not (and (keyword? content) first-line?)
+      (cond
+        (keyword? content) (do (indent) (println \,))
+        (= (str/trim content) "") (println)
+        ; Unescape content that's a literal comma or several.
+        (every? #{\,} content) (do (indent) (println (str content \,)))
+        :else (do (indent) (println content))))))
+
+(defn- atom? [item] (or (string? item) (keyword? item)))
+
+; Single-item list will be printed at depth.
+
+(defn- print-at
+  [depth first-line? input]
+  (cond
+    (not input) nil
+    (atom? input) (print-line depth first-line? input)
+    (= (count input) 0) (print-line depth false :group)
+    (= (count input) 1)
+    (do
+      (when (not first-line?) (print-line depth false :group))
+      (print-at (inc depth) true (first input)))
+    :else
+    (do
+      (print-at
+       (if (atom? (first input)) depth (inc depth))
+       first-line?
+       (first input))
+      (print-at (inc depth) true (second input))
+      (run! (partial print-at (inc depth) false) (rest (rest input))))))
+
+(defn print
+  [outline]
+  (run! (partial print-at 0 true) outline))

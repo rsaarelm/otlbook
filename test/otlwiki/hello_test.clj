@@ -27,12 +27,6 @@
                                  baz")
          "foo\n\tbar\n\t\t baz")))
 
-; DEPRECATED
-(defn pair [expr otl]
-  (is (= (otl->exprs otl) expr))
-  ;(is (= (expr->otl expr) otl))
-  )
-
 (def outline-test-suite
   ["" [""],
 
@@ -76,25 +70,13 @@
             c")
    [["a" ["b" "c"]]],
 
-   (sl "
-        ,
-          a
-            b
-          c")
+   "\ta\n\t\tb\n\tc"
    [[["a" "b"] "c"]],
 
-   (sl "
-        ,
-            a
-          b
-          c")
+   "\t\ta\n\tb\n\tc"
    [[["a"] "b" "c"]],
 
-   (sl "
-        ,
-              a
-          b
-          c")
+   "\t\t\ta\n\tb\n\tc"
    [[[["a"]] "b" "c"]],
 
    (sl "
@@ -182,6 +164,18 @@
 
 (deftest outline-parse
   (run!
-   (fn [[text expr]]
-     (is (= (outline/parse text) expr)))
+   (fn [[input expected]]
+     (is (= (outline/parse input) expected)))
    (partition 2 outline-test-suite)))
+
+(deftest outline-print
+  (let
+   [blacklist #{","}
+
+    test
+    (fn [[expected input]]
+      (is (= (with-out-str (outline/print input)) (str expected "\n"))))]
+    (->>
+     (partition 2 outline-test-suite)
+     (filter (fn [[s _]] (not (blacklist s))))
+     (run! test))))
