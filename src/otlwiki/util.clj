@@ -51,10 +51,12 @@
         [prefix (blank-prefix (first line-seq))
          deindent-line
          (fn [s]
-           (when-not (str/starts-with? s prefix)
-             (throw (Error.
-                     "Line does not share first line's indentation")))
-           (subs s (count prefix)))]
+           (if (= (str/trim s) "") ""
+               (do
+                 (when-not (str/starts-with? s prefix)
+                   (throw (Error.
+                           "Line does not share first line's indentation")))
+                 (subs s (count prefix)))))]
          (map deindent-line line-seq)))
 
      lines (str/split-lines s)]

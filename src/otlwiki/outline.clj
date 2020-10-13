@@ -5,8 +5,8 @@
   "Consume input to newline or EOF.
 
   Newline is consumed but not included in parsed value."
-  [^CharSequence s]
-  (str/split s #"\r?\n" 2))
+  [s]
+  (when s (str/split s #"\r?\n" 2)))
 
 ; Consume blank line
 
@@ -18,61 +18,59 @@
     (and (seq line) (every? #{\,} line)) (subs line 1)
     :else line))
 
+(defn- indent-depth [line] (count (take-while #{\tab} line)))
+
+(defn- simplify
+  "Simplify some redundant patterns with :group symbol and vector wrapping."
+  [expr]
+  (let [len (count expr)]
+    (cond
+      ; Turn [:group] to [] and [:group a] to [a]
+      ; Only keep prefix nil on list of at least two elements.
+      (and (keyword? (first expr)) (< len 3)) (subvec expr 1)
+      ; turn [:group [..] ..] into [[..] ..]
+      (and (keyword? (first expr)) (vector? (second expr))) (subvec expr 1)
+      ; Turn [a] to a
+      (and (vector? expr) (= len 1)) (first expr)
+      :else expr)))
+
 ; Consume chunk of indenty lines up to EOF or less than starting depth
 
-(defn- parse-at-indent
-  [level input]
-  ; TODO
-  )
+(defn- parse-headline
+  [depth input]
+  (let
+   [[line rest] (line input)
+    input-depth (indent-depth line)]
+    (cond
+      (not input) nil
+      ; Match empty lines regardless of specified depth.
+      (= (str/trim line) "") ["" rest]
+      ; Input is above specified depth, fail to parse.
+      (< input-depth depth) nil
+      ; Input is below specified depth, emit group symbol.
+      (< depth input-depth) [:group input]
+      ; Input is at correct depth, format and return as headline.
+      :else [(escape-separator-syntax (subs line depth)) rest])))
 
-; TODO Use :group instead of nil as the separator token
+(declare parse-at-indent)
+
+(defn- parse-children
+  [depth expr input]
+  (let [[child rest] (parse-at-indent (inc depth) input)]
+    (if child
+      (recur depth (conj expr child) rest)
+      [(simplify expr) input])))
+
+(defn- parse-at-indent
+  [depth input]
+  (let [[headline rest] (parse-headline depth input)]
+    (when headline
+      (parse-children depth [headline] rest))))
 
 (defn parse
-  "Extract one S-expr from a sequence of outline text lines."
-  [lines]
-  (let
-   [depth (fn [line] (count (take-while #{\tab} line)))
-
-    ; Prettify prefix nil and nesting hackery.
-    sanitize
-    (fn [expr]
-      (let [len (count expr)]
-        (cond
-          ; Turn [nil] to [] and [nil a] to [a]
-          ; Only keep prefix nil on list of at least two elements.
-          (and (nil? (first expr)) (< len 3)) (subvec expr 1)
-          ; turn [nil [..] ..] into [[..] ..]
-          (and (nil? (first expr)) (vector? (second expr))) (subvec expr 1)
-          ; Turn [a] to a
-          (and (vector? expr) (= len 1)) (first expr)
-          :else expr)))
-
-    ; Escape commas that are used to denote a nil separator.
-    escape
-    (fn [line]
-      (cond
-        (= line ",") nil
-        (and (seq line) (every? #{\,} line)) (subs line 1)
-        :else line))
-
-    ; Recursively parse at current parsing depth.
-    parse-at
-    (fn parse-at [lines current-depth]
-      (let [first-line-depth (depth (first lines))]
-        (loop [expr (if (= first-line-depth current-depth)
-                      [(escape (subs (first lines) current-depth))]
-                      [nil])
-               input (if (= first-line-depth current-depth)
-                       (rest lines)
-                       lines)]
-          (let [next-depth (depth (first input))
-                line (first input)]
-            (cond
-              (> next-depth current-depth)
-              (let [[sub-expr remaining-input] (parse-at input (inc current-depth))]
-                (recur (conj expr sub-expr) remaining-input))
-              ; Merge empty line to current depth.
-              (= line "") (recur (conj expr "") (rest input))
-              :else [(sanitize expr) input])))))]
-
-    (parse-at lines 0)))
+  [input]
+  (loop [expr [], input input]
+    (let [[outline rest] (parse-at-indent 0 input)]
+      (if outline
+        (recur (conj expr outline) rest)
+        expr))))

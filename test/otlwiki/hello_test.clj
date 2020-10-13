@@ -1,120 +1,187 @@
 (ns otlwiki.hello-test
   (:require [clojure.test :refer :all]
-            [otlwiki.util :refer [sl]]
+            [otlwiki.util :as util]
+            [otlwiki.outline :as outline]
             [otlwiki.hello :refer :all]))
 
+(defn- sl [s] (util/sl {:tab 2} s))
+
 (deftest sl-test
-  (is (= (sl "") ""))
-  (is (= (sl "a") "a"))
-  (is (= (sl "
-              a") "a"))
-  (is (= (sl "a
-              b") "a\nb"))
-  (is (= (sl "a
-              b
-                c") "a\nb\n  c"))
-  (is (= (sl {:tab 2} "
-             foo
-               bar
-                   baz")
+  (is (= (util/sl "") ""))
+  (is (= (util/sl "a") "a"))
+  (is (= (util/sl "
+                   a") "a"))
+  (is (= (util/sl "a
+                   b") "a\nb"))
+  (is (= (util/sl "a
+                   b
+                     c") "a\nb\n  c"))
+  (is (= (util/sl {:tab 2} "
+                            foo
+                              bar
+                                  baz")
          "foo\n\tbar\n\t\t\tbaz"))
-  (is (= (sl {:tab 2} "
-             foo
-               bar
-                  baz")
+  (is (= (util/sl {:tab 2} "
+                            foo
+                              bar
+                                 baz")
          "foo\n\tbar\n\t\t baz")))
 
+; DEPRECATED
 (defn pair [expr otl]
   (is (= (otl->exprs otl) expr))
   ;(is (= (expr->otl expr) otl))
   )
 
-; TODO: Put the suite into *test-pairs* global var
-; TODO: Multi-expr cases (add leading nil?)
+(def outline-test-suite
+  ["" [""],
 
-(deftest outline-parse-test
-  (testing "Outline conversion"
-    (pair "" "")
-    (pair [] ",")
-    (pair "a"
-          "a")
-    (pair ["a" "b"]
-          (sl {:tab 2} "
-           a
-             b"))
-    (pair ["a" "b" "c"]
-          "a
-\tb
-\tc")
-    (pair ["a" ["b" "c"]]
-          "a
-\tb
-\t\tc")
-    (pair [["a" "b"] "c"]
-          ",
-\ta
-\t\tb
-\tc")
-    (pair [["a"] "b" "c"]
-          ",
-\t\ta
-\tb
-\tc")
-    (pair [[["a"]] "b" "c"]
-          ",
-\t\t\ta
-\tb
-\tc")
-    (pair ["a" ["b"] "c"]
-          "a
-\t\tb
-\tc")
-    (pair ["a" "b" ["c"]]
-          "a
-\tb
-\t,
-\t\tc")
-    (pair ["a" ["b"] ["c"]]
-          "a
-\t\tb
-\t,
-\t\tc")
-    (pair ["a" [] "c"]
-          "a
-\t,
-\tc")
-    ; Empty lines don't break structure
-    (pair ["a" ["b" ""] "c"]
-          "a
-\tb
+   "," [[]],
 
-\tc")
-    (pair [nil "a" "b" "c"]
-          "\ta
-\tb
-\tc")
-    (pair ["a" ["b" "c"] ["d" "e"]]
-          "a
-\tb
-\t\tc
-\td
-\t\te")
-    (pair ["a" [nil "b" "c"] [nil "d" "e"]]
-          "a
-\t\tb
-\t\tc
-\t,
-\t\td
-\t\te")
-    (pair ["a" [[nil "b" "c"]] [nil "d" "e"]]
-          "a
-\t\t\tb
-\t\t\tc
-\t,
-\t\td
-\t\te")
-    ; Escape literal comma
-    (pair ","
-          ",,")
-    (pair ",,"
-          ",,,")))
+   "a" ["a"],
+
+   "\ta" [["a"]],
+
+   ; Escape the grouping syntax when you want a literal single comma
+   ",," [","],
+
+   ",,," [",,"],
+
+   (sl "
+        a
+          b")
+   [["a" "b"]],
+
+   (sl "
+        a
+          ,,")
+   [["a" ","]],
+
+   (sl "
+        a
+          b
+        c
+          d")
+   [["a" "b"] ["c" "d"]],
+
+   (sl "
+        a
+          b
+          c")
+   [["a" "b" "c"]],
+
+   (sl "
+        a
+          b
+            c")
+   [["a" ["b" "c"]]],
+
+   (sl "
+        ,
+          a
+            b
+          c")
+   [[["a" "b"] "c"]],
+
+   (sl "
+        ,
+            a
+          b
+          c")
+   [[["a"] "b" "c"]],
+
+   (sl "
+        ,
+              a
+          b
+          c")
+   [[[["a"]] "b" "c"]],
+
+   (sl "
+        a
+            b
+          c")
+   [["a" ["b"] "c"]],
+
+   (sl "
+        a
+          b
+          ,
+            c")
+   [["a" "b" ["c"]]],
+
+   (sl "
+        a
+            b
+          ,
+            c")
+   [["a" ["b"] ["c"]]],
+
+   (sl "
+        a
+          ,
+          c")
+   [["a" [] "c"]],
+
+   ; Empty lines don't break structure
+   (sl "
+        a
+          b
+
+          c")
+   [["a" ["b" ""] "c"]],
+
+   ; Can't use sl here because all lines are indented
+   "\ta\n\tb\n\tc"
+   [[:group "a" "b" "c"]],
+
+   (sl "
+        a
+          b
+            c
+          d
+            e")
+   [["a" ["b" "c"] ["d" "e"]]],
+
+   (sl "
+        a
+            b
+            c
+          ,
+            d
+            e")
+   [["a" [:group "b" "c"] [:group "d" "e"]]],
+
+   (sl "
+        a
+              b
+              c
+          ,
+            d
+            e")
+   [["a" [[:group "b" "c"]] [:group "d" "e"]]],
+
+   (sl "a
+        b")
+   ["a" "b"],
+
+   (sl "
+        a
+          b
+        c
+          d")
+   [["a" "b"] ["c" "d"]],
+
+   (sl "
+        a
+          b
+
+        c
+          d")
+   [["a" ["b" ""]] ["c" "d"]]])
+
+(deftest outline-parse
+  (run!
+   (fn [[text expr]]
+     (is (= (outline/parse text) expr)))
+   (partition 2 outline-test-suite)))
