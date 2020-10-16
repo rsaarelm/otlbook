@@ -70,7 +70,7 @@
 
 (defn parse
   [input]
-  (loop [expr [], input input]
+  (loop [expr [], input (str/trimr input)]
     (let [[outline rest] (parse-at 0 input)]
       (if outline
         (recur (conj expr outline) rest)
