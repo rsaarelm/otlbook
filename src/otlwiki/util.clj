@@ -1,5 +1,6 @@
 (ns otlwiki.util
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [clojure.java.io :as io]))
 
 (defn- to-tab-indented
   [tab-width line]
@@ -63,3 +64,12 @@
      (->> (deindent (rest lines))
           (#(if (= (first lines) "") % (cons (first lines) %)))
           (str/join "\n")))))
+
+(defn crawl-files
+  "Return all files under path for dir path and path itself for file path."
+  [path]
+  (let [path (io/file path)]
+  (if
+    (.isFile path)
+    (.getAbsolutePath path)
+    (->> path (file-seq) (filter #(.isFile %)) (map #(.getAbsolutePath %))))))
