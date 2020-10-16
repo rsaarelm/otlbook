@@ -69,7 +69,7 @@
   "Return all files under path for dir path and path itself for file path."
   [path]
   (let [path (io/file path)]
-  (if
-    (.isFile path)
-    (.getAbsolutePath path)
-    (->> path (file-seq) (filter #(.isFile %)) (map #(.getAbsolutePath %))))))
+    (if
+     (.isFile path)
+      [(.getAbsolutePath path)]
+      (->> path (file-seq) (filter #(.isFile %)) (map #(.getAbsolutePath %))))))
