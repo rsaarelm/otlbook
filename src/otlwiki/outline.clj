@@ -2,15 +2,6 @@
   (:require [clojure.string :as str])
   (:refer-clojure :exclude [print]))
 
-(defn- line
-  "Consume input to newline or EOF.
-
-  Newline is consumed but not included in parsed value."
-  [s]
-  (when s (str/split s #"\r?\n" 2)))
-
-; Consume blank line
-
 (defn- escape-separator-syntax
   "Parse lone ',' as group separator, escape ',,' into literal ','."
   [line]
@@ -18,8 +9,6 @@
     (= line ",") :group
     (and (seq line) (every? #{\,} line)) (subs line 1)
     :else line))
-
-(defn- indent-depth [line] (count (take-while #{\tab} line)))
 
 (defn- simplify
   "Simplify some redundant patterns with :group symbol and vector wrapping."
@@ -40,18 +29,17 @@
 (defn- parse-headline
   [depth input]
   (let
-   [[line rest] (line input)
-    input-depth (indent-depth line)]
+   [[[input-depth line] & lines] input]
     (cond
       (not input) nil
       ; Match empty lines regardless of specified depth.
-      (= (str/trim line) "") ["" rest]
+      (= (str/trim line) "") ["" lines]
       ; Input is above specified depth, fail to parse.
       (< input-depth depth) nil
       ; Input is below specified depth, emit group symbol.
       (< depth input-depth) [:group input]
       ; Input is at correct depth, format and return as headline.
-      :else [(escape-separator-syntax (subs line depth)) rest])))
+      :else [(escape-separator-syntax line) lines])))
 
 (declare parse-at)
 
@@ -70,11 +58,18 @@
 
 (defn parse
   [input]
-  (loop [expr [], input (str/trimr input)]
+  (let
+    [lines
+     (->>
+       (str/split-lines input)
+       (map (fn [line]
+              (let [depth (count (take-while #{\tab} line))]
+                [depth (subs line depth)]))))]
+  (loop [expr [], input lines]
     (let [[outline rest] (parse-at 0 input)]
       (if outline
         (recur (conj expr outline) rest)
-        expr))))
+        expr)))))
 
 (defn- print-line
   [depth first-line? content]
