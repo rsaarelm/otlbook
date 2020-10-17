@@ -1,6 +1,7 @@
 (ns otlwiki.outline
-  (:require [clojure.string :as str])
-  (:refer-clojure :exclude [print]))
+  (:require [clojure.string :as str]
+            [otlwiki.util :as util])
+  (:refer-clojure :exclude [print load]))
 
 (defn- escape-separator-syntax
   "Parse lone ',' as group separator, escape ',,' into literal ','."
@@ -59,17 +60,17 @@
 (defn parse
   [input]
   (let
-    [lines
-     (->>
-       (str/split-lines input)
-       (map (fn [line]
-              (let [depth (count (take-while #{\tab} line))]
-                [depth (subs line depth)]))))]
-  (loop [expr [], input lines]
-    (let [[outline rest] (parse-at 0 input)]
-      (if outline
-        (recur (conj expr outline) rest)
-        expr)))))
+   [lines
+    (->>
+     (str/split-lines input)
+     (map (fn [line]
+            (let [depth (count (take-while #{\tab} line))]
+              [depth (subs line depth)]))))]
+    (loop [expr [], input lines]
+      (let [[outline rest] (parse-at 0 input)]
+        (if outline
+          (recur (conj expr outline) rest)
+          expr)))))
 
 (defn- print-line
   [depth first-line? content]
@@ -111,3 +112,12 @@
 (defn print
   [outline]
   (run! (partial print-at 0 true) outline))
+
+(defn load
+  "Load single file or directory of .otl files into one big outline."
+  [path]
+  (let
+   [outline-paths (fn [path]
+                    (filter #(str/ends-with? % ".otl") (util/crawl-files path)))]
+    (->> (outline-paths path)
+         (map #(into [%] (parse (slurp %)))))))
