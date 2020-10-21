@@ -1,5 +1,5 @@
-run:
-    clj -m otlwiki.hello
+run *ARGS:
+    clj -m otlwiki.main {{ARGS}}
 
 test:
     clj -A:test:runner
