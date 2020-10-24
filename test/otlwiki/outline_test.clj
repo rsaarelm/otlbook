@@ -1,31 +1,9 @@
-(ns otlwiki.hello-test
+(ns otlwiki.outline-test
   (:require [clojure.test :refer :all]
             [otlwiki.util :as util]
-            [otlwiki.outline :as outline]
-            [otlwiki.hello :refer :all]))
+            [otlwiki.outline :as outline :refer [edn->otl]]))
 
 (defn- sl [s] (util/sl {:tab 2} s))
-
-(deftest sl-test
-  (is (= (util/sl "") ""))
-  (is (= (util/sl "a") "a"))
-  (is (= (util/sl "
-                   a") "a"))
-  (is (= (util/sl "a
-                   b") "a\nb"))
-  (is (= (util/sl "a
-                   b
-                     c") "a\nb\n  c"))
-  (is (= (util/sl {:tab 2} "
-                            foo
-                              bar
-                                  baz")
-         "foo\n\tbar\n\t\t\tbaz"))
-  (is (= (util/sl {:tab 2} "
-                            foo
-                              bar
-                                 baz")
-         "foo\n\tbar\n\t\t baz")))
 
 (def outline-test-suite
   ["" [""],
@@ -90,7 +68,7 @@
             b
             c
           d")
-   [["a" [:group "b" "c"] "d"]],
+   [["a" [nil "b" "c"] "d"]],
 
    (sl "
         a
@@ -122,7 +100,7 @@
 
    ; Can't use sl here because all lines are indented
    "\ta\n\tb\n\tc"
-   [[:group "a" "b" "c"]],
+   [[nil "a" "b" "c"]],
 
    (sl "
         a
@@ -139,7 +117,7 @@
           ,
             d
             e")
-   [["a" [:group "b" "c"] [:group "d" "e"]]],
+   [["a" [nil "b" "c"] [nil "d" "e"]]],
 
    (sl "
         a
@@ -148,7 +126,7 @@
           ,
             d
             e")
-   [["a" [[:group "b" "c"]] [:group "d" "e"]]],
+   [["a" [[nil "b" "c"]] [nil "d" "e"]]],
 
    (sl "a
         b")
@@ -169,10 +147,15 @@
           d")
    [["a" ["b" ""]] ["c" "d"]]])
 
+(comment (map edn->otl [["a" ["b" ""]] ["c" "d"]]))
+(comment (+ 1 2 3))
+
+(defn- convert [edn] (into [] (map edn->otl edn)))
+
 (deftest outline-parse
   (run!
    (fn [[input expected]]
-     (is (= (outline/parse input) expected)))
+     (is (= (outline/parse input) (convert expected))))
    (partition 2 outline-test-suite)))
 
 (deftest outline-print
@@ -181,7 +164,9 @@
 
     test
     (fn [[expected input]]
-      (is (= (with-out-str (outline/print input)) (str expected "\n"))))]
+      (is (=
+           (with-out-str (run! outline/print (convert input)))
+           (str expected "\n"))))]
     (->>
      (partition 2 outline-test-suite)
      (filter (fn [[s _]] (not (blacklist s))))

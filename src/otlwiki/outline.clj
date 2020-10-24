@@ -3,31 +3,33 @@
             [otlwiki.util :as util])
   (:refer-clojure :exclude [print load]))
 
+(defrecord Outline [head body])
+
+(defn edn->otl
+  "Convert a concise nested vector structure into Outline."
+  [edn]
+  (let
+    ; Apply implicit nil
+   [edn
+    (cond
+      (string? edn) edn
+      (vector? (first edn)) (into [nil] edn)
+      (= (count edn) 1) (into [nil] edn)
+      :else edn)]
+    (if (string? edn)
+      (Outline. edn [])
+      (Outline. (first edn) (map edn->otl (rest edn))))))
+
 (defn- escape-separator-syntax
   "Parse lone ',' as group separator, escape ',,' into literal ','."
   [line]
   (cond
-    (= line ",") :group
+    (= line ",") nil
     (and (seq line) (every? #{\,} line)) (subs line 1)
     :else line))
 
-(defn- simplify
-  "Simplify some redundant patterns with :group symbol and vector wrapping."
-  [expr]
-  (let [len (count expr)]
-    (cond
-      ; Turn [:group] to [] and [:group a] to [a]
-      ; Only keep prefix nil on list of at least two elements.
-      (and (keyword? (first expr)) (< len 3)) (subvec expr 1)
-      ; turn [:group [..] ..] into [[..] ..]
-      (and (keyword? (first expr)) (vector? (second expr))) (subvec expr 1)
-      ; Turn [a] to a
-      (and (vector? expr) (= len 1)) (first expr)
-      :else expr)))
-
-; Consume chunk of indenty lines up to EOF or less than starting depth
-
-(defn- parse-headline
+(defn- parse-head
+  "Parse headline of an outline segment."
   [depth input]
   (let
    [[[input-depth line] & lines] input]
@@ -37,27 +39,30 @@
       (= (str/trim line) "") ["" lines]
       ; Input is above specified depth, fail to parse.
       (< input-depth depth) nil
-      ; Input is below specified depth, emit group symbol.
-      (< depth input-depth) [:group input]
+      ; Input is below specified depth, empty head.
+      (< depth input-depth) [nil input]
       ; Input is at correct depth, format and return as headline.
       :else [(escape-separator-syntax line) lines])))
 
 (declare parse-at)
 
-(defn- parse-children
-  [depth expr input]
+(defn- parse-body
+  "Parse child outlines that form the body of an outline."
+  [depth acc input]
   (let [[child rest] (parse-at (inc depth) input)]
     (if child
-      (recur depth (conj expr child) rest)
-      [(simplify expr) input])))
+      (recur depth (conj acc child) rest)
+      [acc input])))
 
 (defn- parse-at
   [depth input]
-  (let [[headline rest] (parse-headline depth input)]
-    (when headline
-      (parse-children depth [headline] rest))))
+  (let [[head rest :as parsed] (parse-head depth input)]
+    (when parsed
+      (let [[body rest] (parse-body depth [] rest)]
+        [(Outline. head body) rest]))))
 
 (defn parse
+  "Parse text input into a sequence of outlines."
   [input]
   (let
    [lines
@@ -66,58 +71,69 @@
      (map (fn [line]
             (let [depth (count (take-while #{\tab} line))]
               [depth (subs line depth)]))))]
-    (loop [expr [], input lines]
+    (loop [outlines [], input lines]
       (let [[outline rest] (parse-at 0 input)]
         (if outline
-          (recur (conj expr outline) rest)
-          expr)))))
+          (recur (conj outlines outline) rest)
+          outlines)))))
 
-(defn- print-line
-  [depth first-line? content]
+(defn- print-head
+  [head depth]
   (let
    [indent (fn [] (dotimes [_ depth] (clojure.core/print \tab)))]
-    ; Don't print group separator on first line of new indetation level.
-    ; Grouping will be expressed as subsequent indetation there.
-    (when-not (and (keyword? content) first-line?)
-      (cond
-        (keyword? content) (do (indent) (println \,))
-        (= (str/trim content) "") (println)
-        ; Unescape content that's a literal comma or several.
-        (every? #{\,} content) (do (indent) (println (str content \,)))
-        :else (do (indent) (println content))))))
+    (cond
+      (nil? head) (do (indent) (clojure.core/print \,))
+      (= (str/trim head) "") nil
+      ; Unescape head that's a literal comma or several.
+      (every? #{\,} head) (do (indent) (clojure.core/print (str head \,)))
+      :else (do (indent) (clojure.core/print head)))))
 
-(defn- atom? [item] (or (string? item) (keyword? item)))
+(defn otl-seq
+  "Produce a lazy sequence of [outline-node depth sibling-idx] pairs."
+  [otl]
+  (tree-seq
+   (constantly true)
+   (fn [[otl depth _]] (map-indexed #(vector %2 (inc depth) %1) (:body otl)))
+   [otl 0 0]))
 
-; Single-item list will be printed at depth.
+(defn- lines [otl]
+  (->> (otl-seq otl)
+       (filter (fn [[otl _ idx]] (not (and
+                                       (nil? (:head otl))
+                                       (not-empty (:body otl))
+                                       (= idx 0)))))
+       (map (fn [[otl depth _]]
+              (with-out-str (print-head (:head otl) depth))))))
 
-(defn- print-at
-  [depth first-line? input]
-  (cond
-    (not input) nil
-    (atom? input) (print-line depth first-line? input)
-    (= (count input) 0) (print-line depth false :group)
-    (= (count input) 1)
-    (do
-      (when (not first-line?) (print-line depth false :group))
-      (print-at (inc depth) true (first input)))
-    :else
-    (do
-      (print-at
-       (if (atom? (first input)) depth (inc depth))
-       first-line?
-       (first input))
-      (print-at (inc depth) true (second input))
-      (run! (partial print-at (inc depth) false) (rest (rest input))))))
+; Print whole outline
+(defn print [otl] (run! println (lines otl)))
 
-(defn print
-  [outline]
-  (run! (partial print-at 0 true) outline))
+; Print sequence of unindented body outlines without head
+(defn print-body [otl] (run! print (:body otl)))
+
+; REPL print, only print limited number of lines
+(defmethod print-method Outline [otl w]
+    (let
+     [max-display-lines 20
+      debug-prn (fn [[otl depth _]]
+                  (with-out-str
+                    (dotimes [_ depth] (clojure.core/print "›…"))
+                    (if (nil? (:head otl))
+                      (println "ε")
+                      (prn (:head otl)))))
+      s (map debug-prn (otl-seq otl))]
+      (->>
+       (concat
+        (take max-display-lines s)
+        (when (seq (drop max-display-lines s)) ["...\n"]))
+       (run! #(.write w %)))))
 
 (defn load
   "Load single file or directory of .otl files into one big outline."
   [path]
   (let
-   [outline-paths (fn [path]
-                    (filter #(str/ends-with? % ".otl") (util/crawl-files path)))]
+   [outline-paths
+    (fn [path] (filter #(str/ends-with? % ".otl") (util/crawl-files path)))]
     (->> (outline-paths path)
-         (map #(into [%] (parse (slurp %)))))))
+         (map #(Outline. % (parse (slurp %))))
+         (Outline. nil))))
