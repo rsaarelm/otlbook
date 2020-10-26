@@ -5,16 +5,16 @@
 
 (defrecord Outline [head body])
 
+; This function is mostly for convenient literal-writing in unit tests.
 (defn edn->otl
   "Convert a concise nested vector structure into Outline."
   [edn]
   (let
-    ; Apply implicit nil
-   [edn
+   [edn  ; Normalize by adding implicit nil head if needed.
     (cond
-      (string? edn) edn
-      (vector? (first edn)) (into [nil] edn)
-      (= (count edn) 1) (into [nil] edn)
+      (string? edn) edn  ; Short circuit before cases below if naked string
+      (vector? (first edn)) (into [nil] edn)  ; Implicit nil for [[a] ...]
+      (= (count edn) 1) (into [nil] edn)      ; Implicit nil for [a]
       :else edn)]
     (if (string? edn)
       (Outline. edn [])
@@ -35,13 +35,9 @@
    [[[input-depth line] & lines] input]
     (cond
       (not input) nil
-      ; Match empty lines regardless of specified depth.
-      (= (str/trim line) "") ["" lines]
-      ; Input is above specified depth, fail to parse.
-      (< input-depth depth) nil
-      ; Input is below specified depth, empty head.
-      (< depth input-depth) [nil input]
-      ; Input is at correct depth, format and return as headline.
+      (= (str/trim line) "") ["" lines]  ; Empty line, always match
+      (< input-depth depth) nil          ; Above depth, early exit
+      (< depth input-depth) [nil input]  ; Below depth, nil head and continue
       :else [(escape-separator-syntax line) lines])))
 
 (declare parse-at)
@@ -111,25 +107,25 @@
 ; Print sequence of unindented body outlines without head
 (defn print-body [otl] (run! print (:body otl)))
 
-; REPL print, only print limited number of lines
+; Debug print for REPL, only print limited number of lines
 (defmethod print-method Outline [otl w]
-    (let
-     [max-display-lines 20
-      debug-prn (fn [[otl depth _]]
-                  (with-out-str
-                    (dotimes [_ depth] (clojure.core/print "›…"))
-                    (if (nil? (:head otl))
-                      (println "ε")
-                      (prn (:head otl)))))
-      s (map debug-prn (otl-seq otl))]
-      (->>
-       (concat
-        (take max-display-lines s)
-        (when (seq (drop max-display-lines s)) ["...\n"]))
-       (run! #(.write w %)))))
+  (let
+   [max-display-lines 20
+    debug-prn (fn [[otl depth _]]
+                (with-out-str
+                  (dotimes [_ depth] (clojure.core/print "›…"))
+                  (if (nil? (:head otl))
+                    (println "ε")
+                    (prn (:head otl)))))
+    s (map debug-prn (otl-seq otl))]
+    (->>
+     (concat
+      (take max-display-lines s)
+      (when (seq (drop max-display-lines s)) ["...\n"]))
+     (run! #(.write w %)))))
 
 (defn load
-  "Load single file or directory of .otl files into one big outline."
+  "Load single file or directory of .otl files into a single root outline."
   [path]
   (let
    [outline-paths
@@ -137,3 +133,13 @@
     (->> (outline-paths path)
          (map #(Outline. % (parse (slurp %))))
          (Outline. nil))))
+
+(defn paths
+  "List sub-outline file paths for a root outline."
+  [root-otl]
+  (->> (:body root-otl) (map :head)))
+
+(defn outline-at
+  "Return sub-outline for a given root outline file path."
+  [root-otl path]
+  (->> (:body root-otl) (filter #(= (:head %) path)) (first)))
