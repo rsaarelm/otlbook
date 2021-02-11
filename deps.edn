@@ -1,6 +1,6 @@
 {:paths ["src"]
  :deps {org.clojure/clojure       {:mvn/version "1.10.1"}
-        http-kit/http-kit         {:mvn/version "2.4.0-alpha4"}
+        http-kit/http-kit         {:mvn/version "2.3.0"}
         com.taoensso/tufte        {:mvn/version "2.2.0"}
         org.clojure/clojurescript {:mvn/version "1.10.773"}}
 

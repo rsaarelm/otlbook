@@ -1,6 +1,9 @@
 run *ARGS:
     clj -m otlwiki.main {{ARGS}}
 
+server *ARGS:
+    clj -m server.main {{ARGS}}
+
 test:
     clj -A:test:runner
 
