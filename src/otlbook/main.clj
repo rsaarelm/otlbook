@@ -1,7 +1,7 @@
-(ns otlwiki.main
+(ns otlbook.main
   (:require [clojure.main :as main]
             [clojure.zip :as zip]
-            [otlwiki.outline :as otl]))
+            [otlbook :as otl]))
 
 ; Data matching the outline saved on disk.
 (def ^:dynamic *saved-outline* (atom nil))

@@ -1,4 +1,4 @@
-(ns otlwiki.util
+(ns otlbook.util
   (:require [clojure.string :as str]
             [clojure.java.io :as io]))
 

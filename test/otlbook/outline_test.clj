@@ -1,7 +1,7 @@
-(ns otlwiki.outline-test
+(ns otlbook.outline-test
   (:require [clojure.test :refer :all]
-            [otlwiki.util :as util]
-            [otlwiki.outline :as outline :refer [edn->otl]]))
+            [otlbook.util :as util]
+            [otlbook.outline :as outline :refer [edn->otl]]))
 
 (defn- sl [s] (util/sl {:tab 2} s))
 

@@ -1,6 +1,6 @@
-(ns otlwiki.util-test
+(ns otlbook.util-test
   (:require [clojure.test :refer :all]
-            [otlwiki.util :as util]))
+            [otlbook.util :as util]))
 
 (deftest sl-test
   (is (= (util/sl "") ""))

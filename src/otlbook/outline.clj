@@ -1,6 +1,6 @@
-(ns otlwiki.outline
+(ns otlbook.outline
   (:require [clojure.string :as str]
-            [otlwiki.util :as util])
+            [otlbook.util :as util])
   (:refer-clojure :exclude [print load]))
 
 (defrecord Outline [head body])

@@ -1,5 +1,5 @@
 run *ARGS:
-    clj -m otlwiki.main {{ARGS}}
+    clj -m otlbook.main {{ARGS}}
 
 server *ARGS:
     clj -m server.main {{ARGS}}
