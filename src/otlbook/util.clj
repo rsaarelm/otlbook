@@ -73,3 +73,7 @@
      (.isFile path)
       [(.getAbsolutePath path)]
       (->> path (file-seq) (filter #(.isFile %)) (map #(.getAbsolutePath %))))))
+
+(defn unfold [step seed]
+  (when-let [[val new-seed] (step seed)]
+    (cons val (lazy-seq (unfold step new-seed)))))

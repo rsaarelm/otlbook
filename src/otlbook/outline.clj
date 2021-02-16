@@ -1,145 +1,251 @@
 (ns otlbook.outline
-  (:require [clojure.string :as str]
+  (:require [clojure.core.match :refer [match]]
+            [clojure.string :as str]
+            [instaparse.core :as insta]
             [otlbook.util :as util])
   (:refer-clojure :exclude [print load]))
 
-(defrecord Outline [head body])
+(def attribute-re #"[a-z][a-z\-0-9]*")
 
-; This function is mostly for convenient literal-writing in unit tests.
-(defn edn->otl
-  "Convert a concise nested vector structure into Outline."
-  [edn]
-  (let
-   [edn  ; Normalize by adding implicit nil head if needed.
+(def attr-parser
+  (insta/parser
+   (str "<root> = attr <':'> value
+         attr = " (pr-str attribute-re) "
+         value = (<' '> #'.*' | #'')")))
+
+(defn- err [& s] (throw (IllegalArgumentException. (apply str s))))
+
+(defn header-only?
+  "Return true if the outline has only header elements.
+
+  Once the outline has any non-header elements,
+  new header elements cannot be conj-ed to the end."
+  [otl]
+  ; We assume it's well-formed, so we only need to check whether the last line
+  ; of a non-empty outline is a header line.
+  (or (empty? (.contents otl))
+      (-> (last (.contents otl)) first keyword?)))
+
+(deftype Outline [contents]
+  ; Just reimplement vec stuff for linear access
+  clojure.lang.Seqable
+  (seq [_] (.seq contents))
+
+  clojure.lang.Reversible
+  (rseq [_] (.rseq contents))
+
+  clojure.lang.IPersistentCollection
+  (count [_] (.count contents))
+  (cons [self [head body]]
+    ; Content validation
     (cond
-      (string? edn) edn  ; Short circuit before cases below if naked string
-      (vector? (first edn)) (into [nil] edn)  ; Implicit nil for [[a] ...]
-      (= (count edn) 1) (into [nil] edn)      ; Implicit nil for [a]
-      :else edn)]
-    (if (string? edn)
-      (Outline. edn [])
-      (Outline. (first edn) (map edn->otl (rest edn))))))
+      (and (keyword? head) (not (header-only? self)))
+      (err "Adding attribute " head " after header")
 
-(defn- escape-separator-syntax
-  "Parse lone ',' as group separator, escape ',,' into literal ','."
-  [line]
-  (cond
-    (= line ",") nil
-    (and (seq line) (every? #{\,} line)) (subs line 1)
-    :else line))
+      (and (keyword? head) (contains? self head))
+      (err "Repeated attribute " head)
 
-(defn- parse-head
-  "Parse headline of an outline segment."
-  [depth input]
+      (and (keyword? head) (not (re-matches attribute-re (name head))))
+      (err "Invalid keyword format '" head "'")
+
+      (and (string? head) (str/includes? head "\n"))
+      (err "Headline contains multiple lines")
+
+      (not (or (keyword? head) (string? head) (nil? head)))
+      (err "Bad head type " head)
+
+      (and (not (keyword? head)) (not (instance? Outline body)))
+      (err "Body is not Outline")
+
+      (and (not (keyword? head))
+           (not (or (instance? Outline body) (nil? body))))
+      (err "Bad body value " body))
+    (Outline. (.cons contents [head body])))
+
+  (empty [_] (.empty contents))
+  (equiv [_ other]
+    (and (isa? (class other) Outline)
+         (.equiv contents (.contents other))))
+
+  ; Outline shows up for sequential?, seen as viable child node
+  clojure.lang.Sequential
+
+  clojure.lang.Indexed
+  (nth [_ i] (nth contents i))
+  (nth [_ i default] (nth contents i default))
+
+  java.lang.Iterable
+  (iterator [_] (.iterator contents))
+
+  clojure.lang.ILookup
+  (valAt [self k] (.valAt self k nil))
+  (valAt [_ k not-found]
+    (or
+     (some (fn [[k' v]] (when (= k' k) v)) contents)
+     not-found))
+
+  clojure.lang.IPersistentMap
+  (assoc [self k v]
+    (when-not (keyword? k) (err "Can only assoc keyword keys"))
+    (if (get self k)
+      ; Replace existing
+      (Outline. (vec (map (fn [[k' v']] (if (= k' k) [k' v] [k' v'])) contents)))
+      ; Insert new
+      (Outline. (vec (concat [[k v]] contents)))))
+  (assocEx [_ k v] (err "Not implemented"))  ; This shouldn't be needed?
+  (containsKey [_ k] (boolean (some #(= (first %) k) contents)))
+  (without [_ k] (Outline. (vec (filter #(not= (first %) k) contents)))))
+
+; Debug print
+(defmethod print-method Outline [otl w]
   (let
-   [[[input-depth line] & lines] input]
+   [indent (fn [depth] (dotimes [_ depth] (clojure.core/print "›…")))
+
+    print-otl
+    (fn print-otl [depth otl]
+      (run! (fn [[_ [h b]]]
+              (cond
+                (nil? h) (do (indent depth) (println "ε"))
+                (keyword? h) (do (indent depth) (prn h b))
+                h (do (indent depth) (prn h)))
+              (when (and b (not (keyword? h)))
+                (print-otl (inc depth) b))) (map vector (range) otl)))]
+    ; TODO: Print limited amount of lines if outline is > ~20 lines
+    (.write w (with-out-str (print-otl 0 otl)))))
+
+(defn print [otl]
+  (let
+   [indent (fn [depth] (dotimes [_ depth] (clojure.core/print \tab)))
+
+    print-otl
+    (fn print-otl [depth otl]
+      (run! (fn [[idx [h b]]]
+              (cond
+                (and (> idx 0) (nil? h)) (do (indent depth) (println \,))
+                (keyword? h) (do (indent depth) (println (str (name h) ":") b))
+          ; TODO: Escape literal comma line with extra comma
+                h (do (indent depth) (println h)))
+              (when (and b (not (keyword? h)))
+                (print-otl (inc depth) b))) (map vector (range) otl)))]
+    (print-otl 0 otl)))
+
+(defn outline
+  "Construct an outline from arguments.
+
+  (outline)                                          ; Empty outline
+  (outline \"Line 1\" \"Line 2\")                    ; Outline with two lines
+  (outline :uri \"https://example.com\" \"Line 1\")  ; Outline with attribute
+  (outline \"Line 1\" \"Line 2\" [\"Child 1\"])      ; Nested outline
+  (outline nil [\"Subline\"])                        ; Double indentation
+
+  Outlines must be well-formed:
+  - Attributes are not allowed after a non-attribute line
+  - Each attribute name must occur at most once
+  - Line strings must not contain newlines
+  - Empty (nil) parents must have nonempty children"
+  ([] (Outline. []))
+  ([& args]
+   (let
+    [headline? #(or (string? %) (nil? %))
+     body? sequential?
+
+     normalize
+     (fn [pairs args]
+       (match [args]
+         [([] :seq)] pairs
+
+         ; Headline with body.
+         [([(head :guard headline?) (body :guard body?) & rest] :seq)]
+         (recur
+          (conj pairs [head (if (seq body) (apply outline body) (outline))])
+          rest)
+
+         ; Headline followed by non-body, infer standalone line.
+         [([(head :guard headline?) & rest] :seq)]
+         (recur (conj pairs [head (outline)]) rest)
+
+         [([(k :guard keyword?) v & rest] :seq)]
+         (recur (conj pairs [k v]) rest)
+
+         :else
+         (err "Bad arguments")))]
+     (into (outline) (normalize [] args)))))
+
+(defn to-vec [otl]
+  (vec (map (fn [[k v]] [k (if (instance? Outline v) (to-vec v) v)]) otl)))
+
+(defn- indents-lines
+  "Convert input text into [indent-depth deindented-line] pairs."
+  [input]
+  (if (= input "")
+    []
+    (let
+     [process-line
+      (fn [lines line]
+        (conj lines
+              (if (= (str/trim line) "")
+                ; Snap empty lines to depth of previous line
+                [(or (-> lines last first) 0) ""]
+                (let [depth (count (take-while #{\tab} line))]
+                  [depth (subs line depth)]))))]
+      (reduce process-line [] (str/split-lines input)))))
+
+(defn- to-attr
+  "Try to parse an outline item into attributes.
+
+  Return nil if parsing fails."
+  [[head body]]
+  (let [{attr :attr, v :value} (into {} (attr-parser head))
+        v (not-empty v)]
     (cond
-      (not input) nil
-      (= (str/trim line) "") ["" lines]  ; Empty line, always match
-      (< input-depth depth) nil          ; Above depth, early exit
-      (< depth input-depth) [nil input]  ; Below depth, nil head and continue
-      :else [(escape-separator-syntax line) lines])))
+      ; Couldn't parse attr, regular item
+      (not attr) nil
+      ; Both inline and child value, not valid for an attr
+      ; (this is a probable linter error)
+      (and v (not-empty body)) nil
+      ; Multiline value in body
+      (not-empty body) [(keyword attr) body]
+      ; Inline value
+      :else [(keyword attr) v])))
 
-(declare parse-at)
+; Keep making attrs while all have been attrs
+(defn- parse-attrs
+  "Parse header items into attributes.
 
-(defn- parse-body
-  "Parse child outlines that form the body of an outline."
-  [depth acc input]
-  (let [[child rest] (parse-at (inc depth) input)]
-    (if child
-      (recur depth (conj acc child) rest)
-      [acc input])))
+  The first non-attribute item marks the end of the header.
+  No items after it will be parsed as attributes."
+  [otl]
+  (let
+   [parse-header (fn [acc [item & rest :as otl]]
+                   (if-let [[attr _ :as item] (to-attr item)]
+                     (if (not (contains? acc attr))  ; Stop on repeated attr
+                       (recur (conj acc item) rest)
+                       (into acc otl))
+                     (into acc otl)))]
+    (parse-header (outline) otl)))
 
 (defn- parse-at
-  [depth input]
-  (let [[head rest :as parsed] (parse-head depth input)]
-    (when parsed
-      (let [[body rest] (parse-body depth [] rest)]
-        [(Outline. head body) rest]))))
+  "Parse an outline body assuming given depth."
+  [otl depth input]
+  (let
+   [[[input-depth line] & rest] input
+    double-indent? (and input-depth (> input-depth depth))
+    head (cond
+           double-indent? nil
+           (= line ",") nil  ; Block separator
+           (and (seq line) (every? #{\,} line)) (subs line 1)  ; Escaped comma
+           :else line)]  ; Regular line
+    (cond
+      (not line) [(parse-attrs otl) rest]  ; At EOF, exit
+      (< input-depth depth) [(parse-attrs otl) input]  ; Popping out of depth, exit
+      :else (let
+             [rest (if double-indent? input rest)
+              [body rest] (parse-at (outline) (inc depth) rest)]
+              (recur (conj otl [head body]) depth rest)))))
 
 (defn parse
   "Parse text input into a sequence of outlines."
   [input]
-  (let
-   [lines
-    (->>
-     (str/split-lines input)
-     (map (fn [line]
-            (let [depth (count (take-while #{\tab} line))]
-              [depth (subs line depth)]))))]
-    (loop [outlines [], input lines]
-      (let [[outline rest] (parse-at 0 input)]
-        (if outline
-          (recur (conj outlines outline) rest)
-          outlines)))))
-
-(defn- print-head
-  [head depth]
-  (let
-   [indent (fn [] (dotimes [_ depth] (clojure.core/print \tab)))]
-    (cond
-      (nil? head) (do (indent) (clojure.core/print \,))
-      (= (str/trim head) "") nil
-      ; Unescape head that's a literal comma or several.
-      (every? #{\,} head) (do (indent) (clojure.core/print (str head \,)))
-      :else (do (indent) (clojure.core/print head)))))
-
-(defn otl-seq
-  "Produce a lazy sequence of [outline-node depth sibling-idx] pairs."
-  [otl]
-  (tree-seq
-   (constantly true)
-   (fn [[otl depth _]] (map-indexed #(vector %2 (inc depth) %1) (:body otl)))
-   [otl 0 0]))
-
-(defn- lines [otl]
-  (->> (otl-seq otl)
-       (filter (fn [[otl _ idx]] (not (and
-                                       (nil? (:head otl))
-                                       (not-empty (:body otl))
-                                       (= idx 0)))))
-       (map (fn [[otl depth _]]
-              (with-out-str (print-head (:head otl) depth))))))
-
-; Print whole outline
-(defn print [otl] (run! println (lines otl)))
-
-; Print sequence of unindented body outlines without head
-(defn print-body [otl] (run! print (:body otl)))
-
-; Debug print for REPL, only print limited number of lines
-(defmethod print-method Outline [otl w]
-  (let
-   [max-display-lines 20
-    debug-prn (fn [[otl depth _]]
-                (with-out-str
-                  (dotimes [_ depth] (clojure.core/print "›…"))
-                  (if (nil? (:head otl))
-                    (println "ε")
-                    (prn (:head otl)))))
-    s (map debug-prn (otl-seq otl))]
-    (->>
-     (concat
-      (take max-display-lines s)
-      (when (seq (drop max-display-lines s)) ["...\n"]))
-     (run! #(.write w %)))))
-
-(defn load
-  "Load single file or directory of .otl files into a single root outline."
-  [path]
-  (let
-   [outline-paths
-    (fn [path] (filter #(str/ends-with? % ".otl") (util/crawl-files path)))]
-    (->> (outline-paths path)
-         (map #(Outline. % (parse (slurp %))))
-         (Outline. nil))))
-
-(defn paths
-  "List sub-outline file paths for a root outline."
-  [root-otl]
-  (->> (:body root-otl) (map :head)))
-
-(defn outline-at
-  "Return sub-outline for a given root outline file path."
-  [root-otl path]
-  (->> (:body root-otl) (filter #(= (:head %) path)) (first)))
+  (->> (indents-lines (str/trimr input))
+       (parse-at (outline) 0)
+       (first)))
