@@ -1,8 +1,17 @@
 (ns server.main
   (:require [compojure.core :refer [defroutes GET]]
             [net.cgrand.enlive-html :as html]
+            [otlbook.outline :as outline]
             [org.httpkit.server :as server]
+            [taoensso.timbre :as timbre :refer [info]]
             [url-normalizer.core :as url]))
+
+; TODO: Optionally use (System/getenv "OTL_PATH")
+; to reconfigure the default ~/notes/wiki path
+(info "Scanning outlines...")
+(def ^:dynamic *outline*
+  (atom (outline/load (str (System/getenv "HOME") "/notes/wiki"))))
+(info "Scan done.")
 
 ; Scraper stuff, goes to scrape module...
 (defn scrape-title [res]
