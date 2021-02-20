@@ -47,12 +47,16 @@
            (fn [[_ body]] (= (:uri body) uri))
            (otl-seq))))
 
+; TODO: /uri/ method, look up things by uri, return 404 if thing isn't found
+
 (defn save [uri]
   (let
-   [url (url/normalize uri)    ; TODO: Handle non-http URIs
+   [url (try (url/normalize uri) (catch java.net.MalformedURLException uri))
+    existing (find-uri (str url))
+    ; TODO: Don't waste time scraping if url already exists in db
+    ; TODO: Also don't try to scrape if it's not a HTML URI.
     page (html/html-resource url)
     page-title (or (scrape-title page) uri)
-    existing (find-uri url)
     ts (timestamp)]
     ; TODO: Compose outline structure instead of just building string
     (prn "Did we find it?" existing)
