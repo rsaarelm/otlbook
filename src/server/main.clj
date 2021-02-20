@@ -13,6 +13,14 @@
   (atom (outline/load (str (System/getenv "HOME") "/notes/wiki"))))
 (info "Scan done.")
 
+(defn otl-seq []
+  (tree-seq
+   (constantly true)
+   #(filter (fn [[k _]] (not (keyword? k))) (second %))
+   [nil @*outline*]))
+
+(info "Outline contains" (count (otl-seq)) "items")
+
 ; Scraper stuff, goes to scrape module...
 (defn scrape-title [res]
   (-> (html/select res [:head :title]) first :content first))
@@ -32,16 +40,27 @@
 ; If we can get away with it, cut off web page after 1 sec and try to
 ; scrape title from whatever parts we got.
 
+(defn- find-uri [uri]
+  (info "Looking for" uri)
+  (first (filter
+           ; TODO: url/normalize http uris
+           (fn [[_ body]] (= (:uri body) uri))
+           (otl-seq))))
+
 (defn save [uri]
   (let
    [url (url/normalize uri)    ; TODO: Handle non-http URIs
     page (html/html-resource url)
     page-title (or (scrape-title page) uri)
+    existing (find-uri url)
     ts (timestamp)]
     ; TODO: Compose outline structure instead of just building string
-    (str "<pre>" page-title "\n"
-         "\turi: " uri "\n"
-         "\tadded: " ts "\n</pre>")))
+    (prn "Did we find it?" existing)
+    (if existing
+      (str "<pre>" existing "</pre>\n")
+      (str "<pre>" page-title "\n"
+           "\turi: " uri "\n"
+           "\tadded: " ts "</pre>\n"))))
 
 (defroutes app
   (GET "/" [] "Hello HTTP!")
