@@ -249,3 +249,12 @@
   (->> (indents-lines (str/trimr input))
        (parse-at (outline) 0)
        (first)))
+
+(defn load
+  "Load single file or directory of .otl files into a single root outline."
+  [path]
+  (->> (util/crawl-files path)
+       (filter #(str/ends-with? % ".otl"))
+       (sort)
+       (map #(vector % (parse (slurp %))))
+       (into (outline))))

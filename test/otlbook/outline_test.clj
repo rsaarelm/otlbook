@@ -1,8 +1,7 @@
 (ns otlbook.outline-test
   (:require [clojure.test :refer :all]
             [otlbook.util :as util]
-            [otlbook.outline :refer [outline parse to-vec]]
-            [otlbook.old-outline :as old-outline :refer [edn->otl]]))
+            [otlbook.outline :refer [outline parse to-vec]]))
 
 (defn- sl [s] (util/sl {:tab 2} s))
 
