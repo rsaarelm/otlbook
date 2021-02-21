@@ -141,8 +141,7 @@
   Outlines must be well-formed:
   - Attributes are not allowed after a non-attribute line
   - Each attribute name must occur at most once
-  - Line strings must not contain newlines
-  - Empty (nil) parents must have nonempty children"
+  - Line strings must not contain newlines"
   ([] (Outline. []))
   ([& args]
    (let
