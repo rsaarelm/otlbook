@@ -13,6 +13,7 @@
   (atom (outline/load (str (System/getenv "HOME") "/notes/wiki"))))
 (info "Scan done.")
 
+; XXX: Deprecated with keyword? stuff, move to outline.clj
 (defn otl-seq []
   (tree-seq
    (constantly true)
@@ -44,8 +45,8 @@
   (info "Looking for" uri)
   (first (filter
            ; TODO: url/normalize http uris
-           (fn [[_ body]] (= (:uri body) uri))
-           (otl-seq))))
+          (fn [[_ body]] (= (:uri body) uri))
+          (otl-seq))))
 
 ; TODO: /uri/ method, look up things by uri, return 404 if thing isn't found
 

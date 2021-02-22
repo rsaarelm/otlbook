@@ -13,16 +13,7 @@
    ["a" []]  [["a" []]]
    ["a" "b"]  [["a" []] ["b" []]]
    ["a" ["b"]]  [["a" [["b" []]]]]
-   [:xyzzy 1]  [[:xyzzy 1]]
-   [:xyzzy 1 "a"]  [[:xyzzy 1] ["a" []]]
-   [:xyzzy 1 :plugh 2 "a"]  [[:xyzzy 1] [:plugh 2] ["a" []]]
    [nil ["a"]]  [[nil [["a" []]]]]
-   ; Error: Attribute beyond header
-   ["a" :xyzzy 1]  nil
-   ; Error: Repeated attribute name
-   [:xyzzy 1 :xyzzy 2]  nil
-   ; Error: Malformed attribute
-   [(keyword "foo bar") 1] nil
    [nil]  [[nil []]]])
 
 (deftest outline-invocation
@@ -38,11 +29,12 @@
   (is (not (empty? (outline "a"))))
   (is (= (count (outline)) 0))
   (is (= (count (outline "a")) 1))
-  (is (= (count (outline :a 1)) 1))
-  (is (contains? (outline :a 1) :a))
-  (is (not (contains? (outline :a 1) :b)))
-  (is (= (assoc (outline) :a 1) (outline :a 1)))
-  (is (= (dissoc (outline :a 1) :a) (outline))))
+  (is (contains? (outline "a: 1") :a))
+  (is (= (:a (outline "a: 1")) "1"))
+  (is (not (contains? (outline "a: 1") :b)))
+  (is (= (assoc (outline) :a 1) (outline "a: 1")))
+  (is (= (dissoc (outline "a: 1") :a) (outline)))
+  (is (= (dissoc (outline "a: 1" "b: 2") :b) (outline "a: 1"))))
 
 ; Expected values are (outline) argument lists, not raw outline data as in
 ; invocation-suite.
@@ -183,38 +175,6 @@
         c
           d")
    ["a" ["b" ""] "c" ["d"]],
-
-   (sl "foo: 1
-        bar: 2
-        xyzzy")
-   [:foo "1", :bar "2", "xyzzy"],
-
-   ; Misformatting, attribute after header stays as text.
-   (sl "foo: 1
-        xyzzy
-        bar: 2")
-   [:foo "1", "xyzzy", "bar: 2"],
-
-   ; Body value for attribute
-   (sl "foo: 1
-        bar:
-          2
-          3
-        xyzzy")
-   [:foo "1", :bar (outline "2" "3"), "xyzzy"],
-
-   ; No combining inline and body value
-   (sl "foo: 1
-        bar: 1
-          2
-          3
-        xyzzy")
-   [:foo "1", "bar: 1" ["2" "3"] "xyzzy"],
-
-   ; Repeated attribute, that's a nope.
-   (sl "foo: 1
-        foo: 2")
-   [:foo "1", "foo: 2"],
 
    "a\n\tb" ["a" ["b"]]])
 
