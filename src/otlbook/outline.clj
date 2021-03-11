@@ -6,8 +6,11 @@
 
 (def ^:private attribute-name
   "Resolve attribute name as keyword from outline head string."
-  (memoize (fn [head]
-             (keyword (second (re-find #"^([a-z][a-z\-0-9]*):( |$)" head))))))
+  (memoize
+   (fn [head]
+     (when head
+       (keyword
+        (second (re-find #"^([a-z][a-z\-0-9]*):( |$)" head)))))))
 
 (defn- attribute-value [[head body]]
   ; Return inline value, or body if inline value is empty.
