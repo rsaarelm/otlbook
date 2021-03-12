@@ -7,6 +7,8 @@
             [taoensso.timbre :as timbre :refer [info]]
             [url-normalizer.core :as url]))
 
+(def max-inlined-wiki-page-length 10)
+
 ; TODO: Optionally use (System/getenv "OTL_PATH")
 ; to reconfigure the default ~/notes/wiki path
 (info "Scanning outlines...")
@@ -55,13 +57,21 @@
            "\tadded: " ts "</pre>\n"))))
 
 ; TODO: Line parsing
-; TODO: Prune long WikiWord headers into links
 (defn otl->html [otl]
   (when (seq otl)
     {:tag :ul, :content
      (map (fn [[head body]]
-            {:tag :li, :content
-             [head, (otl->html body)]})
+            (let
+             [heading? (outline/wiki-word? head)
+              print-head (if heading?
+                           (outline/spacify-wiki-word head)
+                           head)]
+              {:tag :li
+               :content
+               (if (and heading?
+                        (> (outline/length body) max-inlined-wiki-page-length))
+                 [{:tag :a, :attrs {:href (str "/" head)}, :content print-head}]
+                 [print-head, (otl->html body)])}))
           otl)}))
 
 (html/deftemplate page-template "page.html"
@@ -73,7 +83,7 @@
 (defroutes app
   (GET "/" [] (page-template
                "Hello, otlbook"
-               (outline/outline "foo" "bar" ["baz" "xyzzy"])))
+               @*outline*))
   (GET "/save/:uri{.*}" [uri] (save uri)))
 
 (defn -main [& args]
