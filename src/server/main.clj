@@ -14,14 +14,7 @@
   (atom (outline/load (str (System/getenv "HOME") "/notes/wiki"))))
 (info "Scan done.")
 
-; XXX: Deprecated with keyword? stuff, move to outline.clj
-(defn otl-seq []
-  (tree-seq
-   (constantly true)
-   #(filter (fn [[k _]] (not (keyword? k))) (second %))
-   [nil @*outline*]))
-
-(info "Outline contains" (count (otl-seq)) "items")
+(info "Outline contains" (outline/length @*outline*) "items")
 
 ; Scraper stuff, goes to scrape module...
 (defn scrape-title [res]
@@ -40,7 +33,7 @@
   (first (filter
            ; TODO: url/normalize http uris
           (fn [[_ body]] (= (:uri body) uri))
-          (otl-seq))))
+          (outline/otl-seq))))
 
 ; TODO: /uri/ method, look up things by uri, return 404 if thing isn't found
 
@@ -61,14 +54,26 @@
            "\turi: " uri "\n"
            "\tadded: " ts "</pre>\n"))))
 
+; TODO: Line parsing
+; TODO: Prune long WikiWord headers into links
+(defn otl->html [otl]
+  (when (seq otl)
+    {:tag :ul, :content
+     (map (fn [[head body]]
+            {:tag :li, :content
+             [head, (otl->html body)]})
+          otl)}))
 
 (html/deftemplate page-template "page.html"
   [head body]
-  [:head :title] (html/content head))
-
+  [:head :title] (html/content head)
+  ; TODO: Construct body expression from body outline parameter
+  [:body] (html/content (otl->html body)))
 
 (defroutes app
-  (GET "/" [] (page-template "Hello, otlbook" (outline/outline "foo" "bar")))
+  (GET "/" [] (page-template
+               "Hello, otlbook"
+               (outline/outline "foo" "bar" ["baz" "xyzzy"])))
   (GET "/save/:uri{.*}" [uri] (save uri)))
 
 (defn -main [& args]

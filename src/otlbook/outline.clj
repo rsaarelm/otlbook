@@ -178,8 +178,17 @@
          (err "Bad arguments")))]
      (into (outline) (normalize [] args)))))
 
-(defn to-vec [otl]
-  (vec (map (fn [[k v]] [k (if (instance? Outline v) (to-vec v) v)]) otl)))
+(defn otl-vec [otl]
+  (vec (map (fn [[k v]] [k (if (instance? Outline v) (otl-vec v) v)]) otl)))
+
+; XXX Is this useful or does it just mangle the data?
+(defn otl-seq [otl]
+  (tree-seq
+   (constantly true)
+   second
+   [nil otl]))
+
+(defn length [otl] (count (otl-seq otl)))
 
 (defn- indents-lines
   "Convert input text into [indent-depth deindented-line] pairs."
