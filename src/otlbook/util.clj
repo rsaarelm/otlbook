@@ -77,3 +77,10 @@
 (defn unfold [step seed]
   (when-let [[val new-seed] (step seed)]
     (cons val (lazy-seq (unfold step new-seed)))))
+
+(defn timestamp
+  "Create standard timestamp string"
+  ([t] (-> t
+           (.truncatedTo java.time.temporal.ChronoUnit/SECONDS)
+           (.format java.time.format.DateTimeFormatter/ISO_OFFSET_DATE_TIME)))
+  ([] (timestamp (java.time.ZonedDateTime/now))))
