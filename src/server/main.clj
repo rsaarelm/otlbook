@@ -67,8 +67,14 @@
            "\turi: " uri "\n"
            "\tadded: " ts "</pre>\n"))))
 
+
+(html/deftemplate page-template "page.html"
+  [head body]
+  [:head :title] (html/content head))
+
+
 (defroutes app
-  (GET "/" [] "Hello HTTP!")
+  (GET "/" [] (page-template "Hello, otlbook" (outline/outline "foo" "bar")))
   (GET "/save/:uri{.*}" [uri] (save uri)))
 
 (defn -main [& args]

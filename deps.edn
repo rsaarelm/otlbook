@@ -1,4 +1,4 @@
-{:paths ["src"]
+{:paths ["src" "resources"]
  :deps {com.taoensso/timbre           {:mvn/version "5.1.2"}
         compojure/compojure           {:mvn/version "1.6.2"}
         enlive/enlive                 {:mvn/version "1.1.6"}
