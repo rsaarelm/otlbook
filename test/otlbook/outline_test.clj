@@ -1,7 +1,7 @@
 (ns otlbook.outline-test
   (:require [clojure.test :refer :all]
             [otlbook.util :as util]
-            [otlbook.outline :refer [outline parse to-vec]]))
+            [otlbook.outline :refer [outline parse otl-vec]]))
 
 (defn- sl [s] (util/sl {:tab 2} s))
 
@@ -20,7 +20,7 @@
   (run!
    (fn [[input expected]]
      (if expected
-       (is (= (to-vec (apply outline input)) expected))
+       (is (= (otl-vec (apply outline input)) expected))
        (is (thrown? Exception (apply outline input)))))
    (partition 2 invocation-suite)))
 
