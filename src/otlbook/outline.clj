@@ -3,7 +3,7 @@
   (:require [clojure.core.match :refer [match]]
             [clojure.string :as str]
             [otlbook.util :as util])
-  (:refer-clojure :exclude [print load]))
+  (:refer-clojure :exclude [find load print]))
 
 (def ^:private attribute-name
   "Resolve attribute name as keyword from outline head string."
@@ -232,6 +232,33 @@
   (->> (indents-lines (str/trimr input))
        (parse-at (outline) 0)
        (first)))
+
+(def ^:private find-
+  (memoize
+   (fn [item normalize otl]
+     (let
+      [key (normalize item)
+       local-result (->> otl
+                         (filter (fn [[head _]] (= key (normalize head))))
+                         (first))]
+       (if local-result
+         local-result
+         (mapcat (partial find- item normalize) (map second otl)))))))
+
+; FIXME: This is naive and is terribly slow the first time it's run for each
+; item. Memoization only helps with the repeat requests.
+(defn find
+  "Recursively search for child outline with headline.
+
+  An optional normalizing function is applied to the headline.
+  The search item and the result are mapped through the function
+  before they are compared.
+
+  Returns [head body] pair."
+  ([item normalize otl] (find- item normalize otl))
+  ([item otl] (find item identity otl)))
+
+; (comment (find "quux" (outline "bar" "baz" ["quux" ["xyzzy"] "quux" ["blah"]])))
 
 (defn load
   "Load single file or directory of .otl files into a single root outline."

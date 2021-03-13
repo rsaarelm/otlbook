@@ -63,7 +63,7 @@
     {:tag :ul, :content
      (map (fn [[head body]]
             (let
-             [heading? (otlbook/wiki-word? head)
+             [heading? (otlbook/wiki-word head)
               print-head (if heading?
                            (otlbook/spacify-wiki-word head)
                            head)]
@@ -71,7 +71,7 @@
                :content
                (if (and heading?
                         (> (outline/length body) max-inlined-wiki-page-length))
-                 [{:tag :a, :attrs {:href (str "/" head)}, :content print-head}]
+                 [{:tag :a, :attrs {:href (otlbook/slug-path head)}, :content print-head}]
                  [print-head, (otl->html body)])}))
           otl)}))
 
@@ -79,13 +79,30 @@
   [head body]
   [:head :title] (html/content head)
   ; TODO: Construct body expression from body outline parameter
-  [:body] (html/content (otl->html body)))
+  [:body] (html/content
+           {:tag :h1, :content (otlbook/spacify-wiki-word head)}
+           (otl->html body)))
 
 (defroutes app
   (GET "/" [] (page-template
                "Hello, otlbook"
                @*outline*))
-  (GET "/save/:uri{.*}" [uri] (save uri)))
+  (GET "/save/:uri{.*}" [uri] (save uri))
+  ; Freeform entry title resolution
+  (GET "/e/:entry{.*}" [entry]
+    ; TODO: 404 when not found
+    (let
+     [_ (info "Looking up" entry)
+      [_ body] (outline/find entry otlbook/slug @*outline*)
+      _ (if body (info "Entry found") (info "Not found"))]
+      (page-template entry body)))
+  (GET ["/:entry" :entry otlbook/wiki-word-re] [entry]
+    ; TODO: 404 when not found
+    (let
+     [_ (info "Looking up" entry)
+      [_ body] (outline/find entry otlbook/slug @*outline*)
+      _ (if body (info "Entry found") (info "Not found"))]
+      (page-template entry body))))
 
 (defn -main [& args]
   (println "Starting server at http://localhost:8080")
