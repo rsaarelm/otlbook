@@ -1,3 +1,4 @@
+; Base outline datatype
 (ns otlbook.outline
   (:require [clojure.core.match :refer [match]]
             [clojure.string :as str]
@@ -11,16 +12,6 @@
      (when head
        (keyword
         (second (re-find #"^([a-z][a-z\-0-9]*):( |$)" head)))))))
-
-(defn wiki-word? [head]
-  (when head
-    (re-matches #"[A-Z][a-z]+([A-Z][a-z]+|[0-9]+)+" head)))
-
-(defn spacify-wiki-word [word]
-  (->> (str/split word #"(?=[A-Z])")          ; Foo123Bar to Foo123 Bar
-       (map #(str/split % #"(?<!\d)(?=\d)"))  ; All Foo123 to Foo 123
-       (flatten)
-       (str/join " ")))
 
 (defn- attribute-value [[head body]]
   ; Return inline value, or body if inline value is empty.

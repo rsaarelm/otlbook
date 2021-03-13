@@ -84,3 +84,11 @@
            (.truncatedTo java.time.temporal.ChronoUnit/SECONDS)
            (.format java.time.format.DateTimeFormatter/ISO_OFFSET_DATE_TIME)))
   ([] (timestamp (java.time.ZonedDateTime/now))))
+
+(defn slugify
+  "Turn string into an URL slug."
+  ; TODO: Could use best-effort UTF -> ASCII conversion that does ä->a
+  [s]
+  (->> (str/lower-case s)
+       (#(str/split % #"\W+"))
+       (str/join "-")))

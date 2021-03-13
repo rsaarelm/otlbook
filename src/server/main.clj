@@ -3,6 +3,7 @@
             [net.cgrand.enlive-html :as html]
             [org.httpkit.server :as server]
             [otlbook.outline :as outline]
+            [otlbook.otlbook :as otlbook]
             [otlbook.util :as util]
             [taoensso.timbre :as timbre :refer [info]]
             [url-normalizer.core :as url]))
@@ -35,7 +36,7 @@
   (first (filter
            ; TODO: url/normalize http uris
           (fn [[_ body]] (= (:uri body) uri))
-          (outline/otl-seq))))
+          (outline/otl-seq @*outline*))))
 
 ; TODO: /uri/ method, look up things by uri, return 404 if thing isn't found
 
@@ -62,9 +63,9 @@
     {:tag :ul, :content
      (map (fn [[head body]]
             (let
-             [heading? (outline/wiki-word? head)
+             [heading? (otlbook/wiki-word? head)
               print-head (if heading?
-                           (outline/spacify-wiki-word head)
+                           (otlbook/spacify-wiki-word head)
                            head)]
               {:tag :li
                :content
