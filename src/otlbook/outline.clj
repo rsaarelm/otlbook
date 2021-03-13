@@ -233,20 +233,18 @@
        (parse-at (outline) 0)
        (first)))
 
-(def ^:private find-
+(def ^:private find-map
+  "Construct map of all normalized non-empty items in otl."
   (memoize
-   (fn [item normalize otl]
+   (fn find-map- [normalize otl]
      (let
-      [key (normalize item)
-       local-result (->> otl
-                         (filter (fn [[head _]] (= key (normalize head))))
-                         (first))]
-       (if local-result
-         local-result
-         (mapcat (partial find- item normalize) (map second otl)))))))
+      [top-map
+       (->> (map (fn [[k v]] [(normalize k) [k v]]) otl)
+            (filter (fn [[k [_ v]]] (and (seq k) (count v))))
+            (into {}))
+       child-maps (map (fn [[_ v]] (find-map- normalize v)) otl)]
+       (apply merge (conj child-maps top-map))))))
 
-; FIXME: This is naive and is terribly slow the first time it's run for each
-; item. Memoization only helps with the repeat requests.
 (defn find
   "Recursively search for child outline with headline.
 
@@ -255,10 +253,8 @@
   before they are compared.
 
   Returns [head body] pair."
-  ([item normalize otl] (find- item normalize otl))
+  ([item normalize otl] ((find-map normalize otl) item))
   ([item otl] (find item identity otl)))
-
-; (comment (find "quux" (outline "bar" "baz" ["quux" ["xyzzy"] "quux" ["blah"]])))
 
 (defn load
   "Load single file or directory of .otl files into a single root outline."

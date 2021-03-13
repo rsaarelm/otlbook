@@ -85,7 +85,7 @@
 
 (defroutes app
   (GET "/" [] (page-template
-               "Hello, otlbook"
+               "RootDirectory"
                @*outline*))
   (GET "/save/:uri{.*}" [uri] (save uri))
   ; Freeform entry title resolution

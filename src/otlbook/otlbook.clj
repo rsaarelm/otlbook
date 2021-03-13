@@ -11,14 +11,14 @@
 (def wikiword-parser
   (insta/parser
    "root = <path> wikiword <'.otl'> | wikiword | wikiword <' *'>
-     wikiword = #'[A-Z][a-z]+([A-Z][a-z]+|[0-9]+)+'
-     path = <'/'> path-segment*
-     path-segment = #'[^/]+' <'/'>"))
+    wikiword = #'[A-Z][a-z]+([A-Z][a-z]+|[0-9]+)+'
+    path = <'/'> path-segment*
+    path-segment = #'[^/]+' <'/'>"))
 
 (defn wiki-word
   "Convert WikiWord title headlines into just the base WikiWord."
   [head]
-  (when head
+  (when (string? head)
     (let
      [parse (wikiword-parser head)]
       (when-not (insta/failure? parse)
@@ -42,10 +42,12 @@
       [0 word])))
 
 (defn spacify-wiki-word [word]
-  (->> (str/split word #"(?=[A-Z])")          ; Foo123Bar to Foo123 Bar
-       (map #(str/split % #"(?<!\d)(?=\d)"))  ; All Foo123 to Foo 123
-       (flatten)
-       (str/join " ")))
+  (when (and word (wiki-word word))
+    (->> (wiki-word word)
+         (#(str/split % #"(?=[A-Z])"))          ; Foo123Bar to Foo123 Bar
+         (map #(str/split % #"(?<!\d)(?=\d)"))  ; All Foo123 to Foo 123
+         (flatten)
+         (str/join " "))))
 
 (defn slug
   "Convert headline into slug string.
