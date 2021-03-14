@@ -27,8 +27,9 @@
 (defn wiki-word-ord
   "Sort WikiWords so that bibilographical words get sorted by year first.
 
-  A bibliography word is a WikiWord with exactly one numeric element
-  that is an integer between 1500 and 3000.
+  A bibliography word is a WikiWord where the first numeric element
+  is an integer between 1500 and 3000.
+  This is assumed to represent the publication year.
   Non-bibilography words are sorted before bibliography words"
   [word]
   (let [nums (->> (str/split word #"\D+")
@@ -36,7 +37,7 @@
                   (map #(Integer. %))
                   (vec))]
     (match [nums]
-      [[(year :guard #(<= 1500 % 3000))]]
+      [[(year :guard #(<= 1500 % 3000)) &rest]]
       [year word]
       :else
       [0 word])))
