@@ -8,6 +8,7 @@
 
 (def wiki-word-re #"[A-Z][a-z]+([A-Z][a-z]+|[0-9]+)+")
 
+; TODO: Get rid of this, use line-parser for everything
 (def wikiword-parser
   (insta/parser
    "root = <path> wikiword <'.otl'> | wikiword | wikiword <' *'>
@@ -70,3 +71,45 @@
     (if-let [wiki-word (wiki-word title)]
       (str "/" wiki-word)
       (str "/e/" (util/slugify title)))))
+
+(def line-parser
+  (insta/parser
+   "<line> = regular | checkbox regular | title-word | block | table
+
+    title-word = <path> wiki-word <'.otl'> | [checkbox] wiki-word [important]
+    <path> = <'/'> path-segment*
+    path-segment = #'[^/]+' <'/'>
+
+    important = <#' \\*$'>
+
+    checkbox = <'['> ('_' | 'X') <'] '> [#'\\d{0,3}' <'% '>]
+
+    <block> = preformatted | quote
+    preformatted = <'; '> #'.*'
+    quote = <'> '> #'.*'
+
+    <table> = table-row | table-separator
+    <table-row> = [<space>] <'|'> table-cell+ [<space>]
+    table-cell = <space> #'[^|]*[^|\\s]' <' |'>
+    <table-separator> = [<space>] <'|'> separator-span+ [<space>]
+    separator-span = <'-'>+(<'+'> | <'|'>)
+
+    verbatim = <'`'> #'[^`]+' <'`'>
+
+    (* I'm not totally sure where the URL regex came from originally... *)
+    url = #'(https?|ftp):\\/\\/[\\w-+&@#\\/%?=~_|()!:,.;]*[\\w-+&@#\\/%=~_|()]'
+
+    image = <'!['> #'[^\\]]+' <']'>
+    internal-link = <'|'> #'[^|\\s]([^|]*[^|\\s])?' <'|'>
+
+    <non-word> = verbatim | url | image | wiki-word | internal-link
+    <line-token> = word | non-word
+    (* Special negative lookahead bit to prevent grabbing checkbox as word *)
+    <first-token> = !checkbox word | non-word
+
+    <word> = #'\\S+'
+    wiki-word = #'[A-Z][a-z]+([A-Z][a-z]+|[0-9]+)+'
+    <space> = #'\\s+'
+
+    <regular> = [space] [first-token (space line-token)*] [space] [important]
+   "))
