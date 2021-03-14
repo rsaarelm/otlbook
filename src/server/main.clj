@@ -60,7 +60,8 @@
 ; TODO: Line parsing
 (defn otl->html [otl]
   (when (seq otl)
-    {:tag :ul, :content
+    {:tag :ul
+     :content
      (map (fn [[head body]]
             (let
              [heading? (otlbook/wiki-word head)
@@ -71,7 +72,10 @@
                :content
                (if (and heading?
                         (> (outline/length body) max-inlined-wiki-page-length))
-                 [{:tag :a, :attrs {:href (otlbook/slug-path head)}, :content print-head}]
+                 [{:tag :a
+                   :attrs {:href (otlbook/slug-path head)
+                           :class "wikilink"}
+                   :content print-head}]
                  [print-head, (otl->html body)])}))
           otl)}))
 

@@ -26,18 +26,15 @@ p {
     color: #333
 }
 
-.hanging {
-    text-indent: -0.5em;
-    padding-left: 0.5em;
-}
-
-.modlink {
-    text-decoration: none;
-    color: green;
+li {
+    # Hanging indent when running for multiple lines
+    padding-left: 0em;
+    text-indent: -1em;
 }
 
 ul {
-    padding-left: 1em;
+    padding-left: 1.5em;
+    padding-right: -1em;
     line-height: 1.5;
     list-style-type: none;
     list-style outside;
@@ -48,13 +45,52 @@ ul ul {
     border-left: 1px solid #CCC;
 }
 
+.wikilink {
+    text-decoration: none;
+    color: Green;
+}
+
 .undefined-word {
     color: Red;
 }
 </style>
-        <title>Page Title</title>
+<title>Page Title</title>
     </head>
     <body>
-        <!-- Insides will be fully snippetized -->
+        <!-- CSS test content, will be rewritten by app -->
+        <!-- Maybe remove this in future to keep the template file size down? -->
+        <h1>Title</h1>
+        <ul>
+            <li>Short line
+                <ul>
+                    <li>Nested line</li>
+                </ul>
+            </li>
+            <li>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+                <ul>
+                    <li>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+                    </li>
+                </ul>
+            </li>
+            <li><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p></li>
+            <li>Code:
+                <ul>
+                    <li><code>
+#include &lt;stdio.h&gt;
+
+int main(int argc, char* argv[]) {
+    printf("Hello World!");
+    return 0;
+}
+                        </code></li>
+                </ul>
+            </li>
+            <li><strong>WikiTitle</strong><ul>
+                    <li>Line</li>
+                    <li>Link a <a href="#" class="wikilink">WikiWord</a></li>
+                    <li>Link <a href="#">http://url/</a></li>
+            </ul></li>
+        </ul>
+        <!-- End test content -->
     </body>
 </html>
