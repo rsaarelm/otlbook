@@ -236,13 +236,13 @@
 (def ^:private find-map
   "Construct map of all normalized non-empty items in otl."
   (memoize
-   (fn find-map- [normalize otl]
+   (fn [normalize otl]
      (let
       [top-map
        (->> (map (fn [[k v]] [(normalize k) [k v]]) otl)
             (filter (fn [[k [_ v]]] (and (seq k) (count v))))
             (into {}))
-       child-maps (map (fn [[_ v]] (find-map- normalize v)) otl)]
+       child-maps (map (fn [[_ v]] (find-map normalize v)) otl)]
        (apply merge (conj child-maps top-map))))))
 
 (defn find
