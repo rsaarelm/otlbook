@@ -1,29 +1,101 @@
 ; Otlbook-specific formatting of outlines
 (ns otlbook.otlbook
   (:require [clojure.core.match :refer [match]]
+            [clojure.string :as str]
             [instaparse.core :as insta]
             [otlbook.outline :as outline]
-            [otlbook.util :as util]
-            [clojure.string :as str]))
+            [otlbook.util :as util]))
+
+; Fold pages with wiki title that have more lines than this into links in the
+; HTML view of an outline.
+(def max-inlined-wiki-page-length 10)
 
 (def wiki-word-re #"[A-Z][a-z]+([A-Z][a-z]+|[0-9]+)+")
 
-; TODO: Get rid of this, use line-parser for everything
-(def wikiword-parser
+(def line-parser
   (insta/parser
-   "root = <path> wikiword <'.otl'> | wikiword | wikiword <' *'>
-    wikiword = #'[A-Z][a-z]+([A-Z][a-z]+|[0-9]+)+'
-    path = <'/'> path-segment*
-    path-segment = #'[^/]+' <'/'>"))
+   "<line> = regular | wiki-path | block-line | table-line
+
+    (* Wiki paths are not naturally occurring, mark with scarab *)
+    wiki-path = <'¤'> path wiki-word <'.'> 'otl'
+    <path> = <'/'> path-segment*
+    <path-segment> = #'[^/\\s]+' <'/'>
+
+    (* Various leading characters for a quoted block line.
+       > Flowing paragraph
+       ; Preformatted text
+        Alternative preformatted text (one space after tab indents) *)
+    block-line = (#'\\s' | (';' | '>') <' '>) #'.*'
+
+    table-line = table-row | table-separator
+    <table-row> = [space] <'|'> table-cell+ [space]
+    table-cell = <space> #'[^|]*' <space> <'|'>
+    <table-separator> = [space] <'|'> separator-span+ [space]
+    separator-span = <'-'>+(<'+'> | <'|'>)
+    <space> = <#'\\s+' | ε>
+
+    <regular> = [start-token space] (mid-token space)* [end-token space]
+
+    <start-token> = checkbox | special-token | !checkbox word
+    <end-token> = important | mid-token
+
+    <special-token> = verbatim | image | internal-link | wiki-word | url
+    <mid-token> = special-token | word
+
+    checkbox = <'['> ('_' | 'X') <'] '> [#'\\d{0,3}' <'% '>]
+
+    verbatim = <'`'> #'[^`]+' <'`'>
+    image = <'!['> #'[^\\]]+' <']'>
+    internal-link = <'|'> #'[^|\\s]([^|]*[^|\\s])?' <'|'>
+    wiki-word = #'[A-Z][a-z]+([A-Z][a-z]+|[0-9]+)+'
+
+    (* I'm not totally sure where the URL regex came from originally...
+       Should it be simpler? *)
+    url = #'(https?|ftp):\\/\\/[\\w-+&@#\\/%?=~_|()!:,.;\\[\\]]*[\\w-+&@#\\/%=~_|()]'
+
+    <word> = !special-token #'\\S+'
+
+    important = <'*'>
+   "))
+
+(defn- tag
+  "Return syntax tag (if any) of line item"
+  [item]
+  (if (string? item) nil (first item)))
+
+(defn- tagged [& args]
+  (let [matcher (set args)]
+    (fn [a] (matcher (tag a)))))
+
+(defn- not-tagged [& args]
+  (let [matcher (set args)]
+    (fn [a] (not (matcher (tag a))))))
+
+(defn- strip-decoration
+  "Remove heading elements like progress mark
+   and trailing elements like importance marker
+   from parsed line."
+  [parsed]
+  (filter (not-tagged :checkbox :important) parsed))
 
 (defn wiki-word
   "Convert WikiWord title headlines into just the base WikiWord."
   [head]
   (when (string? head)
-    (let
-     [parse (wikiword-parser head)]
-      (when-not (insta/failure? parse)
-        (insta/transform {:root second} parse)))))
+    (match [(-> head line-parser strip-decoration vec)]
+      [[[:wiki-word word]]] word
+      [[[:wiki-path & elts]]] (->> (filter (tagged :wiki-word) elts)
+                                   (first)
+                                   (second))
+      :else nil)))
+
+(defn spacify-wiki-word [word]
+  (when (and word (wiki-word word))
+    (->> (wiki-word word)
+         (#(str/split % #"(?=[A-Z])"))          ; Foo123Bar to Foo123 Bar
+         (map #(str/split % #"(?<!\d)(?=\d)"))  ; All Foo123 to Foo 123
+         (flatten)
+         (str/join " "))))
 
 (defn wiki-word-ord
   "Sort WikiWords so that bibilographical words get sorted by year first.
@@ -42,14 +114,6 @@
       [year word]
       :else
       [0 word])))
-
-(defn spacify-wiki-word [word]
-  (when (and word (wiki-word word))
-    (->> (wiki-word word)
-         (#(str/split % #"(?=[A-Z])"))          ; Foo123Bar to Foo123 Bar
-         (map #(str/split % #"(?<!\d)(?=\d)"))  ; All Foo123 to Foo 123
-         (flatten)
-         (str/join " "))))
 
 (defn slug
   "Convert headline into slug string.
@@ -72,44 +136,115 @@
       (str "/" wiki-word)
       (str "/e/" (util/slugify title)))))
 
-(def line-parser
-  (insta/parser
-   "<line> = regular | checkbox regular | title-word | block | table
+(defn- clumping-key
+  "Extract a value from a parsed line to see if it clumps with other lines.
 
-    title-word = <path> wiki-word <'.otl'> | [checkbox] wiki-word [important]
-    <path> = <'/'> path-segment*
-    path-segment = #'[^/]+' <'/'>
+  Headline-only outlines with equal clumping keys with clump to one item.
+  Nothing else clumps.
+  Clumping is used to merge table lines and quoted block lines."
+  [parsed]
+  (match [(vec parsed)]
+    [[[:table-line & _] & _]] :table
+    [[[:block-line prefix & _] & _]] [:block prefix]
+    :else nil))
 
-    important = <#' \\*$'>
+(defn- block-clumper
+  "Reduce function that clumps consecutive items together if possible."
+  [acc [head body]]
+  (let
+   [[last-head last-body] (last acc)
+    last-key (clumping-key last-head)
+    clumps? (and
+             last-key
+             (not (seq last-body))
+             (= last-key (clumping-key head)))]
+    (if clumps?
+      ; Merge clumping heads.
+      (conj (pop acc) [(concat last-head head) body])
+      ; Fold normally if they don't clump.
+      (conj acc [head body]))))
 
-    checkbox = <'['> ('_' | 'X') <'] '> [#'\\d{0,3}' <'% '>]
+(defn- parse-headlines
+  "Parse headlines of an outline and merge consecutive block lines."
+  [otl]
+  (->> otl
+       (map (fn [[head body]] [(when head (line-parser head)) body]))
+       (reduce block-clumper [])))
 
-    <block> = preformatted | quote
-    preformatted = <'; '> #'.*'
-    quote = <'> '> #'.*'
+(defn- is-wiki-page-head
+  "Return whether parsed headline is the header of a wiki page."
+  [parsed-headline]
+  (match [(-> parsed-headline strip-decoration vec)]
+    [[[:wiki-path & _]]] true
+    [[[:wiki-word _]]] true
+    :else false))
 
-    <table> = table-row | table-separator
-    <table-row> = [<space>] <'|'> table-cell+ [<space>]
-    table-cell = <space> #'[^|]*[^|\\s]' <' |'>
-    <table-separator> = [<space>] <'|'> separator-span+ [<space>]
-    separator-span = <'-'>+(<'+'> | <'|'>)
+(defn- line-item->html
+  "Convert individual items in a parsed line to enlive HTML."
+  [item & {:keys [inline-wiki-title]}]
+  (match [item]
+    [(s :guard string?)] s
+    [[:checkbox "_" & percent]] "☐"   ; Should we show percent too?
+    [[:checkbox "X" & percent]] "☑"
+    [([:wiki-word word] :guard (fn [_] inline-wiki-title))]
+    {:tag :strong :content (spacify-wiki-word word)}
+    [[(:or :wiki-word :internal-link) link]]
+    {:tag :a
+     :attrs {:href (slug-path link) :class "wikilink"}
+     :content (if (wiki-word link) (spacify-wiki-word link) link)}
+    [[:url link]] {:tag :a :attrs {:href link} :content link}
+    [[:image path]] {:tag :img :attrs {:src (str "img/" path)}}
+    [[:verbatim text]] {:tag :code :content text}
+    :else {:tag :pre "TODO: Unhandled element" (str item)}))
 
-    verbatim = <'`'> #'[^`]+' <'`'>
+(defn- parsed-headline->html
+  "Convert parsed and clumped headline into enlive HTML."
+  [parsed & {:keys [inline-wiki-title]}]
+  (let [inline-wiki-title
+        ; Only tell line item function to format things differently
+        ; if it's an actual wiki title like.
+        (and inline-wiki-title (is-wiki-page-head parsed))]
+    (match [(vec parsed)]
+      ; TODO Generate code for these guys
+      ; TODO Generate header row in table
+      [[[:table-line & _] & _]] ["TODO TABLE"]
+      [[[:block-line & _] & _]] ["TODO block"]
 
-    (* I'm not totally sure where the URL regex came from originally... *)
-    url = #'(https?|ftp):\\/\\/[\\w-+&@#\\/%?=~_|()!:,.;]*[\\w-+&@#\\/%=~_|()]'
+      [[[:wiki-path & parts]]]
+      [(line-item->html
+        (-> parts reverse second)
+        :inline-wiki-title inline-wiki-title)]
+      :else (->> (interpose " " parsed)
+                 (map #(line-item->html
+                        %
+                        :inline-wiki-title inline-wiki-title))
+                 (vec)))))
 
-    image = <'!['> #'[^\\]]+' <']'>
-    internal-link = <'|'> #'[^|\\s]([^|]*[^|\\s])?' <'|'>
+(declare otl->html)
 
-    <non-word> = verbatim | url | image | wiki-word | internal-link
-    <line-token> = word | non-word
-    (* Special negative lookahead bit to prevent grabbing checkbox as word *)
-    <first-token> = !checkbox word | non-word
+(defn fragment->html
+  "Convert [parsed-headline body-otl] fragments to HTML.
 
-    <word> = #'\\S+'
-    wiki-word = #'[A-Z][a-z]+([A-Z][a-z]+|[0-9]+)+'
-    <space> = #'\\s+'
+  Recursively convert body to HTML unless it should be collapsed."
+  [[parsed-head body]]
+  (let
+   [heading? (is-wiki-page-head parsed-head)
+    long-body? (> (outline/length body) max-inlined-wiki-page-length)
+    display-body? (or (not heading?) (not long-body?))]
+    {:tag :li
+     :content
+     (conj
+      (vec (parsed-headline->html
+            parsed-head
+            :inline-wiki-title (and heading? display-body?)))
+      (when display-body? (otl->html body)))}))
 
-    <regular> = [space] [first-token (space line-token)*] [space] [important]
-   "))
+(defn otl->html
+  "Convert an outline into enlive HTML."
+  [otl]
+  (if (not (seq otl))
+    nil
+    (let [parsed (parse-headlines otl)]  ; Preprocess headlines
+      {:tag :ul
+       :content
+       (-> (map fragment->html parsed) (vec))})))

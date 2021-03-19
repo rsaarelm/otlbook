@@ -258,10 +258,13 @@
   ([item otl] (find item identity otl)))
 
 (defn load
-  "Load single file or directory of .otl files into a single root outline."
+  "Load single file or directory of .otl files into a single root outline.
+
+  The toplevel headlines will be absolute paths of the files read
+  prefixed by '¤' to mark them as generated strings."
   [path]
   (->> (util/crawl-files path)
        (filter #(str/ends-with? % ".otl"))
        (sort)
-       (map #(vector % (parse (slurp %))))
+       (map #(vector (str "¤" %) (parse (slurp %))))
        (into (outline))))

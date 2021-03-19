@@ -57,35 +57,13 @@
            "\turi: " uri "\n"
            "\tadded: " ts "</pre>\n"))))
 
-; TODO: Line parsing
-(defn otl->html [otl]
-  (when (seq otl)
-    {:tag :ul
-     :content
-     (map (fn [[head body]]
-            (let
-             [heading? (otlbook/wiki-word head)
-              print-head (if heading?
-                           (otlbook/spacify-wiki-word head)
-                           head)]
-              {:tag :li
-               :content
-               (if (and heading?
-                        (> (outline/length body) max-inlined-wiki-page-length))
-                 [{:tag :a
-                   :attrs {:href (otlbook/slug-path head)
-                           :class "wikilink"}
-                   :content print-head}]
-                 [print-head, (otl->html body)])}))
-          otl)}))
-
 (html/deftemplate page-template "page.html"
   [head body]
   [:head :title] (html/content head)
   ; TODO: Construct body expression from body outline parameter
   [:body] (html/content
            {:tag :h1, :content (otlbook/spacify-wiki-word head)}
-           (otl->html body)))
+           (otlbook/otl->html body)))
 
 (defroutes app
   (GET "/" [] (page-template
