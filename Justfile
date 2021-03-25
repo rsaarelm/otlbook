@@ -1,3 +1,6 @@
+# Setting debug levels with env variable:
+# TAOENSSO_TIMBRE_MIN_LEVEL_EDN=":debug" just server
+
 run *ARGS:
     clj -m otlbook.main {{ARGS}}
 
