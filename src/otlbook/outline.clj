@@ -239,8 +239,9 @@
    (fn [normalize otl]
      (let
       [top-map
-       (->> (map (fn [[k v]] [(normalize k) [k v]]) otl)
-            (filter (fn [[k [_ v]]] (and (seq k) (count v))))
+       (->> (filter (fn [[_ v]] (> (count v) 0)) otl)
+            (map (fn [[k v]] [(normalize k) [k v]]))
+            (filter (fn [[k _]] (seq k)))
             (into {}))
        child-maps (map (fn [[_ v]] (find-map normalize v)) otl)]
        (apply merge (conj child-maps top-map))))))
