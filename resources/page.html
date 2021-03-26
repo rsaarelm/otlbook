@@ -10,8 +10,9 @@ body {
     font-family: sans-serif !important;
 }
 
-code {
+pre {
     white-space: pre;
+    text-indent: 0em;
 }
 
 h1 {
@@ -45,6 +46,11 @@ ul ul {
     border-left: 1px solid #CCC;
 }
 
+table, th, td {
+    border: 1px solid LightGray;
+    border-collapse: collapse;
+}
+
 .wikilink {
     text-decoration: none;
     color: Green;
@@ -75,14 +81,12 @@ ul ul {
             <li><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p></li>
             <li>Code:
                 <ul>
-                    <li><code>
-#include &lt;stdio.h&gt;
+                    <li><pre>#include &lt;stdio.h&gt;
 
 int main(int argc, char* argv[]) {
     printf("Hello World!");
     return 0;
-}
-                        </code></li>
+}</pre></li>
                 </ul>
             </li>
             <li><strong>WikiTitle</strong><ul>

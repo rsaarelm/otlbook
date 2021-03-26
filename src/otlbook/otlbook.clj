@@ -25,7 +25,9 @@
        > Flowing paragraph
        ; Preformatted text
         Alternative preformatted text (one space after tab indents) *)
-    block-line = (#'\\s' | (';' | '>') <' '>) #'.*'
+    block-line = (
+        #'\\s' #'.*' |
+        (';' | '>') (<' '> #'.*' | ε))
 
     table-line = table-row | table-separator
     <table-row> = [space] <'|'> table-cell+ [space]
@@ -61,7 +63,7 @@
 (defn- tag
   "Return syntax tag (if any) of line item"
   [item]
-  (if (string? item) nil (first item)))
+  (when (seqable? item) (first item)))
 
 (defn- tagged [& args]
   (let [matcher (set args)]
@@ -146,6 +148,8 @@
   (match [(vec parsed)]
     [[[:table-line & _] & _]] :table
     [[[:block-line prefix & _] & _]] [:block prefix]
+    ; Specical case, fully empty lines clump with space prefix.
+    [[]] [:block " "]
     :else nil))
 
 (defn- block-clumper
@@ -157,10 +161,18 @@
     clumps? (and
              last-key
              (not (seq last-body))
-             (= last-key (clumping-key head)))]
+             (= last-key (clumping-key head)))
+    ; Hack to make empty lines in space-indented blocks show up.
+    head (if (and
+              clumps?
+              (seqable? head)
+              (not (seq head))
+              (= last-key [:block " "]))
+           [[:block-line " " ""]]
+           head)]
     (if clumps?
       ; Merge clumping heads.
-      (conj (pop acc) [(concat last-head head) body])
+      (conj (if (seq acc) (pop acc) []) [(concat last-head head) body])
       ; Fold normally if they don't clump.
       (conj acc [head body]))))
 
@@ -197,6 +209,56 @@
     [[:verbatim text]] {:tag :code :content text}
     :else {:tag :pre "TODO: Unhandled element" (str item)}))
 
+(defn- table->html
+  [parsed-table]
+  (let [rows (map (fn [row]
+                    (->> (rest row)
+                         (map second)
+                         (filter identity)
+                         (map str/trim)))
+                  parsed-table)
+
+        after-header-separator?
+        (->> rows (drop-while #(not (seq %))) second seq not)
+
+        data (filter seq rows)
+
+        ; If there are more than one data lines
+        ; and the first data line is separated from the rest,
+        ; emit table header tags for the first line.
+        first-row-tag
+        (if (and (> (count data) 1) after-header-separator?) :th :td)]
+    {:tag :table :content
+     (map-indexed
+      (fn [idx row]
+        (let [tag (if (= idx 0) first-row-tag :td)]
+          {:tag :tr :content (map (fn [a] {:tag tag :content a}) row)}))
+      data)}))
+
+(defn- preformatted->html
+  [parsed-preformatted]
+  (let
+   [lines (map #(if (seqable? %) (nth % 2 "") "") parsed-preformatted)]
+    {:tag :pre :content (str/join "\n" lines)}))
+
+(defn- paragraph->html
+  [parsed-paragraphs]
+  (let
+   [lines (map
+           #(if (seqable? %) (str/trim (nth % 2 "")) "")
+           parsed-paragraphs)
+    ; Group paragraphs
+    paras (reduce
+           (fn [acc elt]
+             (if (seq elt)
+               (conj (pop acc) (conj (last acc) elt))
+               (conj acc [])))
+           [[]]
+           lines)
+    ; Chunk into big lines
+    paras (map #(str/join " " %) paras)]
+    {:tag :div :content (map (fn [a] {:tag :p :content a}) paras)}))
+
 (defn- parsed-headline->html
   "Convert parsed and clumped headline into enlive HTML."
   [parsed & {:keys [inline-wiki-title]}]
@@ -207,8 +269,9 @@
     (match [(vec parsed)]
       ; TODO Generate code for these guys
       ; TODO Generate header row in table
-      [[[:table-line & _] & _]] ["TODO TABLE"]
-      [[[:block-line & _] & _]] ["TODO block"]
+      [[[:table-line & _] & _]] [(table->html parsed)]
+      [[[:block-line (:or ";" " ") & _] & _]] [(preformatted->html parsed)]
+      [[[:block-line & _] & _]] [(paragraph->html parsed)]
 
       [[[:wiki-path & parts]]]
       [(line-item->html
