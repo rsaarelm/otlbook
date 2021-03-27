@@ -198,6 +198,7 @@
     [(s :guard string?)] s
     [[:checkbox "_" & percent]] "☐"   ; Should we show percent too?
     [[:checkbox "X" & percent]] "☑"
+    [[:important]] "*"
     [([:wiki-word word] :guard (fn [_] inline-wiki-title))]
     {:tag :strong :content (spacify-wiki-word word)}
     [[(:or :wiki-word :internal-link) link]]
@@ -265,7 +266,10 @@
   (let [inline-wiki-title
         ; Only tell line item function to format things differently
         ; if it's an actual wiki title like.
-        (and inline-wiki-title (is-wiki-page-head parsed))]
+        (and inline-wiki-title (is-wiki-page-head parsed))
+
+        important?
+        (= (last parsed) [:important])]
     (match [(vec parsed)]
       ; TODO Generate code for these guys
       ; TODO Generate header row in table
@@ -277,11 +281,16 @@
       [(line-item->html
         (-> parts reverse second)
         :inline-wiki-title inline-wiki-title)]
-      :else (->> (interpose " " parsed)
+      :else
+      (let [content
+            (->> (interpose " " parsed)
                  (map #(line-item->html
                         %
                         :inline-wiki-title inline-wiki-title))
-                 (vec)))))
+                 (vec))]
+        (if important?
+          [{:tag :span :attrs {:class "important"} :content content}]
+          content)))))
 
 (declare otl->html)
 
