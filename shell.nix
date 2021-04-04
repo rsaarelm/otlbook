@@ -18,17 +18,8 @@ pkgs.mkShell {
   ];
 
   shellHook = ''
-    # Dynamic linking for Vulkan stuff for wgpu graphics
-    export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${
-      with pkgs; pkgs.stdenv.lib.makeLibraryPath [ vulkan-loader ]
-    }"
-
     # Run clippy without showing stuff I don't care about.
     alias clippy="cargo clippy -- -A clippy::cast_lossless"
-
-    # FIXME: Current (2020-04-18) NixOS cargo-outdated is broken, you have to
-    # do this stupid thing. Remove alias when it's fixed.
-    alias cargo-outdated="cargo-outdated outdated"
 
     # Ensure AnkiConnect is installed
 
