@@ -11,17 +11,17 @@ members = ["parser", "scraper", "anki-connect"]
 [dependencies]
 anki-connect = { path = "anki-connect" }
 chrono = "0.4"
-dialoguer = "0.5"
-env_logger = "0.7"
+dialoguer = "0.8"
+env_logger = "0.8"
 log = "0.4"
 md5 = "0.7"
-nom = "5"
+nom = "6"
 parser = { path = "parser" }
-ron = "0.5"
+ron = "0.6"
 scraper = { path = "scraper" }
 serde = "1"
 structopt = "0.3"
 termion = "1"
 
 [dev-dependencies]
-pretty_assertions = "0.6"
+pretty_assertions = "0.7"

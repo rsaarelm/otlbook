@@ -177,9 +177,9 @@ impl OutlineUtils for Outline {
     }
 }
 
-fn complete<'a, F>(f: F) -> impl Fn(&'a str) -> IResult<&'a str, &'a str>
+fn complete<'a, F>(f: F) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str>
 where
-    F: Fn(&'a str) -> IResult<&'a str, &'a str>,
+    F: FnMut(&'a str) -> IResult<&'a str, &'a str>,
 {
     fn eol(i: &str) -> IResult<&str, &str> {
         if i.is_empty() {
