@@ -7,7 +7,7 @@ pkgs.mkShell {
   buildInputs = with pkgs; [
     rustup  # TODO: Remove rustup once NixOS rustc version updates
             # Currently included since rustc 1.45 won't build all dependencies
-    rustc cargo rustfmt rls cargo-outdated clippy
+    rustc cargo rustfmt rust-analyzer cargo-outdated clippy
 
     # Needed by cargo dependencies.
     cmake gcc zlib pkgconfig openssl
