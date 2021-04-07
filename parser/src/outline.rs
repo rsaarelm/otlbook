@@ -6,6 +6,8 @@ use std::iter::IntoIterator;
 use std::path::Path;
 use std::str::FromStr;
 
+// TODO: Delete once Outline2 is finished, then rename Outline2 to Outline
+
 #[derive(Eq, PartialEq, Clone, Default)]
 /// Base datatype for an indented outline file
 pub struct Outline {

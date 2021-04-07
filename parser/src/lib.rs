@@ -16,6 +16,8 @@ pub mod old_outline;
 mod outline;
 pub use outline::Outline;
 
+mod outline2;
+
 mod symbol;
 pub use symbol::Sym;
 
