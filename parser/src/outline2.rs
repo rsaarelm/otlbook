@@ -20,16 +20,79 @@ impl Outline2 {
     }
 }
 
-fn is_comma_string(s: &str) -> bool {
-    s.chars().all(|c| c == ',')
+// {{{1  Construct
+
+impl FromIterator<(Option<String>, Outline2)> for Outline2 {
+    fn from_iter<T: IntoIterator<Item = (Option<String>, Outline2)>>(
+        iter: T,
+    ) -> Self {
+        Outline2(iter.into_iter().collect())
+    }
 }
 
-fn unescape_comma_string(s: &str) -> &str {
-    if is_comma_string(s) {
-        &s[1..]
-    } else {
-        s
+serde_plain::derive_deserialize_from_str!(Outline2, "outline");
+serde_plain::derive_serialize_from_display!(Outline2);
+
+#[macro_export(local_inner_macros)]
+macro_rules! outline_elt {
+    ([$arg:expr, $($child:tt),+]) => {
+        (Some($arg.to_string()), outline![$($child),+])
+    };
+    ([, $($child:tt),+]) => {
+        (None, outline![$($child),+])
+    };
+    ($arg:expr) => {
+        (Some($arg.to_string()), $crate::Outline2::default())
+    };
+}
+
+#[macro_export]
+/// Construct outline literals.
+///
+/// ```
+/// use std::iter::FromIterator;
+/// use parser::{Outline2, outline};
+///
+/// outline!["foo", ["bar", "baz"]];
+/// assert_eq!(
+///     outline![],
+///     Outline2::default());
+///
+/// assert_eq!(
+///     outline!["foo"],
+///     Outline2::from("foo"));
+///
+/// assert_eq!(
+///     outline!["foo", "bar"],
+///     Outline2::from("\
+/// foo
+/// bar"));
+///
+/// assert_eq!(
+///     outline![[, "foo"], "bar"],
+///     Outline2::from("\
+/// \tfoo
+/// bar"));
+///
+/// assert_eq!(
+///     outline![["foo", "bar"], "baz"],
+///     Outline2::from("\
+/// foo
+/// \tbar
+/// baz"));
+/// ```
+macro_rules! outline {
+    [$($arg:tt),*] => {
+        $crate::Outline2(vec![
+            $($crate::outline_elt!($arg)),*
+        ])
     }
+}
+
+// {{{1  Print
+
+fn is_comma_string(s: &str) -> bool {
+    s.chars().all(|c| c == ',')
 }
 
 impl fmt::Display for Outline2 {
@@ -39,10 +102,16 @@ impl fmt::Display for Outline2 {
             depth: usize,
             s: &str,
         ) -> fmt::Result {
-            for _ in 0..depth {
-                write!(f, "\t")?;
+            if s.is_empty() {
+                // Don't indent and generate trailing whitespace if the line
+                // is empty.
+                writeln!(f)
+            } else {
+                for _ in 0..depth {
+                    write!(f, "\t")?;
+                }
+                writeln!(f, "{}", s)
             }
-            writeln!(f, "{}", s)
         }
 
         fn print(
@@ -95,224 +164,89 @@ impl fmt::Debug for Outline2 {
         }
 
         if self.is_empty() {
-            write!(f, "ε")
+            writeln!(f, "ε")
         } else {
             print(f, 0, self)
         }
     }
 }
 
-impl FromIterator<(Option<String>, Outline2)> for Outline2 {
-    fn from_iter<T: IntoIterator<Item = (Option<String>, Outline2)>>(
-        iter: T,
-    ) -> Self {
-        Outline2(iter.into_iter().collect())
+// {{{1  Parse
+
+fn unescape_comma_string(s: &str) -> &str {
+    if is_comma_string(s) {
+        &s[1..]
+    } else {
+        s
     }
 }
 
-serde_plain::derive_deserialize_from_str!(Outline2, "outline");
-serde_plain::derive_serialize_from_display!(Outline2);
-
-#[macro_export(local_inner_macros)]
-macro_rules! _outline_elt {
-    ([$arg:expr, $($child:tt),+]) => {
-        (Some($arg.to_string()), outline![$($child),+])
-    };
-    ([, $($child:tt),+]) => {
-        (None, outline![$($child),+])
-    };
-    ($arg:expr) => {
-        (Some($arg.to_string()), $crate::Outline2::default())
-    };
-}
-
-#[macro_export]
-/// Construct outline literals.
-///
-/// ```
-/// use std::iter::FromIterator;
-/// use parser::{Outline2, outline};
-///
-/// outline!["foo", ["bar", "baz"]];
-/// assert_eq!(
-///     outline![],
-///     Outline2::default());
-///
-/// assert_eq!(
-///     outline!["foo"],
-///     Outline2::from_iter(vec![
-///             (Some("foo".to_string()), Outline2::default())
-///         ].into_iter()));
-///
-/// assert_eq!(
-///     outline!["foo", "bar"],
-///     Outline2::from_iter(vec![
-///             (Some("foo".to_string()), Outline2::default()),
-///             (Some("bar".to_string()), Outline2::default())
-///         ].into_iter()));
-///
-/// assert_eq!(
-///     outline![[, "foo"], "bar"],
-///     Outline2::from_iter(vec![
-///             (None, Outline2::from_iter(vec![
-///                 (Some("foo".to_string()), Outline2::default())
-///             ].into_iter())),
-///             (Some("bar".to_string()), Outline2::default())
-///         ].into_iter()));
-///
-/// assert_eq!(
-///     outline![["foo", "bar"], "baz"],
-///     Outline2::from_iter(vec![
-///             (Some("foo".to_string()), Outline2::from_iter(vec![
-///                 (Some("bar".to_string()), Outline2::default())
-///             ].into_iter())),
-///             (Some("baz".to_string()), Outline2::default())
-///         ].into_iter()));
-/// ```
-macro_rules! outline {
-    [$($arg:tt),*] => {
-        $crate::Outline2(vec![
-            $($crate::_outline_elt!($arg)),*
-        ])
-    }
-}
-/*
-macro_rules! _outline {
-    [] => { $crate::Outline2::default() };
-
-    [[$a:tt], $b:tt] => {
-        $crate::Outline2(vec![outline!
-}
-*/
-
-impl FromStr for Outline2 {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        enum Line<'a> {
-            /// Regular text
-            Text { indent: i32, line: &'a str },
-            /// Element separator comma
-            Split { depth: i32 },
-            /// Empty line
-            Empty,
-        }
-
+impl From<&str> for Outline2 {
+    fn from(s: &str) -> Self {
         // Preprocess the indent depths of lines.
         //
         // Special case lines that are all whitespace into None values. (This
         // parser does not preserve trailing whitespace on all-whitespace
         // lines.)
-        fn process_line(line: &'_ str) -> Line<'_> {
+        fn process_line(line: &'_ str) -> Option<(usize, &'_ str)> {
             if line.chars().all(|c| c.is_whitespace()) {
-                Line::Empty
+                None
             } else {
                 let indent = line.chars().take_while(|c| *c == '\t').count();
-                let line = &line[indent..];
-                Line::Text {
-                    indent: indent as i32,
-                    line: &line[indent..],
-                }
+                Some((indent, &line[indent..]))
             }
         }
 
-        // Parse routine...
-        // Know the depth, parse until you pop out (Peekable)
-        //
-
-        /*
         fn parse<'a, I>(
-            depth: i32,
+            depth: usize,
             lines: &mut std::iter::Peekable<I>,
         ) -> Outline2
         where
-            I: Iterator<Item = Option<(i32, &'a str)>>,
-        {
-            let mut ret = Outline2::default();
-            loop {
-                match lines.peek() {
-                    None => return ret,
-                    Some(Some((d, _))) if *d < depth => return ret,
-                    Some(None) => {
-                        // Empty line.
-                        lines.next();
-                        ret.0.push(("".to_string(), Default::default()));
-                    }
-                    Some(Some((d, line))) if *d == depth => {
-                        // At expected depth.
-                        lines.next();
-                        let body = parse(depth + 1, lines);
-                        ret.0.push((line.to_string(), body));
-                    }
-                    Some(Some((d, line))) if *d > depth => {
-                    }
-                }
-            }
-        }
-        */
-
-        /*
-        fn parse_children<'a, I>(
-            depth: i32,
-            lines: &mut std::iter::Peekable<I>,
-        ) -> Vec<Outline2>
-        where
-            I: Iterator<Item = Option<(i32, &'a str)>>,
+            I: Iterator<Item = Option<(usize, &'a str)>>,
         {
             let mut ret = Vec::new();
-            // Keep parsing child outlines until EOF or indentation dropping below current depth.
             loop {
-                match lines.peek() {
-                    None => return ret,
-                    Some(Some((d, _))) if *d < depth => return ret,
-                    _ => ret.push(parse(depth, lines)),
-                }
-            }
-        }
-
-        fn parse<'a, I>(
-            depth: i32,
-            lines: &mut std::iter::Peekable<I>,
-        ) -> Outline2
-        where
-            I: Iterator<Item = Option<(i32, &'a str)>>,
-        {
-            match lines.peek().cloned() {
-                // End of input
-                None => Outline2::default(),
-                // Empty line
-                Some(None) => {
-                    lines.next();
-                    Outline {
-                        headline: Some(String::new()),
-                        children: parse_children(depth + 1, lines),
-                    }
-                }
-                Some(Some((d, text))) => {
-                    let headline = if d == depth {
+                // Clone peek value so we can do lines.next() later.
+                match lines.peek().cloned() {
+                    None => break,
+                    Some(Some((indent, _))) if indent < depth => break,
+                    Some(None) => {
+                        // Interpret it as empty line at current depth.
                         lines.next();
-                        // Group separator comma, is equivalent to empty headline in a place where
-                        // an empty line isn't syntactically possible
-                        if text == "," {
-                            None
-                        } else {
-                            Some(String::from(unescape_comma_string(text)))
-                        }
-                    } else if d > depth {
-                        None
-                    } else {
-                        panic!("Outline parser dropped out of depth")
-                    };
-                    Outline {
-                        headline,
-                        children: parse_children(depth + 1, lines),
+                        let body = parse(depth + 1, lines);
+                        ret.push((Some("".to_string()), body));
+                    }
+                    Some(Some((indent, _))) if indent > depth => {
+                        // Going directly to deeper indent depth, emit an
+                        // empty headline.
+                        let body = parse(depth + 1, lines);
+                        ret.push((None, body));
+                    }
+                    Some(Some((_, ","))) => {
+                        lines.next();
+                        let body = parse(depth + 1, lines);
+                        ret.push((None, body));
+                    }
+                    Some(Some((_, line))) => {
+                        lines.next();
+                        let line = unescape_comma_string(line);
+                        let body = parse(depth + 1, lines);
+                        ret.push((Some(line.to_string()), body));
                     }
                 }
             }
+            Outline2(ret)
         }
-        */
 
-        //parse(-1, &mut s.lines().map(process_line).peekable())
-        todo!();
+        parse(0, &mut s.lines().map(process_line).peekable())
     }
 }
+impl FromStr for Outline2 {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(s.into())
+    }
+}
+
+/* vim:set foldmethod=marker: */
