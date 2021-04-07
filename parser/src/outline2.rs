@@ -1,5 +1,5 @@
 use std::fmt;
-use std::str::FromStr;
+use std::{iter::FromIterator, str::FromStr};
 
 // TODO: Rename into Outline, remove previous Outline type when done
 
@@ -14,14 +14,176 @@ use std::str::FromStr;
 #[derive(Eq, PartialEq, Clone, Hash, Default)]
 pub struct Outline2(pub Vec<(Option<String>, Outline2)>);
 
+impl Outline2 {
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+fn is_comma_string(s: &str) -> bool {
+    s.chars().all(|c| c == ',')
+}
+
+fn unescape_comma_string(s: &str) -> &str {
+    if is_comma_string(s) {
+        &s[1..]
+    } else {
+        s
+    }
+}
+
 impl fmt::Display for Outline2 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        fn print_line(
+            f: &mut fmt::Formatter,
+            depth: usize,
+            s: &str,
+        ) -> fmt::Result {
+            for _ in 0..depth {
+                write!(f, "\t")?;
+            }
+            writeln!(f, "{}", s)
+        }
+
+        fn print(
+            f: &mut fmt::Formatter,
+            depth: usize,
+            otl: &Outline2,
+        ) -> fmt::Result {
+            for (idx, (title, body)) in otl.0.iter().enumerate() {
+                match title {
+                    // Escape literal comma titles.
+                    Some(s) if is_comma_string(s) => {
+                        print_line(f, depth, &format!(",{}", s))?
+                    }
+                    // Regular title.
+                    Some(s) => print_line(f, depth, s)?,
+                    // Can skip empty title when printing first item.
+                    None if idx == 0 => {}
+                    // Otherwise we need to print the separator comma.
+                    None => print_line(f, depth, ",")?,
+                }
+                // Print body.
+                print(f, depth + 1, &body)?;
+            }
+            Ok(())
+        }
+
+        print(f, 0, self)
+    }
+}
+
+impl fmt::Debug for Outline2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn print(
+            f: &mut fmt::Formatter,
+            depth: usize,
+            otl: &Outline2,
+        ) -> fmt::Result {
+            for (title, body) in &otl.0 {
+                for _ in 0..depth {
+                    write!(f, "  ")?;
+                }
+                match title {
+                    Some(s) => writeln!(f, "{:?}", s)?,
+                    None => writeln!(f, "ε")?,
+                }
+                print(f, depth + 1, &body)?;
+            }
+
+            Ok(())
+        }
+
+        if self.is_empty() {
+            write!(f, "ε")
+        } else {
+            print(f, 0, self)
+        }
+    }
+}
+
+impl FromIterator<(Option<String>, Outline2)> for Outline2 {
+    fn from_iter<T: IntoIterator<Item = (Option<String>, Outline2)>>(
+        iter: T,
+    ) -> Self {
+        Outline2(iter.into_iter().collect())
     }
 }
 
 serde_plain::derive_deserialize_from_str!(Outline2, "outline");
 serde_plain::derive_serialize_from_display!(Outline2);
+
+#[macro_export(local_inner_macros)]
+macro_rules! _outline_elt {
+    ([$arg:expr, $($child:tt),+]) => {
+        (Some($arg.to_string()), outline![$($child),+])
+    };
+    ([, $($child:tt),+]) => {
+        (None, outline![$($child),+])
+    };
+    ($arg:expr) => {
+        (Some($arg.to_string()), $crate::Outline2::default())
+    };
+}
+
+#[macro_export]
+/// Construct outline literals.
+///
+/// ```
+/// use std::iter::FromIterator;
+/// use parser::{Outline2, outline};
+///
+/// outline!["foo", ["bar", "baz"]];
+/// assert_eq!(
+///     outline![],
+///     Outline2::default());
+///
+/// assert_eq!(
+///     outline!["foo"],
+///     Outline2::from_iter(vec![
+///             (Some("foo".to_string()), Outline2::default())
+///         ].into_iter()));
+///
+/// assert_eq!(
+///     outline!["foo", "bar"],
+///     Outline2::from_iter(vec![
+///             (Some("foo".to_string()), Outline2::default()),
+///             (Some("bar".to_string()), Outline2::default())
+///         ].into_iter()));
+///
+/// assert_eq!(
+///     outline![[, "foo"], "bar"],
+///     Outline2::from_iter(vec![
+///             (None, Outline2::from_iter(vec![
+///                 (Some("foo".to_string()), Outline2::default())
+///             ].into_iter())),
+///             (Some("bar".to_string()), Outline2::default())
+///         ].into_iter()));
+///
+/// assert_eq!(
+///     outline![["foo", "bar"], "baz"],
+///     Outline2::from_iter(vec![
+///             (Some("foo".to_string()), Outline2::from_iter(vec![
+///                 (Some("bar".to_string()), Outline2::default())
+///             ].into_iter())),
+///             (Some("baz".to_string()), Outline2::default())
+///         ].into_iter()));
+/// ```
+macro_rules! outline {
+    [$($arg:tt),*] => {
+        $crate::Outline2(vec![
+            $($crate::_outline_elt!($arg)),*
+        ])
+    }
+}
+/*
+macro_rules! _outline {
+    [] => { $crate::Outline2::default() };
+
+    [[$a:tt], $b:tt] => {
+        $crate::Outline2(vec![outline!
+}
+*/
 
 impl FromStr for Outline2 {
     type Err = ();
@@ -47,7 +209,10 @@ impl FromStr for Outline2 {
             } else {
                 let indent = line.chars().take_while(|c| *c == '\t').count();
                 let line = &line[indent..];
-                Line::Text { indent, text: &line[indent..] }
+                Line::Text {
+                    indent: indent as i32,
+                    line: &line[indent..],
+                }
             }
         }
 
@@ -55,6 +220,7 @@ impl FromStr for Outline2 {
         // Know the depth, parse until you pop out (Peekable)
         //
 
+        /*
         fn parse<'a, I>(
             depth: i32,
             lines: &mut std::iter::Peekable<I>,
@@ -83,6 +249,7 @@ impl FromStr for Outline2 {
                 }
             }
         }
+        */
 
         /*
         fn parse_children<'a, I>(
@@ -145,6 +312,7 @@ impl FromStr for Outline2 {
         }
         */
 
-        parse(-1, &mut s.lines().map(process_line).peekable())
+        //parse(-1, &mut s.lines().map(process_line).peekable())
+        todo!();
     }
 }
