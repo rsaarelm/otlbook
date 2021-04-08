@@ -1,5 +1,7 @@
 PROJECT=otlbook
 
+# TODO: Remove in favor of Justfile
+
 all: ${PROJECT}_bg.wasm target/release/olt
 
 .PHONY: target/release/olt
