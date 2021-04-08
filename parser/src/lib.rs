@@ -5,10 +5,14 @@ mod date;
 pub use date::VagueDate;
 
 mod de;
-pub use de::from_outline;
 
 mod ser;
-pub use ser::into_outline;
+
+mod old_de;
+pub use old_de::from_outline;
+
+mod old_ser;
+pub use old_ser::into_outline;
 
 // TODO: Deprecate
 pub mod old_outline;
