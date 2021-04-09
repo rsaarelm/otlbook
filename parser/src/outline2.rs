@@ -1,5 +1,4 @@
 use std::fmt;
-use std::{iter::FromIterator, str::FromStr};
 
 // TODO: Rename into Outline, remove previous Outline type when done
 
@@ -12,17 +11,19 @@ use std::{iter::FromIterator, str::FromStr};
 /// titles further in the list will be represented with the element separator
 /// comma.
 #[derive(Eq, PartialEq, Clone, Hash, Default)]
-pub struct Outline2(pub Vec<(Option<String>, Outline2)>);
+pub struct Outline2(Vec<(Option<String>, Outline2)>);
 
-impl Outline2 {
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
+impl std::ops::Deref for Outline2 {
+    type Target = Vec<(Option<String>, Outline2)>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
 // {{{1  Construct
 
-impl FromIterator<(Option<String>, Outline2)> for Outline2 {
+impl std::iter::FromIterator<(Option<String>, Outline2)> for Outline2 {
     fn from_iter<T: IntoIterator<Item = (Option<String>, Outline2)>>(
         iter: T,
     ) -> Self {
@@ -46,7 +47,6 @@ macro_rules! outline_elt {
     };
 }
 
-#[macro_export]
 /// Construct outline literals.
 ///
 /// ```
@@ -81,6 +81,7 @@ macro_rules! outline_elt {
 /// \tbar
 /// baz"));
 /// ```
+#[macro_export]
 macro_rules! outline {
     [$($arg:tt),*] => {
         $crate::Outline2(vec![
@@ -241,7 +242,8 @@ impl From<&str> for Outline2 {
         parse(0, &mut s.lines().map(process_line).peekable())
     }
 }
-impl FromStr for Outline2 {
+
+impl std::str::FromStr for Outline2 {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
