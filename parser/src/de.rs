@@ -444,8 +444,8 @@ enum Cursor {
     Inline,
     /// Read headline as first item, then the rest from children
     Headline,
-    /// Cursor for vertical data, parameters are nth child, kth offset in headline
-    Child(usize, usize),
+    /// Cursor for vertical data, parameters is nth child in body.
+    Child(usize),
 }
 
 /// Sequence accessor for items in a single line.
@@ -468,7 +468,7 @@ impl<'a, 'de> Sequence<'a, 'de> {
             de.is_inline_seq = true;
             Cursor::Inline
         } else if de.is_paragraph() {
-            Cursor::Child(0, 0)
+            Cursor::Child(0)
         } else if de.is_section() {
             // Headline is first item, body is the rest.
             Cursor::Headline
@@ -516,19 +516,19 @@ impl<'a, 'de> de::SeqAccess<'de> for Sequence<'a, 'de> {
                 }
             }
             Cursor::Headline => {
-                self.cursor = Cursor::Child(0, 0);
+                self.cursor = Cursor::Child(0);
                 if self.de.headline_is_empty() {
                     Ok(None)
                 } else {
                     seed.deserialize(&mut *self.de).map(Some)
                 }
             }
-            Cursor::Child(n, _offset) => {
+            Cursor::Child(n) => {
                 if n >= self.de.body.len() {
                     Ok(None)
                 } else {
                     let mut child_de = Deserializer::from(&self.de.body[n]);
-                    self.cursor = Cursor::Child(n + 1, 0);
+                    self.cursor = Cursor::Child(n + 1);
                     seed.deserialize(&mut child_de).map(Some)
                 }
             }
@@ -555,7 +555,7 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
                 }
             }
             Cursor::Headline => {
-                self.cursor = Cursor::Child(0, 0);
+                self.cursor = Cursor::Child(0);
                 if self.de.headline_is_empty() {
                     Ok(None)
                 } else {
@@ -565,19 +565,17 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
                     ret
                 }
             }
-            Cursor::Child(n, offset) => {
+            Cursor::Child(n) => {
                 if n >= self.de.body.len() {
                     Ok(None)
                 } else {
                     let mut child_de = Deserializer::from(&self.de.body[n]);
                     child_de.is_inline_seq = true;
-                    child_de.head = &child_de.head[offset..];
                     child_de.next_token_is_attribute_name = self.reformat_keys;
 
                     let ret = seed.deserialize(&mut child_de).map(Some);
                     // Save parse offset from key
                     // XXX: keys must always be inline values
-                    self.cursor = Cursor::Child(n, 0);
                     ret
                 }
             }
@@ -588,20 +586,20 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
     where
         V: de::DeserializeSeed<'de>,
     {
-        //self.cursor = Cursor::Child(n + 1);
         match self.cursor {
             Cursor::Inline => seed.deserialize(&mut *self.de),
             Cursor::Headline => {
-                self.cursor = Cursor::Child(0, 0);
+                self.cursor = Cursor::Child(0);
                 seed.deserialize(&mut *self.de)
             }
-            Cursor::Child(n, offset) => {
-                // TODO: Figure this out!!!
-                // Need to apply parse after key is taken
+            Cursor::Child(n) => {
                 let mut child_de = Deserializer::from(&self.de.body[n]);
-                child_de.head = &child_de.head[offset..];
+                self.cursor = Cursor::Child(n + 1);
 
-                self.cursor = Cursor::Child(n + 1, 0);
+                // Consume key token
+                // TODO: Handle section types where key is whole headline
+                child_de.next_token();
+
                 let ret = seed.deserialize(&mut child_de);
                 child_de.end()?;
                 ret
