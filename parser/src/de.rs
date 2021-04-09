@@ -66,24 +66,26 @@ where
 // TODO: Robust tokenizer, ditch the old stuff
 // We can mutate the headline slice now, can simplify things.
 impl<'de> Deserializer<'de> {
-    fn parse_next_token(&self) -> Option<(&'de str, &'de str)> {
-        // Eat initial whitespace.
-        let token_start = self
+    fn trim_left(&mut self) {
+        let whitespace_width = self
             .head
             .chars()
             .take_while(|c| c.is_whitespace())
             .map(|c| c.len_utf8())
             .sum();
+        self.head = &self.head[whitespace_width..];
+    }
 
-        let token_end = token_start
-            + &self.head[token_start..]
-                .chars()
-                .take_while(|c| !c.is_whitespace())
-                .map(|c| c.len_utf8())
-                .sum();
+    fn parse_next_token(&self) -> Option<(&'de str, &'de str)> {
+        let token_end = self
+            .head
+            .chars()
+            .take_while(|c| !c.is_whitespace())
+            .map(|c| c.len_utf8())
+            .sum();
 
-        if token_end > token_start {
-            Some((&self.head[token_start..token_end], &self.head[token_end..]))
+        if token_end > 0 {
+            Some((&self.head[..token_end], &self.head[token_end..]))
         } else {
             None
         }
@@ -91,8 +93,10 @@ impl<'de> Deserializer<'de> {
 
     /// Get next whitespace-separated token and advance deserializer.
     fn next_token(&'_ mut self) -> Option<&'_ str> {
+        self.trim_left();
         if let Some((token, rest)) = self.parse_next_token() {
             self.head = rest;
+            self.trim_left();
             Some(token)
         } else if self.body.len() == 1 && !self.is_inline_seq {
             // There was no token on headline, but the rest of the outline
