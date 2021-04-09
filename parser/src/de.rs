@@ -443,6 +443,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 }
 
 /// Cursor for progressing through a map or a seq.
+#[derive(Debug)]
 enum Cursor {
     /// Cursor for inline data, use deserializer's position
     Inline,
