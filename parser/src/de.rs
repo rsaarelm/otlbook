@@ -213,21 +213,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     // Primitive types just use the default FromStr behavior
 
     fn deserialize_bool<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
-        if !self.is_inline_seq && self.end().is_ok() {
-            // XXX: Okay so this is way hacky, but
-            // We're treating booleans as flags, mostly in struct context.
-            // Assume that default struct has bools set to false,
-            // so if you write a struct and just have
-            //   Struct
-            //     flag1:
-            // That can be a concise way of saying "flag 1 is set".
-            // So we parse empty input as "true" when expecting a bool.
-            //
-            // This may be a bad idea.
-            visitor.visit_bool(true)
-        } else {
-            visitor.visit_bool(self.parse_next()?)
-        }
+        visitor.visit_bool(self.parse_next()?)
     }
 
     fn deserialize_i8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
