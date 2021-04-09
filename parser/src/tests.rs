@@ -99,6 +99,18 @@ fn test_seq() {
             ("head2".to_string(), "body2".to_string()),
         ],
     );
+
+    test(
+        outline![["head1", "body1"], ["head2", "body2"]],
+        HashMap::<String, String>::from_iter(
+            vec![
+                ("head1".to_string(), "body1".to_string()),
+                ("head2".to_string(), "body2".to_string()),
+            ]
+            .into_iter(),
+        ),
+    );
+
     test(
         outline![["map line", "body1"], ["head2", "body2"]],
         HashMap::<String, String>::from_iter(

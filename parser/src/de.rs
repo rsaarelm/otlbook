@@ -575,12 +575,17 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
                     Ok(None)
                 } else {
                     let mut child_de = Deserializer::from(&self.de.body[n]);
-                    child_de.is_inline_seq = true;
+                    if !child_de.is_section() || self.reformat_keys {
+                        // Section-like map entries have the whole headline
+                        // parsed as key.
+                        //
+                        // Unless we're parsing a struct (reformat_keys is
+                        // set), where key must be a single token.
+                        child_de.is_inline_seq = true;
+                    }
                     child_de.next_token_is_attribute_name = self.reformat_keys;
 
                     let ret = seed.deserialize(&mut child_de).map(Some);
-                    // Save parse offset from key
-                    // XXX: keys must always be inline values
                     ret
                 }
             }
@@ -601,9 +606,13 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
                 let mut child_de = Deserializer::from(&self.de.body[n]);
                 self.cursor = Cursor::Child(n + 1);
 
-                // Consume key token
-                // TODO: Handle section types where key is whole headline
-                child_de.next_token();
+                // Chomp off the key part.
+                if child_de.is_section() && !self.reformat_keys {
+                    // The whole line is key if it's a section.
+                    child_de.head = "";
+                } else {
+                    child_de.next_token();
+                }
 
                 let ret = seed.deserialize(&mut child_de);
                 child_de.end()?;
