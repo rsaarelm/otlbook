@@ -5,6 +5,7 @@ mod date;
 pub use date::VagueDate;
 
 mod de;
+pub use de::from_outline;
 
 mod ser;
 
@@ -31,5 +32,9 @@ pub type Symbol = Sym<String>;
 mod util;
 pub use util::normalize_title;
 
+// TODO: Remove
 #[cfg(test)]
 mod old_tests;
+
+#[cfg(test)]
+mod tests;
