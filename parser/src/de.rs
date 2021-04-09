@@ -24,25 +24,36 @@ struct Deserializer<'de> {
     is_inline_seq: bool,
 }
 
+impl<'de> From<&'de Outline2> for Deserializer<'de> {
+    fn from(outline: &'de Outline2) -> Self {
+        Deserializer {
+            head: "",
+            body: outline,
+            is_inline_seq: false,
+        }
+    }
+}
+
+impl<'de> From<&'de (Option<String>, Outline2)> for Deserializer<'de> {
+    fn from((head, body): &'de (Option<String>, Outline2)) -> Self {
+        let head = head.as_ref().map_or("", |s| s.as_str());
+        Deserializer {
+            head,
+            body,
+            is_inline_seq: false,
+        }
+    }
+}
+
 pub fn from_outline<'de, T>(outline: &'de Outline2) -> Result<T>
 where
     T: de::Deserialize<'de>,
 {
-    // Switch from the standard representation of outline as a list of lines
-    // into a representation of headline and body for deserialization.
-    //
-    // Outlines that are a single line get turned into a headline with an
-    // empty body. Other outlines get an empty dummy headline.
-    let mut deserializer = Deserializer {
-        head: "",
-        body: outline,
-        is_inline_seq: false,
-    };
+    let mut deserializer = Deserializer::from(outline);
 
-    todo!();
-    //let ret = T::deserialize(&mut deserializer)?;
-    //deserializer.end()?;
-    //Ok(ret)
+    let ret = T::deserialize(&mut deserializer)?;
+    deserializer.end()?;
+    Ok(ret)
 }
 
 // TODO: Robust tokenizer, ditch the old stuff
@@ -133,7 +144,12 @@ impl<'de> Deserializer<'de> {
         } else if !self.body.is_empty() {
             // Headline is empty, read body as paragraph
             let body = Outline2::from_iter(self.body.iter().cloned());
-            let ret = format!("{}", body);
+            let mut ret = format!("{}", body);
+            // Remove the trailing newline so inline and outline single-line
+            // string stay equal.
+            if ret.ends_with('\n') {
+                ret.pop();
+            }
             self.set_fully_consumed();
             Ok(ret)
         } else {
@@ -149,9 +165,20 @@ impl<'de> Deserializer<'de> {
         }
         Ok(())
     }
+
+    fn is_line(&self) -> bool {
+        !self.headline_is_empty() && self.body.is_empty()
+    }
+
+    fn is_paragraph(&self) -> bool {
+        self.headline_is_empty() && !self.body.is_empty()
+    }
+
+    fn is_section(&self) -> bool {
+        !self.headline_is_empty() && !self.body.is_empty()
+    }
 }
 
-/*
 impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     type Error = Error;
 
@@ -163,7 +190,21 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     // Primitive types just use the default FromStr behavior
 
     fn deserialize_bool<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
-        visitor.visit_bool(self.parse_next()?)
+        if !self.is_inline_seq && self.end().is_ok() {
+            // XXX: Okay so this is way hacky, but
+            // We're treating booleans as flags, mostly in struct context.
+            // Assume that default struct has bools set to false,
+            // so if you write a struct and just have
+            //   Struct
+            //     flag1:
+            // That can be a concise way of saying "flag 1 is set".
+            // So we parse empty input as "true" when expecting a bool.
+            //
+            // This may be a bad idea.
+            visitor.visit_bool(true)
+        } else {
+            visitor.visit_bool(self.parse_next()?)
+        }
     }
 
     fn deserialize_i8<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
@@ -210,10 +251,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        // XXX: Should this just be unimplemented and you should use string parse insted?
-        if let Some(token) = self.peek_token() {
+        if let Some(token) = self.next_token() {
             if token.chars().count() == 1 {
-                let token = self.next_token().unwrap();
                 return visitor.visit_char(token.chars().next().unwrap());
             }
         }
@@ -305,7 +344,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return Err(Error::default());
         }
 
-        let seq = if self.headline_tail().is_some() {
+        let seq = if !self.headline_is_empty() {
             self.is_inline_seq = true;
             Sequence {
                 de: self,
@@ -360,7 +399,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return Err(Error::default());
         }
 
-        let seq = if self.headline_tail().is_some() {
+        let seq = if !self.headline_is_empty() {
             self.is_inline_seq = true;
             Sequence {
                 de: self,
@@ -450,21 +489,17 @@ impl<'a, 'de> de::SeqAccess<'de> for Sequence<'a, 'de> {
     {
         match self.cursor {
             Cursor::Inline => {
-                if self.de.headline_tail().is_none() {
+                if self.de.headline_is_empty() {
                     Ok(None)
                 } else {
                     seed.deserialize(&mut *self.de).map(Some)
                 }
             }
             Cursor::Child(n, offset) => {
-                if n >= self.de.outline.len() {
+                if n >= self.de.body.len() {
                     Ok(None)
                 } else {
-                    let mut child_de = Deserializer {
-                        outline: &self.de.outline[n],
-                        offset,
-                        is_inline_seq: false,
-                    };
+                    let mut child_de = Deserializer::from(&self.de.body[n]);
                     self.cursor = Cursor::Child(n + 1, 0);
                     seed.deserialize(&mut child_de).map(Some)
                 }
@@ -482,36 +517,26 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
     {
         match self.cursor {
             Cursor::Inline => {
-                if self.de.headline_tail().is_none() {
+                if self.de.headline_is_empty() {
                     Ok(None)
                 } else {
                     seed.deserialize(&mut *self.de).map(Some)
                 }
             }
             Cursor::Child(n, offset) => {
-                if n >= self.de.outline.children.len() {
+                if n >= self.de.body.len() {
                     Ok(None)
                 } else {
-                    let mut child_de = Deserializer {
-                        outline: &self.de.outline.children[n],
-                        offset: offset,
-                        is_inline_seq: true,
-                    };
+                    let mut child_de = Deserializer::from(&self.de.body[n]);
+                    child_de.is_inline_seq = true;
+                    child_de.head = &child_de.head[offset..];
+
                     let ret = seed.deserialize(&mut child_de).map(Some);
                     // Save parse offset from key
                     // XXX: keys must always be inline values
-                    self.cursor = Cursor::Child(n, child_de.offset);
+                    self.cursor = Cursor::Child(n, 0);
                     ret
                 }
-            }
-            Cursor::MagicHeading => {
-                // Create the magic heading key name out of nowhere.
-                let mut temp_de = Deserializer {
-                    outline: &MAGIC_OUTLINE,
-                    offset: 0,
-                    is_inline_seq: true,
-                };
-                seed.deserialize(&mut temp_de).map(Some)
             }
         }
     }
@@ -526,11 +551,9 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
             Cursor::Child(n, offset) => {
                 // TODO: Figure this out!!!
                 // Need to apply parse after key is taken
-                let mut child_de = Deserializer {
-                    outline: &self.de.outline.children[n],
-                    offset,
-                    is_inline_seq: false,
-                };
+                let mut child_de = Deserializer::from(&self.de.body[n]);
+                child_de.head = &child_de.head[offset..];
+
                 self.cursor = Cursor::Child(n + 1, 0);
                 let ret = seed.deserialize(&mut child_de);
                 child_de.end()?;
@@ -539,7 +562,6 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
         }
     }
 }
-*/
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Error(String);
