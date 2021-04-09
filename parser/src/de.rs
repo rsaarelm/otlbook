@@ -4,7 +4,7 @@ use serde::{
     Deserialize, Serialize,
 };
 use std::error;
-use std::fmt::{self, Write};
+use std::fmt;
 use std::iter::FromIterator;
 use std::str::FromStr;
 
@@ -22,6 +22,11 @@ struct Deserializer<'de> {
     head: &'de str,
     body: &'de Outline2,
     is_inline_seq: bool,
+
+    // Very hacky.
+    // Set to true when parsing a struct attribute name, will perform name
+    // mangling and turn "attribute-name:" into "attribute_name".
+    next_token_is_attribute_name: bool,
 }
 
 impl<'de> From<&'de Outline2> for Deserializer<'de> {
@@ -30,6 +35,7 @@ impl<'de> From<&'de Outline2> for Deserializer<'de> {
             head: "",
             body: outline,
             is_inline_seq: false,
+            next_token_is_attribute_name: false,
         }
     }
 }
@@ -41,6 +47,7 @@ impl<'de> From<&'de (Option<String>, Outline2)> for Deserializer<'de> {
             head,
             body,
             is_inline_seq: false,
+            next_token_is_attribute_name: false,
         }
     }
 }
@@ -84,6 +91,8 @@ impl<'de> Deserializer<'de> {
 
     /// Get next whitespace-separated token and advance deserializer.
     fn next_token(&'_ mut self) -> Option<&'_ str> {
+        self.next_token_is_attribute_name = false;
+
         if let Some((token, rest)) = self.parse_next_token() {
             self.head = rest;
             Some(token)
@@ -131,15 +140,17 @@ impl<'de> Deserializer<'de> {
     }
 
     fn parse_string(&mut self) -> Result<String> {
-        if !self.headline_is_empty() {
+        let next_token_is_attribute_name = self.next_token_is_attribute_name;
+
+        let mut ret = if !self.headline_is_empty() {
             if self.is_inline_seq {
                 // If currently in sequence, strings are whitespace-separated
-                self.parse_next()
+                self.parse_next()?
             } else {
                 // Otherwise read to the end of headline
                 let ret = self.head.to_string();
                 self.head = "";
-                Ok(ret)
+                ret
             }
         } else if !self.body.is_empty() {
             // Headline is empty, read body as paragraph
@@ -151,11 +162,26 @@ impl<'de> Deserializer<'de> {
                 ret.pop();
             }
             self.set_fully_consumed();
-            Ok(ret)
+            ret
         } else {
             // XXX: Should we return an empty string here?
-            Err(Error::default())
+            return Err(Error::default());
+        };
+
+        // XXX: Hacky af to have to put this here rather than in the struct
+        // sequence handler.
+        if next_token_is_attribute_name {
+            // Must end in colon.
+            if !ret.ends_with(":") {
+                return Err(Error::default());
+            }
+            // Remove colon.
+            ret.pop();
+            // Convert to camel_case.
+            ret = ret.replace("-", "_");
         }
+
+        Ok(ret)
     }
 
     /// Check that all data has been consumed.
@@ -339,32 +365,47 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if self.is_inline_seq {
-            // Double nesting detected
-            return Err(Error::default());
-        }
-
-        let seq = if !self.headline_is_empty() {
-            self.is_inline_seq = true;
-            Sequence {
-                de: self,
-                cursor: Cursor::Inline,
-            }
-        } else {
-            Sequence {
-                de: self,
-                cursor: Cursor::Child(0, 0),
-            }
-        };
-
-        let ret = visitor.visit_seq(seq);
+        let seq = Sequence::new(self)?;
+        let ret = seq.seq(visitor)?;
         if !self.is_inline_seq {
-            // Ate all the children
             self.set_fully_consumed();
         }
-
         self.is_inline_seq = false;
-        ret
+        Ok(ret)
+    }
+
+    // Much like `deserialize_seq` but calls the visitors `visit_map` method
+    // with a `MapAccess` implementation, rather than the visitor's `visit_seq`
+    // method with a `SeqAccess` implementation.
+    fn deserialize_map<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        let seq = Sequence::new(self)?;
+        let ret = seq.map(visitor)?;
+        if !self.is_inline_seq {
+            self.set_fully_consumed();
+        }
+        self.is_inline_seq = false;
+        Ok(ret)
+    }
+
+    fn deserialize_struct<V>(
+        self,
+        _name: &'static str,
+        _fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        let seq = Sequence::new(self)?;
+        let ret = seq.structure(visitor)?;
+        if !self.is_inline_seq {
+            self.set_fully_consumed();
+        }
+        self.is_inline_seq = false;
+        Ok(ret)
     }
 
     fn deserialize_tuple<V>(self, _len: usize, visitor: V) -> Result<V::Value>
@@ -384,56 +425,6 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         self.deserialize_seq(visitor)
-    }
-
-    // Much like `deserialize_seq` but calls the visitors `visit_map` method
-    // with a `MapAccess` implementation, rather than the visitor's `visit_seq`
-    // method with a `SeqAccess` implementation.
-    fn deserialize_map<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        // XXX: Repetition shared with deserialize_seq, factor out?
-        if self.is_inline_seq {
-            // Double nesting detected
-            return Err(Error::default());
-        }
-
-        let seq = if !self.headline_is_empty() {
-            self.is_inline_seq = true;
-            Sequence {
-                de: self,
-                cursor: Cursor::Inline,
-            }
-        } else {
-            Sequence {
-                de: self,
-                cursor: Cursor::Child(0, 0),
-            }
-        };
-
-        let ret = visitor.visit_map(seq);
-        if !self.is_inline_seq {
-            // Ate all the children
-            self.set_fully_consumed();
-        }
-
-        self.is_inline_seq = false;
-        ret
-    }
-
-    fn deserialize_struct<V>(
-        self,
-        _name: &'static str,
-        fields: &'static [&'static str],
-        visitor: V,
-    ) -> Result<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        // TODO: Expect colons after attribute names.
-        // TODO: Parse hyphens to underscores in attribute names.
-        self.deserialize_map(visitor)
     }
 
     fn deserialize_enum<V>(
@@ -468,6 +459,8 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 enum Cursor {
     /// Cursor for inline data, use deserializer's position
     Inline,
+    /// Read headline as first item, then the rest from children
+    Headline,
     /// Cursor for vertical data, parameters are nth child, kth offset in headline
     Child(usize, usize),
 }
@@ -478,6 +471,50 @@ enum Cursor {
 struct Sequence<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
     cursor: Cursor,
+    reformat_keys: bool,
+}
+
+impl<'a, 'de> Sequence<'a, 'de> {
+    fn new(de: &'a mut Deserializer<'de>) -> Result<Sequence<'a, 'de>> {
+        if de.is_inline_seq {
+            // Double nesting detected, no go.
+            return Err(Error::default());
+        }
+
+        let cursor = if de.is_line() {
+            de.is_inline_seq = true;
+            Cursor::Inline
+        } else if de.is_paragraph() {
+            Cursor::Child(0, 0)
+        } else if de.is_section() {
+            // Headline is first item, body is the rest.
+            Cursor::Headline
+        } else {
+            return Err(Error::default());
+        };
+
+        Ok(Sequence {
+            de,
+            cursor,
+            reformat_keys: false,
+        })
+    }
+
+    fn map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
+        let ret = visitor.visit_map(self)?;
+        Ok(ret)
+    }
+
+    fn structure<V: Visitor<'de>>(mut self, visitor: V) -> Result<V::Value> {
+        self.reformat_keys = true;
+        let ret = visitor.visit_map(self)?;
+        Ok(ret)
+    }
+
+    fn seq<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
+        let ret = visitor.visit_seq(self)?;
+        Ok(ret)
+    }
 }
 
 impl<'a, 'de> de::SeqAccess<'de> for Sequence<'a, 'de> {
@@ -495,7 +532,15 @@ impl<'a, 'de> de::SeqAccess<'de> for Sequence<'a, 'de> {
                     seed.deserialize(&mut *self.de).map(Some)
                 }
             }
-            Cursor::Child(n, offset) => {
+            Cursor::Headline => {
+                self.cursor = Cursor::Child(0, 0);
+                if self.de.headline_is_empty() {
+                    Ok(None)
+                } else {
+                    seed.deserialize(&mut *self.de).map(Some)
+                }
+            }
+            Cursor::Child(n, _offset) => {
                 if n >= self.de.body.len() {
                     Ok(None)
                 } else {
@@ -515,8 +560,20 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
     where
         K: de::DeserializeSeed<'de>,
     {
+        if self.reformat_keys {
+            self.de.next_token_is_attribute_name = true;
+        }
+
         match self.cursor {
             Cursor::Inline => {
+                if self.de.headline_is_empty() {
+                    Ok(None)
+                } else {
+                    seed.deserialize(&mut *self.de).map(Some)
+                }
+            }
+            Cursor::Headline => {
+                self.cursor = Cursor::Child(0, 0);
                 if self.de.headline_is_empty() {
                     Ok(None)
                 } else {
@@ -548,6 +605,10 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
         //self.cursor = Cursor::Child(n + 1);
         match self.cursor {
             Cursor::Inline => seed.deserialize(&mut *self.de),
+            Cursor::Headline => {
+                self.cursor = Cursor::Child(0, 0);
+                seed.deserialize(&mut *self.de)
+            }
             Cursor::Child(n, offset) => {
                 // TODO: Figure this out!!!
                 // Need to apply parse after key is taken
