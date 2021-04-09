@@ -91,8 +91,6 @@ impl<'de> Deserializer<'de> {
 
     /// Get next whitespace-separated token and advance deserializer.
     fn next_token(&'_ mut self) -> Option<&'_ str> {
-        self.next_token_is_attribute_name = false;
-
         if let Some((token, rest)) = self.parse_next_token() {
             self.head = rest;
             Some(token)
@@ -140,8 +138,6 @@ impl<'de> Deserializer<'de> {
     }
 
     fn parse_string(&mut self) -> Result<String> {
-        let next_token_is_attribute_name = self.next_token_is_attribute_name;
-
         let mut ret = if !self.headline_is_empty() {
             if self.is_inline_seq {
                 // If currently in sequence, strings are whitespace-separated
@@ -170,7 +166,7 @@ impl<'de> Deserializer<'de> {
 
         // XXX: Hacky af to have to put this here rather than in the struct
         // sequence handler.
-        if next_token_is_attribute_name {
+        if self.next_token_is_attribute_name {
             // Must end in colon.
             if !ret.ends_with(":") {
                 return Err(Error::default());
@@ -179,6 +175,7 @@ impl<'de> Deserializer<'de> {
             ret.pop();
             // Convert to camel_case.
             ret = ret.replace("-", "_");
+            self.next_token_is_attribute_name = false;
         }
 
         Ok(ret)
@@ -560,16 +557,15 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
     where
         K: de::DeserializeSeed<'de>,
     {
-        if self.reformat_keys {
-            self.de.next_token_is_attribute_name = true;
-        }
-
         match self.cursor {
             Cursor::Inline => {
                 if self.de.headline_is_empty() {
                     Ok(None)
                 } else {
-                    seed.deserialize(&mut *self.de).map(Some)
+                    self.de.next_token_is_attribute_name = self.reformat_keys;
+                    let ret = seed.deserialize(&mut *self.de).map(Some);
+                    self.de.next_token_is_attribute_name = false;
+                    ret
                 }
             }
             Cursor::Headline => {
@@ -577,7 +573,10 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
                 if self.de.headline_is_empty() {
                     Ok(None)
                 } else {
-                    seed.deserialize(&mut *self.de).map(Some)
+                    self.de.next_token_is_attribute_name = self.reformat_keys;
+                    let ret = seed.deserialize(&mut *self.de).map(Some);
+                    self.de.next_token_is_attribute_name = false;
+                    ret
                 }
             }
             Cursor::Child(n, offset) => {
@@ -587,6 +586,7 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
                     let mut child_de = Deserializer::from(&self.de.body[n]);
                     child_de.is_inline_seq = true;
                     child_de.head = &child_de.head[offset..];
+                    child_de.next_token_is_attribute_name = self.reformat_keys;
 
                     let ret = seed.deserialize(&mut child_de).map(Some);
                     // Save parse offset from key
