@@ -8,11 +8,11 @@ mod de;
 
 mod ser;
 
-mod old_de;
-pub use old_de::from_outline;
+// TODO: Deprecate
+pub mod old_de;
 
-mod old_ser;
-pub use old_ser::into_outline;
+// TODO: Deprecate
+pub mod old_ser;
 
 // TODO: Deprecate
 pub mod old_outline;
@@ -32,4 +32,4 @@ mod util;
 pub use util::normalize_title;
 
 #[cfg(test)]
-mod tests;
+mod old_tests;

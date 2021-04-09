@@ -1,4 +1,4 @@
-use crate::{from_outline, into_outline};
+use crate::{old_de::from_outline, old_ser::into_outline};
 use std::convert::TryFrom;
 use std::fmt;
 use std::io::{self};

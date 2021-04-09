@@ -1,4 +1,4 @@
-use crate::{from_outline, into_outline, outline::Outline};
+use crate::{old_de::from_outline, old_ser::into_outline, outline::Outline};
 use pretty_assertions::assert_eq;
 use serde::{de, Deserialize, Serialize};
 use std::fmt;
