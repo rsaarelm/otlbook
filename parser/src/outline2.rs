@@ -84,9 +84,12 @@ macro_rules! outline_elt {
 #[macro_export]
 macro_rules! outline {
     [$($arg:tt),*] => {
-        $crate::Outline2(vec![
-            $($crate::outline_elt!($arg)),*
-        ])
+        {
+            use std::iter::FromIterator;
+            $crate::Outline2::from_iter(vec![
+                $($crate::outline_elt!($arg)),*
+            ].into_iter())
+        }
     }
 }
 
