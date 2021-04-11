@@ -1,4 +1,4 @@
-use crate::outline2::Outline2;
+use crate::outline2::{Outline2, Section};
 use serde::{
     de::{self, Visitor},
     Deserialize, Serialize,
@@ -459,7 +459,7 @@ enum Cursor {
 struct Sequence<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
     cursor: Cursor,
-    reformat_keys: bool,
+    struct_mode: bool,
 }
 
 impl<'a, 'de> Sequence<'a, 'de> {
@@ -484,7 +484,7 @@ impl<'a, 'de> Sequence<'a, 'de> {
         Ok(Sequence {
             de,
             cursor,
-            reformat_keys: false,
+            struct_mode: false,
         })
     }
 
@@ -494,7 +494,7 @@ impl<'a, 'de> Sequence<'a, 'de> {
     }
 
     fn structure<V: Visitor<'de>>(mut self, visitor: V) -> Result<V::Value> {
-        self.reformat_keys = true;
+        self.struct_mode = true;
         let ret = visitor.visit_map(self)?;
         Ok(ret)
     }
@@ -553,7 +553,7 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
                 if self.de.headline_is_empty() {
                     Ok(None)
                 } else {
-                    self.de.next_token_is_attribute_name = self.reformat_keys;
+                    self.de.next_token_is_attribute_name = self.struct_mode;
                     let ret = seed.deserialize(&mut *self.de).map(Some);
                     self.de.next_token_is_attribute_name = false;
                     ret
@@ -564,7 +564,7 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
                 if self.de.headline_is_empty() {
                     Ok(None)
                 } else {
-                    self.de.next_token_is_attribute_name = self.reformat_keys;
+                    self.de.next_token_is_attribute_name = self.struct_mode;
                     let ret = seed.deserialize(&mut *self.de).map(Some);
                     self.de.next_token_is_attribute_name = false;
                     ret
@@ -575,15 +575,15 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
                     Ok(None)
                 } else {
                     let mut child_de = Deserializer::from(&self.de.body[n]);
-                    if !child_de.is_section() || self.reformat_keys {
+                    if !child_de.is_section() || self.struct_mode {
                         // Section-like map entries have the whole headline
                         // parsed as key.
                         //
-                        // Unless we're parsing a struct (reformat_keys is
+                        // Unless we're parsing a struct (struct_mode is
                         // set), where key must be a single token.
                         child_de.is_inline_seq = true;
                     }
-                    child_de.next_token_is_attribute_name = self.reformat_keys;
+                    child_de.next_token_is_attribute_name = self.struct_mode;
 
                     let ret = seed.deserialize(&mut child_de).map(Some);
                     ret
@@ -607,7 +607,7 @@ impl<'a, 'de> de::MapAccess<'de> for Sequence<'a, 'de> {
                 self.cursor = Cursor::Child(n + 1);
 
                 // Chomp off the key part.
-                if child_de.is_section() && !self.reformat_keys {
+                if child_de.is_section() && !self.struct_mode {
                     // The whole line is key if it's a section.
                     child_de.head = "";
                 } else {

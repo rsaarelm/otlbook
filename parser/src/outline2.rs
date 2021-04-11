@@ -11,7 +11,10 @@ use std::fmt;
 /// titles further in the list will be represented with the element separator
 /// comma.
 #[derive(Eq, PartialEq, Clone, Hash, Default)]
-pub struct Outline2(Vec<(Option<String>, Outline2)>);
+pub struct Outline2(Vec<Section>);
+
+/// Outline with a separate headline string.
+pub type Section = (Option<String>, Outline2);
 
 impl std::ops::Deref for Outline2 {
     type Target = Vec<(Option<String>, Outline2)>;
