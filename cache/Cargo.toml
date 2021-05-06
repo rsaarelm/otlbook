@@ -1,0 +1,11 @@
+[package]
+name = "cache"
+version = "0.1.0"
+authors = ["Risto Saarelma <risto.saarelma@iki.fi>"]
+description = "Persistent disk cache for otlbook"
+license = "MIT OR Apache-2.0"
+edition = "2018"
+
+[dependencies]
+rusqlite = "0.25"
+xdg = "2"

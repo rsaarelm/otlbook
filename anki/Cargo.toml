@@ -1,5 +1,5 @@
 [package]
-name = "anki-connect"
+name = "anki"
 version = "0.1.0"
 authors = ["Risto Saarelma <risto.saarelma@iki.fi>"]
 description = "Connectivity to Anki spaced repetition program"

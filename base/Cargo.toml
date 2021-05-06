@@ -1,0 +1,10 @@
+[package]
+name = "base"
+version = "0.1.0"
+authors = ["Risto Saarelma <risto.saarelma@iki.fi>"]
+description = "Otlbook base outline store"
+license = "MIT OR Apache-2.0"
+edition = "2018"
+
+[dependencies]
+idm = { git = "https://github.com/rsaarelm/idm" }

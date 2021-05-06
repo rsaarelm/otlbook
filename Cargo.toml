@@ -1,24 +1,32 @@
 [package]
-name = "olt"
-version = "0.1.0"
+name = "otlbook"
+version = "0.2.0"
 authors = ["Risto Saarelma"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [workspace]
-members = ["parser", "scraper", "anki-connect"]
+members = ["anki", "base", "cache", "tangle", "weave", "webserver"]
 
 [dependencies]
-anki-connect = { path = "anki-connect" }
+anki = { path = "anki" }
+base = { path = "base" }
+cache = { path = "cache" }
+# FIXME
+# scraper = { path = "scraper" }
+tangle = { path = "tangle" }
+weave = { path = "weave" }
+webserver = { path = "webserver" }
+
+idm = { git = "https://github.com/rsaarelm/idm" }
+
 chrono = "0.4"
 dialoguer = "0.8"
 env_logger = "0.8"
 log = "0.4"
 md5 = "0.7"
 nom = "6"
-parser = { path = "parser" }
 ron = "0.6"
-scraper = { path = "scraper" }
 serde = "1"
 structopt = "0.3"
 termion = "1"

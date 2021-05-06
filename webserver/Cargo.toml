@@ -1,0 +1,10 @@
+[package]
+name = "webserver"
+version = "0.1.0"
+authors = ["Risto Saarelma <risto.saarelma@iki.fi>"]
+description = "Formatting otlbook into different documentation formats"
+license = "MIT OR Apache-2.0"
+edition = "2018"
+
+[dependencies]
+tide = "0.16"

@@ -211,14 +211,16 @@ impl AnkiConnection {
     ) -> AnkiResult<T> {
         let client = reqwest::blocking::Client::new();
         let query: AnkiRequest = query.into();
-        let ret: Response<T> = client.post(ANKI_SERVER_URL).json(&query).send()?.json()?;
+        let ret: Response<T> =
+            client.post(ANKI_SERVER_URL).json(&query).send()?.json()?;
         ret.into()
     }
 
     fn command(&self, query: impl Into<AnkiRequest>) -> AnkiResult<()> {
         let client = reqwest::blocking::Client::new();
         let query: AnkiRequest = query.into();
-        let ret: Response<()> = client.post(ANKI_SERVER_URL).json(&query).send()?.json()?;
+        let ret: Response<()> =
+            client.post(ANKI_SERVER_URL).json(&query).send()?.json()?;
         ret.to_result()
     }
 
@@ -226,7 +228,10 @@ impl AnkiConnection {
         self.command(Action::AddNote { note })
     }
 
-    pub fn add_notes(&self, notes: Vec<Note>) -> AnkiResult<Vec<Option<NoteId>>> {
+    pub fn add_notes(
+        &self,
+        notes: Vec<Note>,
+    ) -> AnkiResult<Vec<Option<NoteId>>> {
         self.request(Action::AddNotes { notes })
     }
 
@@ -248,7 +253,12 @@ impl AnkiConnection {
         self.command(Action::Sync)
     }
 
-    pub fn update_note_fields(&self, id: NoteId, front: String, back: String) -> AnkiResult<()> {
+    pub fn update_note_fields(
+        &self,
+        id: NoteId,
+        front: String,
+        back: String,
+    ) -> AnkiResult<()> {
         self.command(Action::UpdateNoteFields {
             note: NoteUpdate {
                 id,
@@ -261,7 +271,11 @@ impl AnkiConnection {
         self.command(Action::AddTags { notes, tags: tag })
     }
 
-    pub fn remove_tag(&self, notes: Vec<NoteId>, tag: String) -> AnkiResult<()> {
+    pub fn remove_tag(
+        &self,
+        notes: Vec<NoteId>,
+        tag: String,
+    ) -> AnkiResult<()> {
         self.command(Action::RemoveTags { notes, tags: tag })
     }
 }
