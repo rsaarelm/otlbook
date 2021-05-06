@@ -28,6 +28,7 @@ md5 = "0.7"
 nom = "6"
 ron = "0.6"
 serde = "1"
+serde_derive = "1"
 structopt = "0.3"
 termion = "1"
 
