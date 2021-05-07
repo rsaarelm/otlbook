@@ -1,9 +1,12 @@
+use lazy_static::lazy_static;
 use serde_derive::{Deserialize, Serialize};
 use std::{convert::TryFrom, fs, path::Path};
 
 #[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Outline(pub Vec<Section>);
-pub type Section = (Option<String>, Outline);
+
+#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Section(pub Option<String>, pub Outline);
 
 impl std::ops::Deref for Outline {
     type Target = Vec<Section>;
@@ -13,9 +16,11 @@ impl std::ops::Deref for Outline {
     }
 }
 
-impl std::iter::FromIterator<Section> for Outline {
-    fn from_iter<U: IntoIterator<Item = Section>>(iter: U) -> Self {
-        Outline(iter.into_iter().collect())
+impl std::iter::FromIterator<(Option<String>, Outline)> for Outline {
+    fn from_iter<U: IntoIterator<Item = (Option<String>, Outline)>>(
+        iter: U,
+    ) -> Self {
+        Outline(iter.into_iter().map(|(h, b)| Section(h, b)).collect())
     }
 }
 
@@ -37,10 +42,33 @@ impl TryFrom<&Path> for Outline {
     }
 }
 
+impl Section {
+    pub fn title(&self) -> &str {
+        // TODO: Strip TODO markings prefix, [_] 12%
+        // TODO: Strip important item suffix " *"
+        self.0.as_ref().map(|s| s.as_ref()).unwrap_or("")
+    }
+
+    /// If headline resolves to WikiWord title, return that
+    pub fn wiki_title(&self) -> Option<String> {
+        // TODO: Use nom instead of regex hacks
+        lazy_static! {
+            static ref RE: regex::Regex =
+                regex::Regex::new(r"^([A-Z][a-z]+)(([A-Z][a-z]+)|([0-9]+))+$")
+                    .unwrap();
+        }
+        if RE.is_match(self.title()) {
+            Some(self.title().to_string())
+        } else {
+            None
+        }
+    }
+}
+
 impl Outline {
     pub fn count(&self) -> usize {
         let mut ret = self.0.len();
-        for (_, e) in &self.0 {
+        for Section(_, e) in &self.0 {
             ret += e.count();
         }
         ret
@@ -72,7 +100,7 @@ pub struct OutlineIter<'a> {
 }
 
 impl<'a> Iterator for OutlineIter<'a> {
-    type Item = &'a (Option<String>, Outline);
+    type Item = &'a Section;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(ref mut child) = self.child {

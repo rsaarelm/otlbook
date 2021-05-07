@@ -8,6 +8,7 @@ pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub fn load_collection() -> Result<Outline> {
     use walkdir::WalkDir;
 
+    log::info!("Loading collection");
     let root = if let Ok(path) = std::env::var("OTLBOOK_PATH") {
         PathBuf::from(path)
     } else if let Some(mut path) = dirs::home_dir() {
@@ -28,6 +29,7 @@ pub fn load_collection() -> Result<Outline> {
             result.push((Some(format!("{:?}", entry.path())), outline));
         }
     }
+    log::info!("Collection loaded");
 
     Ok(Outline::from_iter(result))
 }

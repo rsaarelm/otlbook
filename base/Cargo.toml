@@ -10,6 +10,12 @@ edition = "2018"
 idm = { git = "https://github.com/rsaarelm/idm" }
 
 dirs = "1"
+log = "0.4"
+nom = "6"
+
+regex = "1"  # TODO: Replace with nomming
+lazy_static = "1"
+
 serde = "1"
 serde_derive = "1"
 walkdir = "2"
