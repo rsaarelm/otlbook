@@ -37,8 +37,26 @@ impl TryFrom<&Path> for Outline {
 
     fn try_from(path: &Path) -> Result<Self, Self::Error> {
         let contents = fs::read_to_string(path)?;
-        idm::from_str::<Outline>(&contents).expect("shouldn't happen");
-        Ok(idm::from_str(&contents)?)
+        let ret =
+            idm::from_str::<Outline>(&contents).expect("shouldn't happen");
+
+        #[cfg(debug_assertions)]
+        {
+            let reser = idm::to_string(&ret).unwrap();
+            if reser != contents {
+                use std::fs::File;
+                use std::io::prelude::*;
+
+                log::warn!("{:?} does not reserialize cleanly", path);
+
+                let mut file = File::create(
+                    Path::new("/tmp/").join(path.file_name().unwrap()),
+                )
+                .unwrap();
+                file.write_all(reser.as_bytes()).unwrap();
+            }
+        }
+        Ok(ret)
     }
 }
 
