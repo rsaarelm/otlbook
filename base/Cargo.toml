@@ -12,6 +12,7 @@ idm = { git = "https://github.com/rsaarelm/idm" }
 dirs = "1"
 log = "0.4"
 nom = "6"
+rayon = "1"
 
 regex = "1"  # TODO: Replace with nomming
 lazy_static = "1"
