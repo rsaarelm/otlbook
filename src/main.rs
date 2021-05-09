@@ -1,6 +1,6 @@
 use base::Section;
 use serde_derive::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeSet};
 use structopt::StructOpt;
 
 fn main() {
@@ -9,6 +9,7 @@ fn main() {
     match Olt::from_args() {
         Olt::Exists { uri } => exists(uri),
         Olt::Dupes => dupes(),
+        Olt::Tags => tag_histogram(),
     }
 }
 
@@ -55,6 +56,34 @@ fn dupes() {
     }
 }
 
+fn tag_histogram() {
+    let otl = base::load_collection().unwrap();
+
+    #[derive(Eq, PartialEq, Deserialize)]
+    struct Tags {
+        tags: BTreeSet<String>,
+    }
+
+    let mut hist = HashMap::new();
+    log::info!("Start URI search");
+    for Section(_, body) in otl.iter() {
+        if let Some(Tags { tags: ts }) = body.try_into() {
+            for t in &ts {
+                *hist.entry(t.to_string()).or_insert(0) += 1;
+            }
+        }
+    }
+
+    // Sort by largest first
+    for (n, t) in &hist
+        .into_iter()
+        .map(|(t, n)| (-(n as i32), t))
+        .collect::<BTreeSet<_>>()
+    {
+        println!("{}  {}", t, -n);
+    }
+}
+
 #[derive(StructOpt, Debug)]
 #[structopt(name = "olt", about = "Outline file processing tool")]
 enum Olt {
@@ -68,4 +97,6 @@ enum Olt {
     },
     #[structopt(name = "dupes", about = "List duplicate entries")]
     Dupes,
+    #[structopt(name = "tags", about = "Show tag cloud")]
+    Tags,
 }
