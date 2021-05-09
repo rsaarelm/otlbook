@@ -1,12 +1,41 @@
 use lazy_static::lazy_static;
 use serde_derive::{Deserialize, Serialize};
-use std::{convert::TryFrom, fs, path::Path};
+use std::{convert::TryFrom, fmt, fs, path::Path};
 
 #[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Outline(pub Vec<Section>);
 
 #[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Section(pub Option<String>, pub Outline);
+
+impl fmt::Debug for Outline {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn print(
+            f: &mut fmt::Formatter,
+            depth: usize,
+            otl: &Outline,
+        ) -> fmt::Result {
+            for Section(title, body) in &otl.0 {
+                for _ in 0..depth {
+                    write!(f, "  ")?;
+                }
+                match title {
+                    None => writeln!(f, "ø")?,
+                    Some(s) => writeln!(f, "{:?}", s)?,
+                }
+                print(f, depth + 1, &body)?;
+            }
+
+            Ok(())
+        }
+
+        if self.is_empty() {
+            writeln!(f, "ø")
+        } else {
+            print(f, 0, self)
+        }
+    }
+}
 
 impl std::ops::Deref for Outline {
     type Target = Vec<Section>;
