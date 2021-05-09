@@ -1,4 +1,4 @@
-use base::Section;
+use base::{Collection, Section};
 use serde_derive::Deserialize;
 use std::collections::{HashMap, BTreeSet};
 use structopt::StructOpt;
@@ -14,7 +14,7 @@ fn main() {
 }
 
 fn exists(uri: String) {
-    let otl = base::load_collection().unwrap();
+    let col = Collection::new().unwrap();
 
     #[derive(Eq, PartialEq, Deserialize)]
     struct Uri {
@@ -22,7 +22,7 @@ fn exists(uri: String) {
     }
 
     log::info!("Start URI search");
-    for Section(head, body) in otl.iter() {
+    for Section(head, body) in col.outline().walk() {
         if let Some(Uri { uri: u }) = body.try_into() {
             if u == uri {
                 println!("Found! {:?}", head);
@@ -38,11 +38,11 @@ fn exists(uri: String) {
 }
 
 fn dupes() {
-    let otl = base::load_collection().unwrap();
+    let col = Collection::new().unwrap();
     let mut count = HashMap::new();
 
     log::info!("Start WikiTitle crawl");
-    for section in otl.iter() {
+    for section in col.outline().walk() {
         if let Some(title) = section.wiki_title() {
             *count.entry(title).or_insert(0) += 1;
         }
@@ -57,7 +57,7 @@ fn dupes() {
 }
 
 fn tag_histogram() {
-    let otl = base::load_collection().unwrap();
+    let col = Collection::new().unwrap();
 
     #[derive(Eq, PartialEq, Deserialize)]
     struct Tags {
@@ -66,7 +66,7 @@ fn tag_histogram() {
 
     let mut hist = HashMap::new();
     log::info!("Start URI search");
-    for Section(_, body) in otl.iter() {
+    for Section(_, body) in col.outline().walk() {
         if let Some(Tags { tags: ts }) = body.try_into() {
             for t in &ts {
                 *hist.entry(t.to_string()).or_insert(0) += 1;

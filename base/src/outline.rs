@@ -16,6 +16,12 @@ impl std::ops::Deref for Outline {
     }
 }
 
+impl std::ops::DerefMut for Outline {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl std::iter::FromIterator<(Option<String>, Outline)> for Outline {
     fn from_iter<U: IntoIterator<Item = (Option<String>, Outline)>>(
         iter: U,
@@ -93,8 +99,8 @@ impl Outline {
     }
 
     /// Depth-first recursive iteration of outline's child sections
-    pub fn iter(&'_ self) -> OutlineIter<'_> {
-        OutlineIter {
+    pub fn walk(&'_ self) -> OutlineWalker<'_> {
+        OutlineWalker {
             current: self,
             pos: 0,
             child: None,
@@ -105,19 +111,24 @@ impl Outline {
         let text: String = idm::to_string(self).expect("Shouldn't happen");
         idm::from_str(&text).ok()
     }
+
+    /// Iterate non-empty headlines of outline.
+    pub fn headlines(&self) -> impl Iterator<Item=&str> {
+        self.iter().filter_map(|Section(h, _)| h.as_ref().map(|h| h.as_str()))
+    }
 }
 
 // Tree walk
 // Yield section, recursively iterate inside...
 // Must know to return to next sect...
 
-pub struct OutlineIter<'a> {
+pub struct OutlineWalker<'a> {
     current: &'a Outline,
     pos: usize,
-    child: Option<Box<OutlineIter<'a>>>,
+    child: Option<Box<OutlineWalker<'a>>>,
 }
 
-impl<'a> Iterator for OutlineIter<'a> {
+impl<'a> Iterator for OutlineWalker<'a> {
     type Item = &'a Section;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -135,7 +146,7 @@ impl<'a> Iterator for OutlineIter<'a> {
 
         let item = &self.current[self.pos];
         self.pos += 1;
-        self.child = Some(Box::new(item.1.iter()));
+        self.child = Some(Box::new(item.1.walk()));
 
         Some(item)
     }
