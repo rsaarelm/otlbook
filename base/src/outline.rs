@@ -136,14 +136,23 @@ impl Outline {
         }
     }
 
+    pub fn walk_mut(&'_ mut self) -> OutlineWalkerMut<'_> {
+        OutlineWalkerMut {
+            current: self,
+            pos: 0,
+            child: None,
+        }
+    }
+
     pub fn try_into<T: serde::de::DeserializeOwned>(&self) -> Option<T> {
         let text: String = idm::to_string(self).expect("Shouldn't happen");
         idm::from_str(&text).ok()
     }
 
     /// Iterate non-empty headlines of outline.
-    pub fn headlines(&self) -> impl Iterator<Item=&str> {
-        self.iter().filter_map(|Section(h, _)| h.as_ref().map(|h| h.as_str()))
+    pub fn headlines(&self) -> impl Iterator<Item = &str> {
+        self.iter()
+            .filter_map(|Section(h, _)| h.as_ref().map(|h| h.as_str()))
     }
 }
 
@@ -178,5 +187,37 @@ impl<'a> Iterator for OutlineWalker<'a> {
         self.child = Some(Box::new(item.1.walk()));
 
         Some(item)
+    }
+}
+
+pub struct OutlineWalkerMut<'a> {
+    current: &'a mut Outline,
+    pos: usize,
+    child: Option<Box<OutlineWalkerMut<'a>>>,
+}
+
+impl<'a> Iterator for OutlineWalkerMut<'a> {
+    type Item = &'a mut Section;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(ref mut child) = self.child {
+            if let Some(e) = child.next() {
+                return Some(e);
+            } else {
+                self.child = None;
+            }
+        }
+
+        if self.pos >= self.current.len() {
+            return None;
+        }
+
+        // haha unsafe &mut Iterator go brrr
+        unsafe {
+            let item = self.current.as_mut_ptr().add(self.pos);
+            self.pos += 1;
+            self.child = Some(Box::new((*item).1.walk_mut()));
+            Some(&mut *item)
+        }
     }
 }
