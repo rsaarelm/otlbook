@@ -1,6 +1,5 @@
 use base::{Collection, Section};
-use serde_derive::Deserialize;
-use std::collections::{HashMap, BTreeSet};
+use std::collections::{BTreeSet, HashMap};
 use structopt::StructOpt;
 
 fn main() {
@@ -16,14 +15,9 @@ fn main() {
 fn exists(uri: String) {
     let col = Collection::new().unwrap();
 
-    #[derive(Eq, PartialEq, Deserialize)]
-    struct Uri {
-        uri: String,
-    }
-
     log::info!("Start URI search");
     for Section(head, body) in col.outline().walk() {
-        if let Some(Uri { uri: u }) = body.try_into() {
+        if let Ok(Some(u)) = body.attr::<String>("uri") {
             if u == uri {
                 println!("Found! {:?}", head);
                 log::info!("URI search successful");
@@ -59,15 +53,10 @@ fn dupes() {
 fn tag_histogram() {
     let col = Collection::new().unwrap();
 
-    #[derive(Eq, PartialEq, Deserialize)]
-    struct Tags {
-        tags: BTreeSet<String>,
-    }
-
     let mut hist = HashMap::new();
     log::info!("Start URI search");
     for Section(_, body) in col.outline().walk() {
-        if let Some(Tags { tags: ts }) = body.try_into() {
+        if let Ok(Some(ts)) = body.attr::<BTreeSet<String>>("tags") {
             for t in &ts {
                 *hist.entry(t.to_string()).or_insert(0) += 1;
             }

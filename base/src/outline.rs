@@ -116,6 +116,62 @@ impl Section {
             None
         }
     }
+
+    pub fn attribute_name(&self) -> Option<String> {
+        // TODO: Use nom instead of regex hacks
+        // XXX: Can this be made to use str slices for performance?
+        lazy_static! {
+            static ref RE: regex::Regex =
+                regex::Regex::new(r"^([a-z][a-z\-0-9]*):(\s|$)").unwrap();
+        }
+
+        RE.captures(self.title()).map(|cs| cs[1].to_string())
+    }
+
+    /// Rewrite the attribute name of a section that's a struct field.
+    fn rewrite_attribute_name(
+        &mut self,
+        name: impl AsRef<str>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let current_name = match self.attribute_name() {
+            Some(name) => name,
+            None => {
+                return Err("Section is not a struct attribute")?;
+            }
+        };
+
+        self.0 = Some(format!(
+            "{}{}",
+            name.as_ref(),
+            &self.title()[current_name.len()..]
+        ));
+        Ok(())
+    }
+
+    /// If this outline is a single struct attribute, try to deserialize the
+    /// value into the parameter type.
+    fn deserialize_attribute<T: serde::de::DeserializeOwned>(
+        &self,
+    ) -> Result<T, Box<dyn std::error::Error>> {
+        // Ugly hack incoming.
+        //
+        // Rewrite the section to have "field" for the single attribute,
+        // then construct a dummy outline with the rewritten section
+        // to deserialize into the Dummy struct type defined below.
+
+        #[derive(Deserialize)]
+        struct Dummy<T> {
+            field: T,
+        }
+
+        let mut clone = self.clone();
+        clone.rewrite_attribute_name("field")?;
+
+        let deser: Dummy<T> =
+            idm::from_str(&idm::to_string(&Outline(vec![clone]))?)?;
+
+        Ok(deser.field)
+    }
 }
 
 impl Outline {
@@ -153,6 +209,33 @@ impl Outline {
     pub fn headlines(&self) -> impl Iterator<Item = &str> {
         self.iter()
             .filter_map(|Section(h, _)| h.as_ref().map(|h| h.as_str()))
+    }
+
+    /// Try to read an attribute deserialized to type.
+    ///
+    /// Return error if attribute value was found but could not be
+    /// deserialized to given type.
+    ///
+    /// Return Ok(None) if attribute was not found in outline.
+    pub fn attr<T: serde::de::DeserializeOwned>(
+        &self,
+        attr: &str,
+    ) -> Result<Option<T>, Box<dyn std::error::Error>> {
+        for sec in &self.0 {
+            match sec.attribute_name() {
+                None => {
+                    // Out of attribute block when we start hitting
+                    // attribute-less sections. Exit.
+                    break;
+                }
+                Some(s) if s.as_str() == attr => {
+                    let ret = sec.deserialize_attribute()?;
+                    return Ok(Some(ret));
+                }
+                _ => {}
+            }
+        }
+        Ok(None)
     }
 }
 
