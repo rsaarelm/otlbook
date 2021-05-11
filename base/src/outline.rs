@@ -96,6 +96,23 @@ impl TryFrom<&Path> for Outline {
 }
 
 impl Section {
+    /// Construct a section that's a struct field with the given name and
+    /// value.
+    pub fn struct_field<T: serde::Serialize>(
+        name: &str,
+        value: &T,
+    ) -> Result<Section, Box<dyn std::error::Error>> {
+        // Synthesize struct outline via Dummy struct.
+        let ret = idm::to_string(&Dummy { field: value })?;
+        let mut ret: Outline = idm::from_str(&ret)?;
+        debug_assert!(ret.0.len() == 1);
+        // Grab the single section we're interested in.
+        let mut ret: Section = ret.pop().unwrap();
+        // Rewrite dummy field name to the one we want, and done.
+        ret.rewrite_attribute_name(name)?;
+        Ok(ret)
+    }
+
     pub fn title(&self) -> &str {
         // TODO: Strip TODO markings prefix, [_] 12%
         // TODO: Strip important item suffix " *"
@@ -159,11 +176,6 @@ impl Section {
         // then construct a dummy outline with the rewritten section
         // to deserialize into the Dummy struct type defined below.
 
-        #[derive(Deserialize)]
-        struct Dummy<T> {
-            field: T,
-        }
-
         let mut clone = self.clone();
         clone.rewrite_attribute_name("field")?;
 
@@ -219,7 +231,7 @@ impl Outline {
     /// Return Ok(None) if attribute was not found in outline.
     pub fn attr<T: serde::de::DeserializeOwned>(
         &self,
-        attr: &str,
+        name: &str,
     ) -> Result<Option<T>, Box<dyn std::error::Error>> {
         for sec in &self.0 {
             match sec.attribute_name() {
@@ -228,7 +240,7 @@ impl Outline {
                     // attribute-less sections. Exit.
                     break;
                 }
-                Some(s) if s.as_str() == attr => {
+                Some(s) if s.as_str() == name => {
                     let ret = sec.deserialize_attribute()?;
                     return Ok(Some(ret));
                 }
@@ -236,6 +248,68 @@ impl Outline {
             }
         }
         Ok(None)
+    }
+
+    /// Write a typed value to a named struct attribute.
+    ///
+    /// If the attribute exists in the outline, it is replaced in-place.
+    /// If the attribute doesn't exist and the value is non-Default,
+    /// add the attribute with the value to the end of the attribute block.
+    /// If the value is T::default(), do not insert the attribute and remove
+    /// it if it exists.
+    pub fn set_attr<T>(
+        &mut self,
+        name: &str,
+        value: &T,
+    ) -> Result<(), Box<dyn std::error::Error>>
+    where
+        T: serde::Serialize + Default + PartialEq,
+    {
+        // Position in child sections where to insert new attribute
+        let mut insert_pos = 0;
+        // Is there an existing attribute in insert_pos to be deleted?
+        let mut delete_existing = false;
+
+        // Figure out where to insert the new item.
+        for (i, sec) in self.0.iter().enumerate() {
+            insert_pos = i;
+            match sec.attribute_name() {
+                None => {
+                    // Out of attribute block when we start hitting
+                    // attribute-less sections. Exit.
+                    break;
+                }
+                Some(s) if s.as_str() == name => {
+                    delete_existing = true;
+                    break;
+                }
+                _ => {}
+            }
+        }
+
+        if value == &T::default() {
+            // Default value, delete attribute.
+            if delete_existing {
+                self.0.remove(insert_pos);
+            }
+        } else {
+            // Non-default value, do insert.
+            let attr = Section::struct_field(name, value)?;
+            if delete_existing {
+                self.0[insert_pos] = attr;
+            } else {
+                self.0.insert(insert_pos, attr);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn remove_attr(
+        &mut self,
+        name: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // Can pick an arbitrary type here. Using String.
+        self.set_attr::<String>(name, &String::default())
     }
 }
 
@@ -303,4 +377,10 @@ impl<'a> Iterator for OutlineWalkerMut<'a> {
             Some(&mut *item)
         }
     }
+}
+
+/// Helper struct for single-field mutations.
+#[derive(Serialize, Deserialize)]
+struct Dummy<T> {
+    field: T,
 }
