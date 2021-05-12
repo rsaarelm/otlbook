@@ -95,97 +95,6 @@ impl TryFrom<&Path> for Outline {
     }
 }
 
-impl Section {
-    /// Construct a section that's a struct field with the given name and
-    /// value.
-    pub fn struct_field<T: serde::Serialize>(
-        name: &str,
-        value: &T,
-    ) -> Result<Section, Box<dyn std::error::Error>> {
-        // Synthesize struct outline via Dummy struct.
-        let ret = idm::to_string(&Dummy { field: value })?;
-        let mut ret: Outline = idm::from_str(&ret)?;
-        debug_assert!(ret.0.len() == 1);
-        // Grab the single section we're interested in.
-        let mut ret: Section = ret.pop().unwrap();
-        // Rewrite dummy field name to the one we want, and done.
-        ret.rewrite_attribute_name(name)?;
-        Ok(ret)
-    }
-
-    pub fn title(&self) -> &str {
-        // TODO: Strip TODO markings prefix, [_] 12%
-        // TODO: Strip important item suffix " *"
-        self.0.as_ref().map(|s| s.as_ref()).unwrap_or("")
-    }
-
-    /// If headline resolves to WikiWord title, return that
-    pub fn wiki_title(&self) -> Option<String> {
-        // TODO: Use nom instead of regex hacks
-        lazy_static! {
-            static ref RE: regex::Regex =
-                regex::Regex::new(r"^([A-Z][a-z]+)(([A-Z][a-z]+)|([0-9]+))+$")
-                    .unwrap();
-        }
-        if RE.is_match(self.title()) {
-            Some(self.title().to_string())
-        } else {
-            None
-        }
-    }
-
-    pub fn attribute_name(&self) -> Option<String> {
-        // TODO: Use nom instead of regex hacks
-        // XXX: Can this be made to use str slices for performance?
-        lazy_static! {
-            static ref RE: regex::Regex =
-                regex::Regex::new(r"^([a-z][a-z\-0-9]*):(\s|$)").unwrap();
-        }
-
-        RE.captures(self.title()).map(|cs| cs[1].to_string())
-    }
-
-    /// Rewrite the attribute name of a section that's a struct field.
-    fn rewrite_attribute_name(
-        &mut self,
-        name: impl AsRef<str>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let current_name = match self.attribute_name() {
-            Some(name) => name,
-            None => {
-                return Err("Section is not a struct attribute")?;
-            }
-        };
-
-        self.0 = Some(format!(
-            "{}{}",
-            name.as_ref(),
-            &self.title()[current_name.len()..]
-        ));
-        Ok(())
-    }
-
-    /// If this outline is a single struct attribute, try to deserialize the
-    /// value into the parameter type.
-    fn deserialize_attribute<T: serde::de::DeserializeOwned>(
-        &self,
-    ) -> Result<T, Box<dyn std::error::Error>> {
-        // Ugly hack incoming.
-        //
-        // Rewrite the section to have "field" for the single attribute,
-        // then construct a dummy outline with the rewritten section
-        // to deserialize into the Dummy struct type defined below.
-
-        let mut clone = self.clone();
-        clone.rewrite_attribute_name("field")?;
-
-        let deser: Dummy<T> =
-            idm::from_str(&idm::to_string(&Outline(vec![clone]))?)?;
-
-        Ok(deser.field)
-    }
-}
-
 impl Outline {
     pub fn count(&self) -> usize {
         let mut ret = self.0.len();
@@ -310,6 +219,114 @@ impl Outline {
     ) -> Result<(), Box<dyn std::error::Error>> {
         // Can pick an arbitrary type here. Using String.
         self.set_attr::<String>(name, &String::default())
+    }
+
+    pub fn has_attributes(&self) -> bool {
+        if let Some(h) = self.0.iter().next() {
+            h.attribute_name().is_some()
+        } else {
+            false
+        }
+    }
+}
+
+impl Section {
+    /// Construct a section that's a struct field with the given name and
+    /// value.
+    pub fn struct_field<T: serde::Serialize>(
+        name: &str,
+        value: &T,
+    ) -> Result<Section, Box<dyn std::error::Error>> {
+        // Synthesize struct outline via Dummy struct.
+        let ret = idm::to_string(&Dummy { field: value })?;
+        let mut ret: Outline = idm::from_str(&ret)?;
+        debug_assert!(ret.0.len() == 1);
+        // Grab the single section we're interested in.
+        let mut ret: Section = ret.pop().unwrap();
+        // Rewrite dummy field name to the one we want, and done.
+        ret.rewrite_attribute_name(name)?;
+        Ok(ret)
+    }
+
+    pub fn title(&self) -> &str {
+        // TODO: Strip TODO markings prefix, [_] 12%
+        // TODO: Strip important item suffix " *"
+        self.0.as_ref().map(|s| s.as_ref()).unwrap_or("")
+    }
+
+    /// If headline resolves to WikiWord title, return that
+    pub fn wiki_title(&self) -> Option<String> {
+        // TODO: Use nom instead of regex hacks
+        lazy_static! {
+            static ref RE: regex::Regex =
+                regex::Regex::new(r"^([A-Z][a-z]+)(([A-Z][a-z]+)|([0-9]+))+$")
+                    .unwrap();
+        }
+        if RE.is_match(self.title()) {
+            Some(self.title().to_string())
+        } else {
+            None
+        }
+    }
+
+    pub fn attribute_name(&self) -> Option<String> {
+        // TODO: Use nom instead of regex hacks
+        // XXX: Can this be made to use str slices for performance?
+        lazy_static! {
+            static ref RE: regex::Regex =
+                regex::Regex::new(r"^([a-z][a-z\-0-9]*):(\s|$)").unwrap();
+        }
+
+        RE.captures(self.title()).map(|cs| cs[1].to_string())
+    }
+
+    /// Rewrite the attribute name of a section that's a struct field.
+    fn rewrite_attribute_name(
+        &mut self,
+        name: impl AsRef<str>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let current_name = match self.attribute_name() {
+            Some(name) => name,
+            None => {
+                return Err("Section is not a struct attribute")?;
+            }
+        };
+
+        self.0 = Some(format!(
+            "{}{}",
+            name.as_ref(),
+            &self.title()[current_name.len()..]
+        ));
+        Ok(())
+    }
+
+    /// If this outline is a single struct attribute, try to deserialize the
+    /// value into the parameter type.
+    fn deserialize_attribute<T: serde::de::DeserializeOwned>(
+        &self,
+    ) -> Result<T, Box<dyn std::error::Error>> {
+        // Ugly hack incoming.
+        //
+        // Rewrite the section to have "field" for the single attribute,
+        // then construct a dummy outline with the rewritten section
+        // to deserialize into the Dummy struct type defined below.
+
+        let mut clone = self.clone();
+        clone.rewrite_attribute_name("field")?;
+
+        let deser: Dummy<T> =
+            idm::from_str(&idm::to_string(&Outline(vec![clone]))?)?;
+
+        Ok(deser.field)
+    }
+
+    /// Does the section look like a sub-article instead of just a random
+    /// fragment.
+    ///
+    /// Articles aren't currently very well defined, the current heuristic is
+    /// that an article either has a WikiWord title or any attributes.
+    pub fn is_article(&self) -> bool {
+        self.wiki_title().is_some() || self.1.has_attributes()
     }
 }
 

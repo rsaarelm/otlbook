@@ -1,4 +1,4 @@
-use base::{Collection, Section};
+use base::{Collection, Outline, Section};
 use std::collections::{BTreeSet, HashMap};
 use structopt::StructOpt;
 
@@ -9,6 +9,7 @@ fn main() {
         Olt::Exists { uri } => exists(uri),
         Olt::Dupes => dupes(),
         Olt::Tags => tag_histogram(),
+        Olt::Tagged { tags } => tag_search(tags),
     }
 }
 
@@ -45,9 +46,70 @@ fn dupes() {
 
     for (t, &n) in &count {
         if n > 1 {
-            println!("{}", t);
+            println!("WikiWord dupes: {}", t);
         }
     }
+
+    log::info!("Start uri crawl");
+    let mut count = HashMap::new();
+    for section in col.outline().walk() {
+        if let Ok(Some(uri)) = section.1.attr::<String>("uri") {
+            *count.entry(uri).or_insert(0) += 1;
+        }
+    }
+    log::info!("Finished uri crawl, {} items;", count.len());
+
+    for (t, &n) in &count {
+        if n > 1 {
+            println!("uri dupes: {}", t);
+        }
+    }
+}
+
+fn tag_search(tags: Vec<String>) {
+    let tags = tags.into_iter().collect::<BTreeSet<_>>();
+    let col = Collection::new().unwrap();
+
+    fn crawl(
+        search_tags: &BTreeSet<String>,
+        inherited_tags: &BTreeSet<String>,
+        current: &Outline,
+    ) {
+        for sec in current.iter() {
+            // Only look for articles
+            if sec.is_article() {
+                let tags = if let Ok(Some(tags)) =
+                    sec.1.attr::<BTreeSet<String>>("tags")
+                {
+                    tags
+                } else {
+                    Default::default()
+                }
+                .union(inherited_tags)
+                .cloned()
+                .collect::<BTreeSet<String>>();
+
+                if search_tags.is_subset(&tags) {
+                    // Found!
+                    println!(
+                        "{}",
+                        idm::to_string(&Outline(vec![sec.clone()]))
+                            .unwrap_or("err".to_string())
+                    );
+
+                    // Don't crawl into children that might also match, we
+                    // already printed them.
+                    continue;
+                }
+
+                crawl(search_tags, &tags, &sec.1);
+            } else {
+                crawl(search_tags, inherited_tags, &sec.1);
+            }
+        }
+    }
+
+    crawl(&tags, &BTreeSet::new(), col.outline());
 }
 
 fn tag_histogram() {
@@ -88,4 +150,9 @@ enum Olt {
     Dupes,
     #[structopt(name = "tags", about = "Show tag cloud")]
     Tags,
+    #[structopt(name = "tagged", about = "List items with given tags")]
+    Tagged {
+        #[structopt(parse(from_str), required = true)]
+        tags: Vec<String>,
+    },
 }
