@@ -1,5 +1,6 @@
 # otlbook
 
-Inject client-side rendering, generate WikiWord tag links and provide J
-language notebook functionality for
+Personal information management system built on top of
 [VimOutliner](https://github.com/vimoutliner/vimoutliner) files.
+
+Work in progress. No guarantees it won't eat your data if you try it.
