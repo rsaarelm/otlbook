@@ -10,6 +10,8 @@ use std::{
 };
 use walkdir::WalkDir;
 
+/// Representation of a collection of otl files that makes up the knowledge
+/// base.
 pub struct Collection {
     /// Path the collection was loaded from.
     path: PathBuf,
