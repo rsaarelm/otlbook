@@ -1,13 +1,14 @@
-use parser::{Outline, Symbol, VagueDate};
+use base::{VagueDate, Symbol};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
-use std::convert::TryFrom;
 use std::error::Error;
+use async_std::task;
 
-mod goodreads;
-mod google_reader;
-mod netscape_bookmarks;
-mod pocket;
+// FIXME: Re-enable these.
+//mod goodreads;
+//mod google_reader;
+//mod netscape_bookmarks;
+//mod pocket;
 
 mod wayback;
 pub use wayback::check_wayback;
@@ -17,17 +18,16 @@ pub type Uri = String;
 /// Data for bookmarks and bibliography.
 ///
 /// ```
-/// use parser::Outline;
-///
-/// let outline = Outline::from("\
+/// let outline: (Option<String>, scraper::LibraryEntry) = idm::from_str("\
 /// Feynman Lectures on Physics
-/// \t\turi https://www.feynmanlectures.caltech.edu/
-/// \t\ttitle The Feynman Lectures on Physics
-/// \t\tyear 1964
-/// \t\ttags physics
-/// \t\tread 2006-01-02").children[0].clone();
+/// \turi: https://www.feynmanlectures.caltech.edu/
+/// \ttitle: The Feynman Lectures on Physics
+/// \tyear: 1964
+/// \ttags: physics
+/// \tread: 2006-01-02").unwrap();
 ///
-/// assert!(outline.extract::<scraper::LibraryEntry>().is_some());
+/// assert_eq!(outline.0, Some("Feynman Lectures on Physics".to_string()));
+/// assert_eq!(outline.1.uri, "https://www.feynmanlectures.caltech.edu/");
 /// ```
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct LibraryEntry {
@@ -51,32 +51,7 @@ pub struct LibraryEntry {
     pub links: Vec<Uri>,
     /// Where was this imported from
     pub via: Option<String>,
-    pub notes: Option<String>,
-}
-
-impl From<LibraryEntry> for Outline {
-    fn from(mut e: LibraryEntry) -> Outline {
-        let notes = if let Some(n) = &e.notes {
-            n.clone()
-        } else {
-            String::new()
-        };
-
-        let title = if let Some(t) = &e.title {
-            t.clone()
-        } else {
-            e.uri.clone()
-        };
-
-        // Don't want notes text copied in the metadata
-        e.notes = None;
-
-        let mut ret = Outline::new(title, vec![]);
-        ret.inject(e);
-        notes.lines().for_each(|line| ret.push_str(line));
-
-        ret
-    }
+    pub _contents: Option<String>,
 }
 
 impl LibraryEntry {
@@ -114,18 +89,13 @@ impl std::ops::Deref for Scrapeable {
 }
 
 impl Scrapeable {
-    pub fn get(target: &str) -> Result<Scrapeable, Box<dyn Error>> {
+    pub fn get(target: &str) -> Result<Scrapeable, Box<dyn Error + Send + Sync>> {
         // TODO: Make timeout configurable in CLI parameters.
         // Timeout is needed if you hit a weird site like http://robpike.io
         const REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
-        if url::Url::parse(target).is_ok() {
-            // Looks like a web page, try to download the contents.
-            let request = reqwest::blocking::Client::new()
-                .get(target)
-                .timeout(REQUEST_TIMEOUT)
-                .send()?;
-            Ok(Scrapeable(request.text()?))
+        if let Ok(url) = url::Url::parse(target) {
+            Ok(Scrapeable(task::block_on( task::spawn(async { download_page(url, REQUEST_TIMEOUT).await }))?))
         } else {
             // Assume it's a file
             Ok(Scrapeable(std::fs::read_to_string(target)?))
@@ -133,6 +103,16 @@ impl Scrapeable {
     }
 }
 
+pub async fn download_page(url: url::Url, timeout: std::time::Duration) -> Result<String, Box<dyn Error + Send + Sync>> {
+    let request = reqwest::Client::new()
+        .get(url)
+        .timeout(timeout)
+        .send()
+        .await?;
+    Ok(request.text().await?)
+}
+
+/*
 pub fn scrape(target: &str) -> Result<Vec<LibraryEntry>, Box<dyn Error>> {
     let ret = Scrapeable::get(target)?;
     if let Ok(goodreads) = goodreads::Entries::try_from(&ret) {
@@ -150,3 +130,4 @@ pub fn scrape(target: &str) -> Result<Vec<LibraryEntry>, Box<dyn Error>> {
         Err("Couldn't scrape target")?
     }
 }
+*/

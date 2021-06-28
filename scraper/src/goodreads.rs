@@ -2,8 +2,8 @@
 //
 // https://goodreads.com/
 
-use crate::{LibraryEntry, Scrapeable, VagueDate};
-use parser::{sym, Symbol};
+use crate::{LibraryEntry, Scrapeable};
+use base::{sym, Symbol, VagueDate};
 use serde::Deserialize;
 use std::convert::TryFrom;
 use std::error::Error;
@@ -140,7 +140,7 @@ impl From<GoodreadsEntry> for LibraryEntry {
         }
 
         if !e.notes.is_empty() {
-            ret.notes = Some(e.notes);
+            ret._contents = Some(e.notes);
         }
 
         ret

@@ -3,7 +3,7 @@
 // http://fileformats.archiveteam.org/wiki/Netscape_bookmarks
 
 use crate::{LibraryEntry, Scrapeable};
-use parser::{Symbol, VagueDate};
+use base::{Symbol, VagueDate};
 use select::{document::Document, predicate::Name};
 use std::collections::BTreeSet;
 use std::convert::TryFrom;

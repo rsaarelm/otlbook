@@ -3,7 +3,7 @@
 // https://getpocket.com/
 
 use crate::{LibraryEntry, Scrapeable};
-use parser::{Symbol, VagueDate};
+use base::{Symbol, VagueDate};
 use select::{
     document::Document,
     node::Node,
