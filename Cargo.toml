@@ -22,13 +22,12 @@ idm = { git = "https://github.com/rsaarelm/idm" }
 
 chrono = "0.4"
 dialoguer = "0.8"
-env_logger = "0.8"
+env_logger = "0.9"
 log = "0.4"
 md5 = "0.7"
 nom = "7.0.0-alpha1"
 ron = "0.6"
-serde = "1"
-serde_derive = "1"
+serde = { version = "1", features = ["derive"] }
 structopt = "0.3"
 termion = "1"
 

@@ -5,9 +5,7 @@ let
 in
 pkgs.mkShell {
   buildInputs = with pkgs; [
-    rustup  # TODO: Remove rustup once NixOS rustc version works
-            # NixOS rustc 1.52.1 hits an ICE, need to use a different ver
-    # rustc
+    rustc
     cargo rustfmt rust-analyzer cargo-outdated clippy
 
     # Needed by cargo dependencies.

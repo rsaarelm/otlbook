@@ -18,9 +18,8 @@ rayon = "1"
 regex = "1"  # TODO: Replace with nomming
 lazy_static = "1"
 
-serde = "1"
-serde_derive = "1"
-serde_plain = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_plain = "1"
 walkdir = "2"
 
 [dev-dependencies]

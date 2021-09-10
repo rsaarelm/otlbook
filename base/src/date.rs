@@ -28,7 +28,7 @@ pub enum VagueDate {
     DateTime(DateTime<FixedOffset>),
 }
 
-serde_plain::derive_deserialize_from_str!(VagueDate, "date value");
+serde_plain::derive_deserialize_from_fromstr!(VagueDate, "date value");
 serde_plain::derive_serialize_from_display!(VagueDate);
 
 use VagueDate::*;
@@ -133,7 +133,7 @@ impl fmt::Display for VagueDate {
 #[cfg(test)]
 mod tests {
     use crate::VagueDate;
-    use chrono::{TimeZone, offset::FixedOffset};
+    use chrono::{offset::FixedOffset, TimeZone};
     use pretty_assertions::assert_eq;
 
     fn example_date() -> VagueDate {

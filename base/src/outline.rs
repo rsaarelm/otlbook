@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt, fs, path::Path};
 
 #[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

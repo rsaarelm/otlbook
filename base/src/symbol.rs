@@ -18,6 +18,14 @@ impl<T: AsRef<str>> std::ops::Deref for Sym<T> {
     }
 }
 
+impl Default for Sym<String> {
+    fn default() -> Self {
+        // XXX: Not very useful, but necessary so you can derive(Default) for
+        // Symbol containers
+        Sym::new("-".to_string()).unwrap()
+    }
+}
+
 impl<T: AsRef<str>> Sym<T> {
     pub fn new<U: Into<T>>(value: U) -> Result<Self, ()> {
         let value = value.into();
