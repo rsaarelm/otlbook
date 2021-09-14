@@ -6,7 +6,7 @@ use std::{convert::TryFrom, fmt, fs, path::Path};
 pub struct Outline(pub Vec<Section>);
 
 #[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Section(pub Option<String>, pub Outline);
+pub struct Section(pub idm::Raw<String>, pub Outline);
 
 impl fmt::Debug for Outline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -19,10 +19,7 @@ impl fmt::Debug for Outline {
                 for _ in 0..depth {
                     write!(f, "  ")?;
                 }
-                match title {
-                    None => writeln!(f, "ø")?,
-                    Some(s) => writeln!(f, "{:?}", s)?,
-                }
+                writeln!(f, "{:?}", title)?;
                 print(f, depth + 1, &body)?;
             }
 
@@ -51,11 +48,13 @@ impl std::ops::DerefMut for Outline {
     }
 }
 
-impl std::iter::FromIterator<(Option<String>, Outline)> for Outline {
-    fn from_iter<U: IntoIterator<Item = (Option<String>, Outline)>>(
-        iter: U,
-    ) -> Self {
-        Outline(iter.into_iter().map(|(h, b)| Section(h, b)).collect())
+impl std::iter::FromIterator<(String, Outline)> for Outline {
+    fn from_iter<U: IntoIterator<Item = (String, Outline)>>(iter: U) -> Self {
+        Outline(
+            iter.into_iter()
+                .map(|(h, b)| Section(idm::Raw(h), b))
+                .collect(),
+        )
     }
 }
 
@@ -128,8 +127,7 @@ impl Outline {
 
     /// Iterate non-empty headlines of outline.
     pub fn headlines(&self) -> impl Iterator<Item = &str> {
-        self.iter()
-            .filter_map(|Section(h, _)| h.as_ref().map(|h| h.as_str()))
+        self.iter().map(|Section(h, _)| h.as_str())
     }
 
     /// Try to read an attribute deserialized to type.
@@ -251,7 +249,7 @@ impl Section {
     pub fn title(&self) -> &str {
         // TODO: Strip TODO markings prefix, [_] 12%
         // TODO: Strip important item suffix " *"
-        self.0.as_ref().map(|s| s.as_ref()).unwrap_or("")
+        self.0.as_str()
     }
 
     /// If headline resolves to WikiWord title, return that
@@ -292,7 +290,7 @@ impl Section {
             }
         };
 
-        self.0 = Some(format!(
+        self.0 = idm::Raw(format!(
             "{}{}",
             name.as_ref(),
             &self.title()[current_name.len()..]

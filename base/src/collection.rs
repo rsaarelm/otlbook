@@ -52,10 +52,10 @@ impl Collection {
             .map(|p| {
                 // Path names in outline must have the base path stripped out.
                 (
-                    Some(format!(
+                    format!(
                         "{}",
                         p.strip_prefix(&path).unwrap().to_str().unwrap()
-                    )),
+                    ),
                     Outline::try_from(p.as_ref())
                         .expect("load_collection: Failed to parse outline"),
                 )
@@ -94,11 +94,6 @@ impl Collection {
                 .iter()
                 .map(|Section(h, _)| h)
                 .collect::<Vec<_>>();
-            if headlines.iter().any(|c| c.is_none()) {
-                panic!(
-                    "Collection::save: Missing toplevel headline in collection"
-                );
-            }
 
             // All toplevel filenames must be unique.
             headlines.sort();
@@ -112,13 +107,13 @@ impl Collection {
         let current = self
             .current
             .iter()
-            .map(|Section(h, b)| (PathBuf::from(h.as_ref().unwrap()), b))
+            .map(|Section(h, b)| (PathBuf::from(h.as_str()), b))
             .collect::<BTreeMap<PathBuf, &Outline>>();
 
         let loaded = self
             .loaded
             .iter()
-            .map(|Section(h, b)| (PathBuf::from(h.as_ref().unwrap()), b))
+            .map(|Section(h, b)| (PathBuf::from(h.as_str()), b))
             .collect::<BTreeMap<PathBuf, &Outline>>();
 
         // Remove files that were deleted from current set.
