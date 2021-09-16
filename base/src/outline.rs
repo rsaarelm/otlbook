@@ -67,16 +67,18 @@ impl std::str::FromStr for Outline {
 }
 
 impl TryFrom<&Path> for Outline {
-    type Error = Box<dyn std::error::Error>;
+    type Error = idm::Error;
 
     fn try_from(path: &Path) -> Result<Self, Self::Error> {
-        let contents = fs::read_to_string(path)?;
-        let ret =
-            idm::from_str::<Outline>(&contents).expect("shouldn't happen");
+        let contents = fs::read_to_string(path).map_err(|e| {
+            idm::Error::new(format!("Couldn't open path {:?}", path))
+        })?;
+        let ret = idm::from_str::<Outline>(&contents)?;
 
+        // XXX: Does this really belong here? Seems pretty heavyweight...
         #[cfg(debug_assertions)]
         {
-            let reser = idm::to_string(&ret).unwrap();
+            let reser = idm::to_string_styled_like(&contents, &ret).unwrap();
             if reser != contents {
                 use std::fs::File;
                 use std::io::prelude::*;

@@ -45,9 +45,12 @@ impl Collection {
             .collect();
 
         log::info!("load_collection: Loading {} .otl files", files.len());
+
         // Collect into BTreeMap so we automagically get the toplevel sorted
         // lexically by filenames.
-        let sections: BTreeMap<_, _> = files
+        let mut sections = BTreeMap::new();
+
+        for (name, outline) in files
             .into_par_iter()
             .map(|p| {
                 // Path names in outline must have the base path stripped out.
@@ -57,10 +60,11 @@ impl Collection {
                         p.strip_prefix(&path).unwrap().to_str().unwrap()
                     ),
                     Outline::try_from(p.as_ref())
-                        .expect("load_collection: Failed to parse outline"),
                 )
-            })
-            .collect();
+            }).collect::<Vec<_>>().into_iter() {
+            sections.insert(name, outline?);
+        }
+
         log::info!("load_collection: Merging loaded outlines");
 
         let loaded = Outline::from_iter(sections);
