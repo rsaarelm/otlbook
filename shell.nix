@@ -6,7 +6,7 @@ in
 pkgs.mkShell {
   buildInputs = with pkgs; [
     rustc
-    cargo rustfmt rust-analyzer cargo-outdated clippy
+    cargo rustfmt rust-analyzer cargo-outdated cargo-udeps clippy
 
     # Needed by cargo dependencies.
     cmake gcc zlib pkgconfig openssl
@@ -22,5 +22,5 @@ pkgs.mkShell {
   ];
 
   RUST_BACKTRACE = "1";
-  RUST_LOG = "parser=${log_level},scraper=${log_level},olt=${log_level}";
+  RUST_LOG = "anki=${log_level},base=${log_level},cache=${log_level},scraper=${log_level},tangle=${log_level},weave=${log_level},webserver=${log_level}";
 }
