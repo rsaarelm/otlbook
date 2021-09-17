@@ -2,6 +2,27 @@ use base::{Collection, Outline, Section};
 use std::collections::{BTreeSet, HashMap};
 use structopt::StructOpt;
 
+/// Trait for top-level error handling.
+pub trait OrDie {
+    type Value;
+
+    fn or_die(self) -> Self::Value;
+}
+
+impl<T, E: std::fmt::Display> OrDie for Result<T, E> {
+    type Value = T;
+
+    fn or_die(self) -> Self::Value {
+        match self {
+            Ok(val) => val,
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
+        }
+    }
+}
+
 fn main() {
     env_logger::init();
 
@@ -14,7 +35,7 @@ fn main() {
 }
 
 fn exists(uri: String) {
-    let col = Collection::new().unwrap();
+    let col = Collection::new().or_die();
 
     log::info!("Start URI search");
     for Section(head, body) in col.outline().walk() {
@@ -33,7 +54,7 @@ fn exists(uri: String) {
 }
 
 fn dupes() {
-    let col = Collection::new().unwrap();
+    let col = Collection::new().or_die();
     let mut count = HashMap::new();
 
     log::info!("Start WikiTitle crawl");
@@ -68,7 +89,7 @@ fn dupes() {
 
 fn tag_search(tags: Vec<String>) {
     let tags = tags.into_iter().collect::<BTreeSet<_>>();
-    let col = Collection::new().unwrap();
+    let col = Collection::new().or_die();
 
     fn crawl(
         search_tags: &BTreeSet<String>,
@@ -113,7 +134,7 @@ fn tag_search(tags: Vec<String>) {
 }
 
 fn tag_histogram() {
-    let col = Collection::new().unwrap();
+    let col = Collection::new().or_die();
 
     let mut hist = HashMap::new();
     log::info!("Start URI search");

@@ -59,9 +59,14 @@ impl Collection {
                         "{}",
                         p.strip_prefix(&path).unwrap().to_str().unwrap()
                     ),
-                    Outline::try_from(p.as_ref())
+                    Outline::try_from(p.as_ref()).map_err(|e| {
+                        e.file_name(format!("{}", p.to_string_lossy()))
+                    }),
                 )
-            }).collect::<Vec<_>>().into_iter() {
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+        {
             sections.insert(name, outline?);
         }
 
