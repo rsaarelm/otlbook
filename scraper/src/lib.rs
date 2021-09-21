@@ -18,18 +18,18 @@ pub type Uri = String;
 /// Data for bookmarks and bibliography.
 ///
 /// ```
-/// let outline: (Option<String>, scraper::LibraryEntry) = idm::from_str("\
+/// let outline: (idm::Raw<String>, scraper::LibraryEntry) = idm::from_str("\
 /// Feynman Lectures on Physics
-/// \turi: https://www.feynmanlectures.caltech.edu/
-/// \ttitle: The Feynman Lectures on Physics
-/// \tyear: 1964
-/// \ttags: physics
-/// \tread: 2006-01-02").unwrap();
+///   uri: https://www.feynmanlectures.caltech.edu/
+///   title: The Feynman Lectures on Physics
+///   published: 1964
+///   tags: physics
+///   read: 2006-01-02").unwrap();
 ///
-/// assert_eq!(outline.0, Some("Feynman Lectures on Physics".to_string()));
+/// assert_eq!(outline.0.0, "Feynman Lectures on Physics");
 /// assert_eq!(outline.1.uri, "https://www.feynmanlectures.caltech.edu/");
 /// ```
-#[derive(Default, Clone, Debug, Serialize, Deserialize)]
+#[derive(Default, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub struct LibraryEntry {
     pub uri: Uri,
     pub title: Option<String>,

@@ -2,6 +2,7 @@
 name = "scraper"
 version = "0.1.0"
 authors = ["Risto Saarelma <risto.saarelma@iki.fi>"]
+description = "Extracting data from outside sources"
 edition = "2018"
 
 [dependencies]
