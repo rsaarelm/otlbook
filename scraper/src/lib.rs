@@ -1,8 +1,7 @@
-use base::{VagueDate, Symbol};
+use base::{Symbol, VagueDate};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::error::Error;
-use async_std::task;
 
 // FIXME: Re-enable these.
 //mod goodreads;
@@ -61,9 +60,11 @@ impl LibraryEntry {
 
         let doc = Document::from(html);
 
-        let title: Option<String> = doc.find(Name("title")).next().map(|e| e.text());
+        let title: Option<String> =
+            doc.find(Name("title")).next().map(|e| e.text());
         let localtime: DateTime<Local> = Local::now();
-        let localtime: DateTime<FixedOffset> = localtime.with_timezone(localtime.offset());
+        let localtime: DateTime<FixedOffset> =
+            localtime.with_timezone(localtime.offset());
 
         LibraryEntry {
             uri: uri.to_string(),
@@ -89,13 +90,16 @@ impl std::ops::Deref for Scrapeable {
 }
 
 impl Scrapeable {
-    pub fn get(target: &str) -> Result<Scrapeable, Box<dyn Error + Send + Sync>> {
+    pub fn get(
+        target: &str,
+    ) -> Result<Scrapeable, Box<dyn Error + Send + Sync>> {
         // TODO: Make timeout configurable in CLI parameters.
         // Timeout is needed if you hit a weird site like http://robpike.io
-        const REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
+        const REQUEST_TIMEOUT: std::time::Duration =
+            std::time::Duration::from_secs(2);
 
         if let Ok(url) = url::Url::parse(target) {
-            Ok(Scrapeable(task::block_on( task::spawn(async { download_page(url, REQUEST_TIMEOUT).await }))?))
+            Ok(Scrapeable(download_page(url, REQUEST_TIMEOUT)?))
         } else {
             // Assume it's a file
             Ok(Scrapeable(std::fs::read_to_string(target)?))
@@ -103,13 +107,13 @@ impl Scrapeable {
     }
 }
 
-pub async fn download_page(url: url::Url, timeout: std::time::Duration) -> Result<String, Box<dyn Error + Send + Sync>> {
-    let request = reqwest::Client::new()
-        .get(url)
-        .timeout(timeout)
-        .send()
-        .await?;
-    Ok(request.text().await?)
+pub fn download_page(
+    url: url::Url,
+    timeout: std::time::Duration,
+) -> Result<String, Box<dyn Error + Send + Sync>> {
+    let agent = ureq::AgentBuilder::new().timeout_read(timeout).build();
+
+    Ok(agent.get(url.as_str()).call()?.into_string()?)
 }
 
 /*

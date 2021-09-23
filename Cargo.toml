@@ -13,7 +13,7 @@ anki = { path = "anki" }
 base = { path = "base" }
 cache = { path = "cache" }
 # FIXME
-# scraper = { path = "scraper" }
+scraper = { path = "scraper" }
 tangle = { path = "tangle" }
 weave = { path = "weave" }
 webserver = { path = "webserver" }
@@ -30,6 +30,7 @@ ron = "0.6"
 serde = { version = "1", features = ["derive"] }
 structopt = "0.3"
 termion = "1"
+url = "2"
 
 [dev-dependencies]
 pretty_assertions = "0.7"

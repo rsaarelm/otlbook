@@ -1,56 +1,50 @@
 use base::{Collection, Outline, Section};
-use std::collections::{BTreeSet, HashMap};
+use std::{
+    collections::{BTreeSet, HashMap},
+    time::Duration,
+};
 use structopt::StructOpt;
 
-/// Trait for top-level error handling.
-pub trait OrDie {
-    type Value;
-
-    fn or_die(self) -> Self::Value;
-}
-
-impl<T, E: std::fmt::Display> OrDie for Result<T, E> {
-    type Value = T;
-
-    fn or_die(self) -> Self::Value {
-        match self {
-            Ok(val) => val,
-            Err(e) => {
-                eprintln!("{}", e);
-                std::process::exit(1);
-            }
-        }
-    }
+#[derive(StructOpt, Debug)]
+#[structopt(name = "olt", about = "Outline file processing tool")]
+enum Olt {
+    #[structopt(name = "dupes", about = "List duplicate entries")]
+    Dupes,
+    #[structopt(
+        name = "uri-exists",
+        about = "Check if URI is saved in collection"
+    )]
+    Exists {
+        #[structopt(parse(from_str))]
+        uri: String,
+    },
+    #[structopt(
+        name = "scrape",
+        about = "Scrape an external resource into references"
+    )]
+    Scrape {
+        #[structopt(parse(from_str))]
+        target: String,
+    },
+    #[structopt(name = "tags", about = "Show tag cloud")]
+    Tags,
+    #[structopt(name = "tagged", about = "List items with given tags")]
+    Tagged {
+        #[structopt(parse(from_str), required = true)]
+        tags: Vec<String>,
+    },
 }
 
 fn main() {
     env_logger::init();
 
     match Olt::from_args() {
-        Olt::Exists { uri } => exists(uri),
         Olt::Dupes => dupes(),
+        Olt::Exists { uri } => exists(uri),
+        Olt::Scrape { target } => scrape(target),
         Olt::Tags => tag_histogram(),
         Olt::Tagged { tags } => tag_search(tags),
     }
-}
-
-fn exists(uri: String) {
-    let col = Collection::new().or_die();
-
-    log::info!("Start URI search");
-    for Section(head, body) in col.outline().walk() {
-        if let Ok(Some(u)) = body.attr::<String>("uri") {
-            if u == uri {
-                println!("Found! {:?}", head);
-                log::info!("URI search successful");
-                return;
-            }
-        }
-    }
-
-    log::info!("Failed URI search");
-    println!("Not found");
-    std::process::exit(1);
 }
 
 fn dupes() {
@@ -85,6 +79,35 @@ fn dupes() {
             println!("uri dupes: {}", t);
         }
     }
+}
+
+fn exists(uri: String) {
+    let col = Collection::new().or_die();
+
+    log::info!("Start URI search");
+    for Section(head, body) in col.outline().walk() {
+        if let Ok(Some(u)) = body.attr::<String>("uri") {
+            if u == uri {
+                println!("Found! {:?}", head);
+                log::info!("URI search successful");
+                return;
+            }
+        }
+    }
+
+    log::info!("Failed URI search");
+    println!("Not found");
+    std::process::exit(1);
+}
+
+fn scrape(target: String) {
+    let page = scraper::download_page(
+        url::Url::parse(&target).expect("Invalid URL"),
+        Duration::new(5, 0),
+    )
+    .expect("Scrape failed");
+
+    println!("{:?}", page);
 }
 
 fn tag_search(tags: Vec<String>) {
@@ -156,24 +179,23 @@ fn tag_histogram() {
     }
 }
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "olt", about = "Outline file processing tool")]
-enum Olt {
-    #[structopt(
-        name = "uri-exists",
-        about = "Check if URI is saved in collection"
-    )]
-    Exists {
-        #[structopt(parse(from_str))]
-        uri: String,
-    },
-    #[structopt(name = "dupes", about = "List duplicate entries")]
-    Dupes,
-    #[structopt(name = "tags", about = "Show tag cloud")]
-    Tags,
-    #[structopt(name = "tagged", about = "List items with given tags")]
-    Tagged {
-        #[structopt(parse(from_str), required = true)]
-        tags: Vec<String>,
-    },
+/// Trait for top-level error handling.
+pub trait OrDie {
+    type Value;
+
+    fn or_die(self) -> Self::Value;
+}
+
+impl<T, E: std::fmt::Display> OrDie for Result<T, E> {
+    type Value = T;
+
+    fn or_die(self) -> Self::Value {
+        match self {
+            Ok(val) => val,
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
+        }
+    }
 }

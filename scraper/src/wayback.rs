@@ -22,6 +22,8 @@ struct WaybackSnapshot {
 }
 
 pub fn is_archived_on_wayback(url: &str) -> Result<bool, Box<dyn Error>> {
+    todo!() // rewrite in ureq
+    /*
     if url::Url::parse(url).is_err() {
         return Err("Not a valid URL".into());
     }
@@ -33,6 +35,7 @@ pub fn is_archived_on_wayback(url: &str) -> Result<bool, Box<dyn Error>> {
     .json()?;
 
     Ok(result.archived_snapshots.closest.is_some())
+    */
 }
 
 pub fn generate_wayback_save_url(url: &str) -> String {
