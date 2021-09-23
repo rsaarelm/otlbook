@@ -1,7 +1,7 @@
 use base::{Collection, Outline, Section};
 use std::{
     collections::{BTreeSet, HashMap},
-    time::Duration,
+    convert::TryInto,
 };
 use structopt::StructOpt;
 
@@ -101,13 +101,18 @@ fn exists(uri: String) {
 }
 
 fn scrape(target: String) {
-    let page = scraper::download_page(
-        url::Url::parse(&target).expect("Invalid URL"),
-        Duration::new(5, 0),
-    )
-    .expect("Scrape failed");
+    let page = scraper::Scrapeable::load(target).expect("Invalid URL");
+    let entry = page
+        .scrape()
+        .expect("Failed to scrape")
+        .into_iter()
+        .next()
+        .expect("Failed to scrape");
 
-    println!("{:?}", page);
+    println!(
+        "{}",
+        idm::to_string_styled(idm::Style::Tabs, &entry).unwrap()
+    );
 }
 
 fn tag_search(tags: Vec<String>) {

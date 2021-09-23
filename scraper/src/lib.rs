@@ -75,45 +75,71 @@ impl LibraryEntry {
     }
 }
 
-/// Wrapper that indicates that the contents are a potential scraping source.
-///
-/// Used as a TryFrom source for scraped formats.
-#[derive(Clone, Debug)]
-pub(crate) struct Scrapeable(pub String);
-
-impl std::ops::Deref for Scrapeable {
-    type Target = String;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+// TODO: Rename to Scrapeable once old Scrapeable is gone
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Scrapeable {
+    File { filename: String, content: String },
+    WebPage { url: url::Url, content: String },
 }
 
 impl Scrapeable {
-    pub fn get(
-        target: &str,
-    ) -> Result<Scrapeable, Box<dyn Error + Send + Sync>> {
+    pub fn load(url: impl AsRef<str>) -> Result<Scrapeable, Box<dyn Error>> {
+        use Scrapeable::*;
+        let url = url.as_ref();
+
         // TODO: Make timeout configurable in CLI parameters.
         // Timeout is needed if you hit a weird site like http://robpike.io
         const REQUEST_TIMEOUT: std::time::Duration =
             std::time::Duration::from_secs(2);
 
-        if let Ok(url) = url::Url::parse(target) {
-            Ok(Scrapeable(download_page(url, REQUEST_TIMEOUT)?))
+        if url.find(':').is_none() {
+            // No protocol, assume it's a file. Load from local file system.
+            Ok(File {
+                filename: url.to_string(),
+                content: std::fs::read_to_string(url)?,
+            })
+        } else if url.starts_with("http:") || url.starts_with("https:") {
+            let url: url::Url = url.parse()?;
+            // Web page. Try to download over the internet.
+            let agent = ureq::AgentBuilder::new()
+                .timeout_read(REQUEST_TIMEOUT)
+                .build();
+            let content = agent.get(url.as_str()).call()?.into_string()?;
+            Ok(WebPage { url, content })
         } else {
-            // Assume it's a file
-            Ok(Scrapeable(std::fs::read_to_string(target)?))
+            Err(format!("Unknown protocol {:?}", url))?
         }
     }
-}
 
-pub fn download_page(
-    url: url::Url,
-    timeout: std::time::Duration,
-) -> Result<String, Box<dyn Error + Send + Sync>> {
-    let agent = ureq::AgentBuilder::new().timeout_read(timeout).build();
+    pub fn scrape(
+        &self,
+    ) -> Result<Vec<(String, LibraryEntry)>, Box<dyn Error>> {
+        use Scrapeable::*;
 
-    Ok(agent.get(url.as_str()).call()?.into_string()?)
+        match self {
+            File { filename, content } => todo!(),
+            WebPage { url, content } => {
+                use select::document::Document;
+                use select::predicate::Name;
+
+                let document = Document::from(content.as_ref());
+                let title = document
+                    .find(Name("title"))
+                    .next()
+                    .map(|n| n.text())
+                    .unwrap_or_else(|| url.to_string());
+
+                Ok(vec![(
+                    title,
+                    LibraryEntry {
+                        uri: url.to_string(),
+                        added: Some(VagueDate::now()),
+                        ..Default::default()
+                    },
+                )])
+            }
+        }
+    }
 }
 
 /*

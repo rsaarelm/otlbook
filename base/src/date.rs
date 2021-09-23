@@ -38,6 +38,10 @@ impl VagueDate {
         DateTime(FixedOffset::east(0).timestamp(seconds_since_epoch, 0))
     }
 
+    pub fn now() -> VagueDate {
+        DateTime(chrono::offset::Local::now().into())
+    }
+
     /// Reduce precision to the level of the other date.
     ///
     /// Ie if the other date is YearMonth, 2006-01-02 becomes 2006-01.
