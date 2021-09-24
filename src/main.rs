@@ -1,8 +1,5 @@
 use base::{Collection, Outline, Section};
-use std::{
-    collections::{BTreeSet, HashMap},
-    convert::TryInto,
-};
+use std::collections::{BTreeSet, HashMap};
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -109,7 +106,7 @@ fn scrape(target: String) {
         .next()
         .expect("Failed to scrape");
 
-    println!(
+    print!(
         "{}",
         idm::to_string_styled(idm::Style::Tabs, &entry).unwrap()
     );

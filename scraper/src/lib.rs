@@ -122,11 +122,21 @@ impl Scrapeable {
                 use select::document::Document;
                 use select::predicate::Name;
 
+                // Grab web page title.
                 let document = Document::from(content.as_ref());
                 let title = document
                     .find(Name("title"))
                     .next()
                     .map(|n| n.text())
+                    .unwrap_or_else(|| url.to_string());
+
+                // Correct for weird stuff like multi-line text block for
+                // title.
+                let title = title.trim();
+                let title = title
+                    .lines()
+                    .next()
+                    .map(|s| s.to_string())
                     .unwrap_or_else(|| url.to_string());
 
                 Ok(vec![(
