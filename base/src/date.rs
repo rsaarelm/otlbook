@@ -1,6 +1,6 @@
 use chrono::{
     naive::NaiveDate,
-    offset::{FixedOffset, TimeZone},
+    offset::{FixedOffset, Offset, TimeZone},
     DateTime, Datelike,
 };
 use std::cmp::Ordering;
@@ -39,7 +39,12 @@ impl VagueDate {
     }
 
     pub fn now() -> VagueDate {
-        DateTime(chrono::offset::Local::now().into())
+        // XXX: Isn't there a simpler way to make DateTime<FixedOffset> with
+        // system local time zone?
+        let local = chrono::offset::Local::now();
+        let tz = local.offset().fix();
+
+        DateTime(DateTime::<FixedOffset>::from_utc(local.naive_utc(), tz))
     }
 
     /// Reduce precision to the level of the other date.
