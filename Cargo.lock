@@ -3042,6 +3042,10 @@ dependencies = [
 name = "webserver"
 version = "0.1.0"
 dependencies = [
+ "async-std",
+ "base",
+ "lazy_static",
+ "log",
  "tide",
 ]
 

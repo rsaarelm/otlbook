@@ -23,6 +23,14 @@ enum Olt {
         #[structopt(parse(from_str))]
         target: String,
     },
+    #[structopt(
+        name = "server",
+        about = "Run the otlbook web server for the current collection"
+    )]
+    Server {
+        #[structopt(default_value = "8080")]
+        port: u32,
+    },
     #[structopt(name = "tags", about = "Show tag cloud")]
     Tags,
     #[structopt(name = "tagged", about = "List items with given tags")]
@@ -39,6 +47,9 @@ fn main() {
         Olt::Dupes => dupes(),
         Olt::Exists { uri } => exists(uri),
         Olt::Scrape { target } => scrape(target),
+        Olt::Server { port } => {
+            webserver::run(port).unwrap();
+        }
         Olt::Tags => tag_histogram(),
         Olt::Tagged { tags } => tag_search(tags),
     }

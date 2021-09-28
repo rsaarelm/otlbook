@@ -11,4 +11,5 @@ mod symbol;
 pub use symbol::Sym;
 pub type Symbol = Sym<String>;
 
-pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+pub type Result<T> =
+    std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;

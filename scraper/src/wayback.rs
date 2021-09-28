@@ -23,19 +23,19 @@ struct WaybackSnapshot {
 
 pub fn is_archived_on_wayback(url: &str) -> Result<bool, Box<dyn Error>> {
     todo!() // rewrite in ureq
-    /*
-    if url::Url::parse(url).is_err() {
-        return Err("Not a valid URL".into());
-    }
+            /*
+            if url::Url::parse(url).is_err() {
+                return Err("Not a valid URL".into());
+            }
 
-    let result: WaybackAvailable = reqwest::blocking::get(&format!(
-        "https://archive.org/wayback/available?url={}",
-        url
-    ))?
-    .json()?;
+            let result: WaybackAvailable = reqwest::blocking::get(&format!(
+                "https://archive.org/wayback/available?url={}",
+                url
+            ))?
+            .json()?;
 
-    Ok(result.archived_snapshots.closest.is_some())
-    */
+            Ok(result.archived_snapshots.closest.is_some())
+            */
 }
 
 pub fn generate_wayback_save_url(url: &str) -> String {
