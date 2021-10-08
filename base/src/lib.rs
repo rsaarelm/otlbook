@@ -13,3 +13,5 @@ pub type Symbol = Sym<String>;
 
 pub type Result<T> =
     std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+
+mod tree;

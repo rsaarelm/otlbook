@@ -7,20 +7,19 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [dependencies]
-idm = { git = "https://github.com/rsaarelm/idm" }
-
 chrono = "0.4"
 dirs = "3"
+lazy_static = "1"
 log = "0.4"
 nom = "7.0.0-alpha1"
 rayon = "1"
-
 regex = "1"  # TODO: Replace with nomming
-lazy_static = "1"
-
 serde = { version = "1", features = ["derive"] }
 serde_plain = "1"
+typed-arena = "2"
 walkdir = "2"
+
+idm = { git = "https://github.com/rsaarelm/idm" }
 
 [dev-dependencies]
 pretty_assertions = "0.7"
