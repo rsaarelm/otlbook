@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 chrono = "0.4"
-dirs = "3"
+dirs = "4"
 lazy_static = "1"
 log = "0.4"
 nom = "7.0.0-alpha1"
@@ -22,5 +22,5 @@ walkdir = "2"
 idm = { git = "https://github.com/rsaarelm/idm" }
 
 [dev-dependencies]
-pretty_assertions = "0.7"
+pretty_assertions = "1"
 ron = "0.6"
