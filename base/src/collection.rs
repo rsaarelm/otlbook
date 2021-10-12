@@ -1,4 +1,4 @@
-use crate::{Outline, Result, Section};
+use crate::{OldSection, Outline, Result};
 use rayon::prelude::*;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -101,7 +101,7 @@ impl Collection {
             let mut headlines = self
                 .current
                 .iter()
-                .map(|Section(h, _)| h)
+                .map(|OldSection(h, _)| h)
                 .collect::<Vec<_>>();
 
             // All toplevel filenames must be unique.
@@ -116,13 +116,13 @@ impl Collection {
         let current = self
             .current
             .iter()
-            .map(|Section(h, b)| (PathBuf::from(h.as_str()), b))
+            .map(|OldSection(h, b)| (PathBuf::from(h.as_str()), b))
             .collect::<BTreeMap<PathBuf, &Outline>>();
 
         let loaded = self
             .loaded
             .iter()
-            .map(|Section(h, b)| (PathBuf::from(h.as_str()), b))
+            .map(|OldSection(h, b)| (PathBuf::from(h.as_str()), b))
             .collect::<BTreeMap<PathBuf, &Outline>>();
 
         // Remove files that were deleted from current set.

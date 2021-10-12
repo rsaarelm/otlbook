@@ -3,10 +3,59 @@ use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt, fs, path::Path};
 
 #[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Outline(pub Vec<Section>);
+pub struct Outline(pub Vec<OldSection>);
 
 #[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Section(pub idm::Raw<String>, pub Outline);
+pub struct OldSection(pub idm::Raw<String>, pub Outline);
+
+// TODO: Get rid of OldSection and Outline, rewrite API in terms of Section
+pub type Section = crate::tree::NodeRef<String>;
+
+/// IDM type for sections.
+///
+/// The runtime section type made of `NodeRef`s doesn't serialize cleanly on
+/// its own.
+#[derive(Serialize, Deserialize)]
+struct RawSection(pub idm::Raw<String>, pub Vec<RawSection>);
+
+impl From<&Section> for RawSection {
+    fn from(sec: &Section) -> Self {
+        RawSection(
+            idm::Raw(sec.borrow().clone()),
+            sec.children().map(|c| RawSection::from(&c)).collect(),
+        )
+    }
+}
+
+impl From<RawSection> for Section {
+    fn from(sec: RawSection) -> Self {
+        let root = Section::new(sec.0 .0);
+        for s in sec.1.into_iter() {
+            root.append(Section::from(s));
+        }
+        root
+    }
+}
+
+impl Serialize for Section {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        RawSection::from(self).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Section {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let section: RawSection =
+            serde::Deserialize::deserialize(deserializer)?;
+        Ok(Section::from(section))
+    }
+}
 
 impl fmt::Debug for Outline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -15,7 +64,7 @@ impl fmt::Debug for Outline {
             depth: usize,
             otl: &Outline,
         ) -> fmt::Result {
-            for Section(title, body) in &otl.0 {
+            for OldSection(title, body) in &otl.0 {
                 for _ in 0..depth {
                     write!(f, "  ")?;
                 }
@@ -35,7 +84,7 @@ impl fmt::Debug for Outline {
 }
 
 impl std::ops::Deref for Outline {
-    type Target = Vec<Section>;
+    type Target = Vec<OldSection>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -52,7 +101,7 @@ impl std::iter::FromIterator<(String, Outline)> for Outline {
     fn from_iter<U: IntoIterator<Item = (String, Outline)>>(iter: U) -> Self {
         Outline(
             iter.into_iter()
-                .map(|(h, b)| Section(idm::Raw(h), b))
+                .map(|(h, b)| OldSection(idm::Raw(h), b))
                 .collect(),
         )
     }
@@ -66,13 +115,29 @@ impl std::str::FromStr for Outline {
     }
 }
 
+impl Section {
+    pub fn load(path: impl AsRef<Path> + Clone) -> Result<Self, idm::Error> {
+        // XXX: Can we do without the path clonings?
+        let ret = Section::new(path.clone().as_ref().to_string_lossy().into());
+        let contents = fs::read_to_string(path.clone()).map_err(|_| {
+            idm::Error::new(format!("Couldn't open path {:?}", path.as_ref()))
+        })?;
+
+        for elt in idm::from_str::<Vec<RawSection>>(&contents)?.into_iter() {
+            ret.append(Section::from(elt));
+        }
+
+        Ok(ret)
+    }
+}
+
 // FIXME: Use a different idiom for loading, *not* comfortable using even
 // TryFrom for stuff that needs disk ops. Try "load".
 impl TryFrom<&Path> for Outline {
     type Error = idm::Error;
 
     fn try_from(path: &Path) -> Result<Self, Self::Error> {
-        let contents = fs::read_to_string(path).map_err(|e| {
+        let contents = fs::read_to_string(path).map_err(|_| {
             idm::Error::new(format!("Couldn't open path {:?}", path))
         })?;
         let ret = idm::from_str::<Outline>(&contents)?;
@@ -101,7 +166,7 @@ impl TryFrom<&Path> for Outline {
 impl Outline {
     pub fn count(&self) -> usize {
         let mut ret = self.0.len();
-        for Section(_, e) in &self.0 {
+        for OldSection(_, e) in &self.0 {
             ret += e.count();
         }
         ret
@@ -131,7 +196,7 @@ impl Outline {
 
     /// Iterate non-empty headlines of outline.
     pub fn headlines(&self) -> impl Iterator<Item = &str> {
-        self.iter().map(|Section(h, _)| h.as_str())
+        self.iter().map(|OldSection(h, _)| h.as_str())
     }
 
     /// Try to read an attribute deserialized to type.
@@ -205,7 +270,7 @@ impl Outline {
             }
         } else {
             // Non-default value, do insert.
-            let attr = Section::struct_field(name, value)?;
+            let attr = OldSection::struct_field(name, value)?;
             if delete_existing {
                 self.0[insert_pos] = attr;
             } else {
@@ -232,19 +297,19 @@ impl Outline {
     }
 }
 
-impl Section {
+impl OldSection {
     /// Construct a section that's a struct field with the given name and
     /// value.
     pub fn struct_field<T: serde::Serialize>(
         name: &str,
         value: &T,
-    ) -> Result<Section, Box<dyn std::error::Error>> {
+    ) -> Result<OldSection, Box<dyn std::error::Error>> {
         // Synthesize struct outline via Dummy struct.
         let ret = idm::to_string(&Dummy { field: value })?;
         let mut ret: Outline = idm::from_str(&ret)?;
         debug_assert!(ret.0.len() == 1);
         // Grab the single section we're interested in.
-        let mut ret: Section = ret.pop().unwrap();
+        let mut ret: OldSection = ret.pop().unwrap();
         // Rewrite dummy field name to the one we want, and done.
         ret.rewrite_attribute_name(name)?;
         Ok(ret)
@@ -343,7 +408,7 @@ pub struct OutlineWalker<'a> {
 }
 
 impl<'a> Iterator for OutlineWalker<'a> {
-    type Item = &'a Section;
+    type Item = &'a OldSection;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(ref mut child) = self.child {
@@ -373,7 +438,7 @@ pub struct OutlineWalkerMut<'a> {
 }
 
 impl<'a> Iterator for OutlineWalkerMut<'a> {
-    type Item = &'a mut Section;
+    type Item = &'a mut OldSection;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(ref mut child) = self.child {

@@ -1,4 +1,4 @@
-use base::{Collection, Outline, Section};
+use base::{Collection, OldSection, Outline};
 use std::collections::{BTreeSet, HashMap};
 use structopt::StructOpt;
 
@@ -93,7 +93,7 @@ fn exists(uri: String) {
     let col = Collection::new().or_die();
 
     log::info!("Start URI search");
-    for Section(head, body) in col.outline().walk() {
+    for OldSection(head, body) in col.outline().walk() {
         if let Ok(Some(u)) = body.attr::<String>("uri") {
             if u == uri {
                 println!("Found! {:?}", head);
@@ -174,7 +174,7 @@ fn tag_histogram() {
 
     let mut hist = HashMap::new();
     log::info!("Start URI search");
-    for Section(_, body) in col.outline().walk() {
+    for OldSection(_, body) in col.outline().walk() {
         if let Ok(Some(ts)) = body.attr::<BTreeSet<String>>("tags") {
             for t in &ts {
                 *hist.entry(t.to_string()).or_insert(0) += 1;

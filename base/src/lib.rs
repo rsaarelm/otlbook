@@ -5,7 +5,7 @@ mod date;
 pub use date::VagueDate;
 
 mod outline;
-pub use outline::{Outline, Section};
+pub use outline::{OldSection, Outline, Section};
 
 mod symbol;
 pub use symbol::Sym;
