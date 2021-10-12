@@ -1,20 +1,186 @@
-use std::{cell::Cell, collections::VecDeque, fmt};
+use std::{
+    cell::{self, RefCell},
+    collections::VecDeque,
+    convert::TryFrom,
+    fmt,
+    ops::{Deref, DerefMut},
+    rc::{Rc, Weak},
+};
 
-pub struct Node<'a, T: 'a> {
+// Inspired by rctree in https://github.com/SimonSapin/rust-forest/
+
+pub struct Node<T> {
     pub data: T,
 
-    parent: Cell<Option<&'a Node<'a, T>>>,
-    child: Cell<Option<&'a Node<'a, T>>>,
-    sibling: Cell<Option<&'a Node<'a, T>>>,
+    parent: Option<Weak<RefCell<Node<T>>>>,
+    child: Option<Rc<RefCell<Node<T>>>>,
+    sibling: Option<Rc<RefCell<Node<T>>>>,
 }
 
-pub struct DepthFirstNodes<'a, T: 'a> {
-    next: Option<&'a Node<'a, T>>,
-    pending: VecDeque<&'a Node<'a, T>>,
+impl<T> Node<T> {
+    pub fn new(data: T) -> Node<T> {
+        Node {
+            data,
+            parent: Default::default(),
+            child: Default::default(),
+            sibling: Default::default(),
+        }
+    }
 }
 
-impl<'a, T> Iterator for DepthFirstNodes<'a, T> {
-    type Item = &'a Node<'a, T>;
+/// Reference-counted tree data structure.
+pub struct NodeRef<T>(Rc<RefCell<Node<T>>>);
+
+impl<T> Clone for NodeRef<T> {
+    fn clone(&self) -> Self {
+        NodeRef(self.0.clone())
+    }
+}
+
+impl<T> From<&Rc<RefCell<Node<T>>>> for NodeRef<T> {
+    fn from(r: &Rc<RefCell<Node<T>>>) -> Self {
+        NodeRef(r.clone())
+    }
+}
+
+impl<T> From<Rc<RefCell<Node<T>>>> for NodeRef<T> {
+    fn from(r: Rc<RefCell<Node<T>>>) -> Self {
+        NodeRef(r)
+    }
+}
+
+impl<T> From<Node<T>> for NodeRef<T> {
+    fn from(n: Node<T>) -> Self {
+        NodeRef(Rc::new(RefCell::new(n)))
+    }
+}
+
+impl<T> TryFrom<&Weak<RefCell<Node<T>>>> for NodeRef<T> {
+    type Error = ();
+
+    fn try_from(w: &Weak<RefCell<Node<T>>>) -> Result<Self, Self::Error> {
+        Ok(NodeRef::from(w.upgrade().ok_or(())?))
+    }
+}
+
+impl<T> NodeRef<T> {
+    pub fn new(data: T) -> NodeRef<T> {
+        Node::new(data).into()
+    }
+
+    pub fn borrow(&self) -> Ref<T> {
+        Ref(self.0.borrow())
+    }
+
+    pub fn borrow_mut(&self) -> RefMut<T> {
+        RefMut(self.0.borrow_mut())
+    }
+
+    pub fn parent(&self) -> Option<NodeRef<T>> {
+        self.0
+            .borrow()
+            .parent
+            .as_ref()
+            .map(|w| NodeRef::try_from(w).ok())
+            .flatten()
+    }
+
+    pub fn child(&self) -> Option<NodeRef<T>> {
+        self.0.borrow().child.as_ref().map(|r| NodeRef::from(r))
+    }
+
+    pub fn sibling(&self) -> Option<NodeRef<T>> {
+        self.0.borrow().sibling.as_ref().map(|r| NodeRef::from(r))
+    }
+
+    pub fn detach(&self) {
+        if let Some(parent) = self.parent() {
+            if parent.child().expect("Invalid tree state").ptr() == self.ptr() {
+                // Detaching first child, replace with my sibling.
+                parent.0.borrow_mut().child = self.0.borrow().sibling.clone();
+            } else {
+                let mut n = parent.child();
+                while let Some(node) = n {
+                    // Detaching a sibling, cut from the chain.
+                    if node.sibling().map(|n| n.ptr()) == Some(self.ptr()) {
+                        node.0.borrow_mut().sibling =
+                            self.0.borrow().sibling.clone();
+                        break;
+                    } else {
+                        n = node.sibling();
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn prepend(&self, child: NodeRef<T>) {
+        child.detach();
+        {
+            let mut child = child.0.borrow_mut();
+            child.parent = Some(Rc::downgrade(&self.0));
+            child.sibling = self.0.borrow().child.clone();
+        }
+        self.0.borrow_mut().child = Some(child.0.clone());
+    }
+
+    pub fn append(&self, child: NodeRef<T>) {
+        match self.child() {
+            None => self.prepend(child),
+            Some(mut node) => {
+                child.detach();
+                child.0.borrow_mut().parent = Some(Rc::downgrade(&self.0));
+
+                while let Some(next) = node.sibling() {
+                    node = next;
+                }
+                node.0.borrow_mut().sibling = Some(child.0.clone());
+            }
+        }
+    }
+
+    /// Helper method for comparing by pointer identity.
+    fn ptr(&self) -> *const RefCell<Node<T>> {
+        &*(self.0)
+    }
+}
+
+/// Wrapper to `Deref` directly into node data.
+pub struct Ref<'a, T: 'a>(cell::Ref<'a, Node<T>>);
+
+impl<'a, T> Deref for Ref<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.data
+    }
+}
+
+/// Wrapper to `DerefMut` directly into node data.
+pub struct RefMut<'a, T: 'a>(cell::RefMut<'a, Node<T>>);
+
+impl<'a, T> Deref for RefMut<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.data
+    }
+}
+
+impl<'a, T> DerefMut for RefMut<'a, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0.data
+    }
+}
+
+/// Standard tree iterator.
+pub struct DepthFirstNodes<T> {
+    next: Option<NodeRef<T>>,
+    pending: VecDeque<NodeRef<T>>,
+}
+
+impl<T> Iterator for DepthFirstNodes<T> {
+    type Item = NodeRef<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // If out of siblings, start iterating the first node from the pending
@@ -25,7 +191,7 @@ impl<'a, T> Iterator for DepthFirstNodes<'a, T> {
 
         // Push next node's first child to pending list, move next node cursor
         // to its next sibling and yield the next node.
-        if let Some(node) = self.next {
+        if let Some(node) = self.next.as_ref().map(|n| n.clone()) {
             self.next = node.sibling();
             if let Some(child) = node.child() {
                 self.pending.push_back(child);
@@ -37,144 +203,25 @@ impl<'a, T> Iterator for DepthFirstNodes<'a, T> {
     }
 }
 
-// TODO: Children iter (VecDeque for pending nodes)
-// TODO: Breadth-first iter
-//
-// TODO: Back and forth type conv between Section and Node
-
-impl<'a, T: fmt::Display> fmt::Display for Node<'a, T> {
+impl<T: fmt::Display> fmt::Display for NodeRef<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fn print<'a, T: fmt::Display>(
             f: &mut fmt::Formatter<'_>,
             indent: usize,
-            node: &Node<'a, T>,
+            node: &NodeRef<T>,
         ) -> fmt::Result {
             for _ in 0..indent {
                 write!(f, "  ")?;
             }
-            writeln!(f, "{}", node.data)?;
+            writeln!(f, "{}", *node.borrow())?;
             let mut n = node.child();
             while let Some(node) = n {
-                print(f, indent + 1, node)?;
+                print(f, indent + 1, &node)?;
                 n = node.sibling();
             }
             Ok(())
         }
 
         print(f, 0, self)
-    }
-}
-
-/// Shorthand for converting pointer to reference to pointer for comparing ref
-/// equality.
-fn p<T>(a: &T) -> *const T {
-    a as *const T
-}
-
-impl<'a, T> Node<'a, T> {
-    pub fn new(data: T) -> Node<'a, T> {
-        Node {
-            data,
-
-            parent: Default::default(),
-            child: Default::default(),
-            sibling: Default::default(),
-        }
-    }
-
-    pub fn parent(&self) -> Option<&'a Node<'a, T>> {
-        self.parent.get()
-    }
-
-    pub fn child(&self) -> Option<&'a Node<'a, T>> {
-        self.child.get()
-    }
-
-    pub fn sibling(&self) -> Option<&'a Node<'a, T>> {
-        self.sibling.get()
-    }
-
-    /// Remove node from parent node it's attached to, if any.
-    pub fn detach(&self) {
-        let parent = self.parent.take();
-        let next = self.sibling.take();
-
-        if let Some(parent) = parent {
-            if parent.child().map(p) == Some(p(self)) {
-                parent.child.set(next);
-            } else {
-                let mut n = parent.child();
-                while let Some(node) = n {
-                    if node.sibling().map(p) == Some(p(self)) {
-                        node.sibling.set(next);
-                        break;
-                    } else {
-                        n = node.sibling();
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn prepend(&'a self, child: &'a Node<'a, T>) {
-        child.detach();
-        child.parent.set(Some(self));
-        child.sibling.set(self.child());
-        self.child.set(Some(child));
-    }
-
-    pub fn append(&'a self, child: &'a Node<'a, T>) {
-        match self.child() {
-            None => self.prepend(child),
-            Some(mut node) => {
-                child.detach();
-                child.parent.set(Some(self));
-
-                while let Some(next) = node.sibling() {
-                    node = next;
-                }
-                node.sibling.set(Some(child));
-            }
-        }
-    }
-
-    /// Iterate the tree nodes, breadth-first.
-    pub fn iter(&'a self) -> DepthFirstNodes<'a, T> {
-        DepthFirstNodes {
-            next: Some(self),
-            pending: Default::default(),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_tree() {
-        let arena = typed_arena::Arena::new();
-        let new = |name: &str| arena.alloc(Node::new(name.to_string()));
-
-        let root = new("Root");
-        let a = new("A");
-        root.append(a);
-        root.append(new("B"));
-
-        a.append(new("X"));
-        a.append(new("Y"));
-
-        println!("Iter test");
-        for i in root.iter() {
-            print!("{} ", i.data);
-        }
-        println!();
-
-        println!("detach test");
-        println!("{}", root);
-        a.detach();
-        println!("{}", root);
-
-        assert!(false);
     }
 }
