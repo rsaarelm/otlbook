@@ -66,6 +66,8 @@ impl std::str::FromStr for Outline {
     }
 }
 
+// FIXME: Use a different idiom for loading, *not* comfortable using even
+// TryFrom for stuff that needs disk ops. Try "load".
 impl TryFrom<&Path> for Outline {
     type Error = idm::Error;
 
