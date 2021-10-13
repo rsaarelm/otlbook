@@ -4,8 +4,8 @@ pub use collection::Collection;
 mod date;
 pub use date::VagueDate;
 
-mod outline;
-pub use outline::{OldSection, Outline, Section};
+mod section;
+pub use section::Section;
 
 mod symbol;
 pub use symbol::Sym;

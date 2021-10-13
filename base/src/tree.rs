@@ -10,12 +10,15 @@ use std::{
 
 // Inspired by rctree in https://github.com/SimonSapin/rust-forest/
 
+#[derive(Default)]
 struct Node<T> {
     pub data: T,
 
     parent: Option<Weak<RefCell<Node<T>>>>,
     child: Option<Rc<RefCell<Node<T>>>>,
     sibling: Option<Rc<RefCell<Node<T>>>>,
+    /// Starts out false, set to true when data is first borrowed mutably.
+    dirty: bool,
 }
 
 impl<T> Node<T> {
@@ -25,11 +28,13 @@ impl<T> Node<T> {
             parent: Default::default(),
             child: Default::default(),
             sibling: Default::default(),
+            dirty: false,
         }
     }
 }
 
 /// Reference-counted tree data structure.
+#[derive(Default)]
 pub struct NodeRef<T>(Rc<RefCell<Node<T>>>);
 
 impl<T> Clone for NodeRef<T> {
@@ -79,8 +84,18 @@ impl<T> NodeRef<T> {
     /// Mutable access to node data.
     ///
     /// Will panic if any borrows to node already exist.
+    ///
+    /// Calling this will mark the node as dirty, regardless of whether node
+    /// data is actually changed.
     pub fn borrow_mut(&self) -> RefMut<T> {
-        RefMut(self.0.borrow_mut())
+        let mut node = self.0.borrow_mut();
+        node.dirty = true;
+        RefMut(node)
+    }
+
+    /// Mark the tree as dirty.
+    pub fn taint(&self) {
+        self.borrow_mut();
     }
 
     /// Return parent of node, if any.
@@ -100,10 +115,15 @@ impl<T> NodeRef<T> {
 
     /// Return next sibling of node, if any.
     pub fn sibling(&self) -> Option<NodeRef<T>> {
-        self.0.borrow().sibling.as_ref().map(|r| NodeRef::from(r))
+        // Only report sibling if parent is still valid.
+        if self.parent().is_some() {
+            self.0.borrow().sibling.as_ref().map(|r| NodeRef::from(r))
+        } else {
+            None
+        }
     }
 
-    /// Detach node from its parent. Does nothing if node has no parent.
+    /// Detach node from its parent and sibling.
     pub fn detach(&self) {
         if let Some(parent) = self.parent() {
             if parent.child().expect("Invalid tree state").ptr() == self.ptr() {
@@ -122,6 +142,12 @@ impl<T> NodeRef<T> {
                     }
                 }
             }
+        }
+
+        {
+            let mut node = self.0.borrow_mut();
+            node.parent = None;
+            node.sibling = None;
         }
     }
 
@@ -173,9 +199,40 @@ impl<T> NodeRef<T> {
         })
     }
 
+    /// Determine whether any node in tree has been changed after creation.
+    ///
+    /// Can be expensive to query as long as tree isn't dirty.
+    pub fn is_dirty(&self) -> bool {
+        if self.0.borrow().dirty == true {
+            return true;
+        }
+
+        for n in self.children() {
+            if n.is_dirty() {
+                // Dirtyfy this node as well, subsequent queries will be fast.
+                self.0.borrow_mut().dirty = true;
+                return true;
+            }
+        }
+
+        false
+    }
+
     /// Helper method for comparing by pointer identity.
     fn ptr(&self) -> *const RefCell<Node<T>> {
         &*(self.0)
+    }
+}
+
+impl<T: Clone> NodeRef<T> {
+    /// Return a detached deep copy of the current node.
+    pub fn deep_clone(&self) -> Self {
+        let data: T = self.borrow().clone();
+        let ret = NodeRef::new(data);
+        for child in self.children() {
+            ret.append(child.deep_clone());
+        }
+        ret
     }
 }
 
@@ -248,8 +305,8 @@ impl<'a, T> DerefMut for RefMut<'a, T> {
 
 /// Standard tree iterator.
 pub struct BreadthFirstNodes<T> {
-    next: Option<NodeRef<T>>,
-    pending: VecDeque<NodeRef<T>>,
+    pub(crate) next: Option<NodeRef<T>>,
+    pub(crate) pending: VecDeque<NodeRef<T>>,
 }
 
 impl<T> Iterator for BreadthFirstNodes<T> {

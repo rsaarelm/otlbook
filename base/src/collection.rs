@@ -1,12 +1,10 @@
-use crate::{OldSection, Outline, Result};
+use crate::{section::RawSection, Result, Section};
 use rayon::prelude::*;
 use std::{
     collections::{BTreeMap, BTreeSet},
-    convert::TryFrom,
     ffi::OsStr,
     fs,
-    iter::FromIterator,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 use walkdir::WalkDir;
 
@@ -15,15 +13,61 @@ use walkdir::WalkDir;
 pub struct Collection {
     /// Path the collection was loaded from.
     path: PathBuf,
-    /// State of collection when loaded.
-    loaded: Outline,
-    /// Current state of in-memory collection.
-    current: Outline,
+
+    /// Last seen set of paths, used to determine if files need to be created
+    /// or deleted when saving the collection.
+    seen_paths: BTreeSet<PathBuf>,
+    files: BTreeMap<PathBuf, File>,
+}
+
+/// Metadata and contents for a single file in the collection.
+struct File {
+    section: Section,
+    style: idm::Style,
+}
+
+impl File {
+    pub fn load(path: impl Into<PathBuf>) -> Result<File> {
+        let path = path.into();
+        log::info!("File::load from {:?}", path);
+
+        let section = Section::new(path.to_string_lossy().into());
+
+        let contents = fs::read_to_string(path)?;
+        for elt in idm::from_str::<Vec<RawSection>>(&contents)?.into_iter() {
+            section.append(Section::from(elt));
+        }
+
+        // NB. Currently using tabs as the default otlbook style to go with
+        // VimOutliner conventions. This should be made customizable somewhere
+        // eventually.
+        let style =
+            idm::infer_indent_style(&contents).unwrap_or(idm::Style::Tabs);
+
+        Ok(File { section, style })
+    }
+
+    pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+        log::info!("File::save into {:?}", path.as_ref());
+
+        let outline = self
+            .section
+            .children()
+            .map(|n| RawSection::from(&n))
+            .collect::<Vec<_>>();
+
+        fs::write(
+            path,
+            idm::to_string_styled(self.style, &outline)
+                .expect("Failed to serialize outline"),
+        )?;
+        Ok(())
+    }
 }
 
 impl Collection {
-    pub fn new() -> Result<Collection> {
-        log::info!("load_collection: Determining collection path");
+    pub fn load() -> Result<Collection> {
+        log::info!("Collection::load: Determining collection path");
         let path = if let Ok(path) = std::env::var("OTLBOOK_PATH") {
             PathBuf::from(path)
         } else if let Some(mut path) = dirs::home_dir() {
@@ -35,66 +79,56 @@ impl Collection {
             )?;
         };
 
-        log::info!("load_collection: Collecting .otl files");
+        log::info!("Collection::load: Collecting .otl files");
 
         let otl_extension = OsStr::new("otl");
-        let files: Vec<_> = WalkDir::new(path.clone())
+        let file_paths: Vec<_> = WalkDir::new(path.clone())
             .into_iter()
             .filter_map(|e| e.map(|e| e.path().to_path_buf()).ok())
             .filter(|e| e.extension() == Some(otl_extension))
             .collect();
 
-        log::info!("load_collection: Loading {} .otl files", files.len());
+        log::info!("Collection::load: Loading {} .otl files", file_paths.len());
 
-        // Collect into BTreeMap so we automagically get the toplevel sorted
-        // lexically by filenames.
-        let mut sections = BTreeMap::new();
+        let seen_paths = file_paths.iter().cloned().collect();
 
-        for (name, outline) in files
-            .into_par_iter()
-            .map(|p| {
-                // Path names in outline must have the base path stripped out.
-                (
-                    format!(
-                        "{}",
-                        p.strip_prefix(&path).unwrap().to_str().unwrap()
-                    ),
-                    Outline::try_from(p.as_ref()).map_err(|e| {
-                        e.file_name(format!("{}", p.to_string_lossy()))
-                    }),
-                )
-            })
-            .collect::<Vec<_>>()
-            .into_iter()
-        {
-            sections.insert(name, outline?);
+        let mut files = BTreeMap::new();
+
+        // TODO: Rayonize IDM loading, either make trees Arc-y or rewrite File
+        // constructor to work with prebuilt RawSections.
+        for path in file_paths {
+            files.insert(path.clone(), File::load(&path)?);
         }
-
-        log::info!("load_collection: Merging loaded outlines");
-
-        let loaded = Outline::from_iter(sections);
-        let current = loaded.clone();
 
         Ok(Collection {
             path,
-            loaded,
-            current,
+            seen_paths,
+            files,
         })
     }
 
-    /// Get the in-memory collection outline.
-    pub fn outline(&self) -> &Outline {
-        &self.current
+    pub fn iter(&self) -> impl Iterator<Item = Section> {
+        // Construct a mutant iterator that has no current next item but the
+        // roots of all the file sections as pending items.
+        crate::tree::BreadthFirstNodes {
+            next: None,
+            pending: self
+                .files
+                .iter()
+                .map(|(_, file)| file.section.clone())
+                .collect(),
+        }
     }
 
-    /// Get the mutable in-memory collection outline.
-    pub fn outline_mut(&mut self) -> &mut Outline {
-        &mut self.current
+    pub fn roots(&self) -> impl Iterator<Item = Section> + '_ {
+        self.files.iter().map(|(_, file)| file.section.clone())
     }
 
     /// Save changes after creating the collection or the previous save to
     /// disk to path where the collection was loaded from.
     pub fn save(&mut self) -> Result<()> {
+        todo!();
+        /*
         // Check for validity
         {
             // All toplevel items must define a filename.
@@ -160,5 +194,6 @@ impl Collection {
         }
 
         Ok(())
+        */
     }
 }
