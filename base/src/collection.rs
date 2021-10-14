@@ -28,22 +28,8 @@ struct File {
 
 impl File {
     pub fn load(path: impl Into<PathBuf>) -> Result<File> {
-        let path = path.into();
-        log::info!("File::load from {:?}", path);
-
-        let section = Section::new(path.to_string_lossy().into());
-
-        let contents = fs::read_to_string(path)?;
-        for elt in idm::from_str::<Vec<RawSection>>(&contents)?.into_iter() {
-            section.append(Section::from(elt));
-        }
-
-        // NB. Currently using tabs as the default otlbook style to go with
-        // VimOutliner conventions. This should be made customizable somewhere
-        // eventually.
-        let style =
-            idm::infer_indent_style(&contents).unwrap_or(idm::Style::Tabs);
-
+        let (style, headline, raw_section) = load_section(path)?;
+        let section = build_section(headline, raw_section);
         Ok(File { section, style })
     }
 
@@ -63,6 +49,45 @@ impl File {
         )?;
         Ok(())
     }
+}
+
+/// Load file into raw sections.
+///
+/// Return path converted into headline as well.
+///
+/// Parallelizable helper function for file. Currently tree nodes can't be
+/// parallelized.
+fn load_section(
+    path: impl Into<PathBuf>,
+) -> Result<(idm::Style, String, Vec<RawSection>)> {
+    let path = path.into();
+    log::info!("load_section from {:?}", path);
+    let headline = path.to_string_lossy().to_string();
+
+    let contents = fs::read_to_string(path)?;
+    // NB. Currently using tabs as the default otlbook style to go with
+    // VimOutliner conventions. This should be made customizable somewhere
+    // eventually.
+    let style = idm::infer_indent_style(&contents).unwrap_or(idm::Style::Tabs);
+
+    Ok((
+        style,
+        headline,
+        idm::from_str::<Vec<RawSection>>(&contents)?,
+    ))
+}
+
+fn build_section(headline: String, mut body: Vec<RawSection>) -> Section {
+    // XXX: Reverse-prepend optimization to get around nodes having
+    // inefficient append. Nicer approach would be to fix tree node to track
+    // last child pointer and have O(1) append op.
+    body.reverse();
+
+    let ret = Section::new(headline);
+    for child in body {
+        ret.prepend(child.into());
+    }
+    ret
 }
 
 impl Collection {
@@ -94,10 +119,16 @@ impl Collection {
 
         let mut files = BTreeMap::new();
 
-        // TODO: Rayonize IDM loading, either make trees Arc-y or rewrite File
-        // constructor to work with prebuilt RawSections.
-        for path in file_paths {
-            files.insert(path.clone(), File::load(&path)?);
+        // Load outlines in parallel with rayon.
+        for (path, res) in file_paths
+            .par_iter()
+            .map(|p| (p.clone(), load_section(p)))
+            .collect::<Vec<_>>()
+            .into_iter()
+        {
+            let (style, headline, raw_section) = res?;
+            let section = build_section(headline, raw_section);
+            files.insert(path, File { style, section });
         }
 
         Ok(Collection {
