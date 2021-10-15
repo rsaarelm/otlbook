@@ -98,6 +98,14 @@ impl<T> NodeRef<T> {
         self.borrow_mut();
     }
 
+    /// Mark the tree as clean.
+    pub fn cleanse(&self) {
+        self.0.borrow_mut().dirty = false;
+        for c in self.children() {
+            c.cleanse();
+        }
+    }
+
     /// Return parent of node, if any.
     pub fn parent(&self) -> Option<NodeRef<T>> {
         self.0

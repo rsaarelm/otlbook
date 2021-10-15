@@ -132,38 +132,33 @@ fn tag_search(tags: Vec<String>) {
         inherited_tags: &BTreeSet<String>,
         current: &Section,
     ) {
-        todo!();
-        // FIXME, figure out recursion logic for new Section type
-        /*
-        for sec in current.iter() {
-            // Only look for articles
-            if sec.is_article() {
-                let tags = if let Ok(Some(tags)) =
-                    sec.attr::<BTreeSet<String>>("tags")
-                {
-                    tags
-                } else {
-                    Default::default()
-                }
+        if current.is_article() {
+            let tags = current
+                .attr::<BTreeSet<String>>("tags")
+                .ok()
+                .flatten()
+                .unwrap_or_else(|| Default::default())
                 .union(inherited_tags)
                 .cloned()
                 .collect::<BTreeSet<String>>();
 
-                if search_tags.is_subset(&tags) {
-                    // Found!
-                    println!("{}", sec);
+            if search_tags.is_subset(&tags) {
+                // Found!
+                println!("{}", current);
 
-                    // Don't crawl into children that might also match, we
-                    // already printed them.
-                    continue;
-                }
+                // Don't crawl into children that might also match, we
+                // already printed them.
+                return;
+            }
 
+            for sec in current.children() {
                 crawl(search_tags, &tags, &sec);
-            } else {
+            }
+        } else {
+            for sec in current.children() {
                 crawl(search_tags, inherited_tags, &sec);
             }
         }
-        */
     }
 
     for root in col.roots() {

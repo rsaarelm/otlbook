@@ -12,11 +12,11 @@ use walkdir::WalkDir;
 /// base.
 pub struct Collection {
     /// Path the collection was loaded from.
-    path: PathBuf,
+    root_path: PathBuf,
 
     /// Last seen set of paths, used to determine if files need to be created
     /// or deleted when saving the collection.
-    seen_paths: BTreeSet<PathBuf>,
+    previous_paths: BTreeSet<PathBuf>,
     files: BTreeMap<PathBuf, File>,
 }
 
@@ -27,15 +27,7 @@ struct File {
 }
 
 impl File {
-    pub fn load(path: impl Into<PathBuf>) -> Result<File> {
-        let (style, headline, raw_section) = load_section(path)?;
-        let section = build_section(headline, raw_section);
-        Ok(File { section, style })
-    }
-
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
-        log::info!("File::save into {:?}", path.as_ref());
-
         let outline = self
             .section
             .children()
@@ -58,11 +50,16 @@ impl File {
 /// Parallelizable helper function for file. Currently tree nodes can't be
 /// parallelized.
 fn load_section(
+    root_path: impl AsRef<Path>,
     path: impl Into<PathBuf>,
 ) -> Result<(idm::Style, String, Vec<RawSection>)> {
     let path = path.into();
     log::info!("load_section from {:?}", path);
-    let headline = path.to_string_lossy().to_string();
+    let headline = path
+        .strip_prefix(root_path.as_ref())
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
 
     let contents = fs::read_to_string(path)?;
     // NB. Currently using tabs as the default otlbook style to go with
@@ -93,7 +90,7 @@ fn build_section(headline: String, mut body: Vec<RawSection>) -> Section {
 impl Collection {
     pub fn load() -> Result<Collection> {
         log::info!("Collection::load: Determining collection path");
-        let path = if let Ok(path) = std::env::var("OTLBOOK_PATH") {
+        let root_path = if let Ok(path) = std::env::var("OTLBOOK_PATH") {
             PathBuf::from(path)
         } else if let Some(mut path) = dirs::home_dir() {
             path.push("otlbook");
@@ -107,7 +104,7 @@ impl Collection {
         log::info!("Collection::load: Collecting .otl files");
 
         let otl_extension = OsStr::new("otl");
-        let file_paths: Vec<_> = WalkDir::new(path.clone())
+        let file_paths: Vec<_> = WalkDir::new(root_path.clone())
             .into_iter()
             .filter_map(|e| e.map(|e| e.path().to_path_buf()).ok())
             .filter(|e| e.extension() == Some(otl_extension))
@@ -115,25 +112,33 @@ impl Collection {
 
         log::info!("Collection::load: Loading {} .otl files", file_paths.len());
 
-        let seen_paths = file_paths.iter().cloned().collect();
-
         let mut files = BTreeMap::new();
+        let mut seen_paths = BTreeSet::new();
 
         // Load outlines in parallel with rayon.
         for (path, res) in file_paths
             .par_iter()
-            .map(|p| (p.clone(), load_section(p)))
+            .map(|p| (p.clone(), load_section(&root_path, p)))
             .collect::<Vec<_>>()
             .into_iter()
         {
             let (style, headline, raw_section) = res?;
             let section = build_section(headline, raw_section);
-            files.insert(path, File { style, section });
+
+            let path = path.strip_prefix(&root_path).unwrap().to_owned();
+            files.insert(path.clone(), File { style, section });
+            seen_paths.insert(path);
         }
 
-        Ok(Collection {
-            path,
+        println!(
+            "{:?} {:?}",
             seen_paths,
+            files.iter().map(|(k, _)| k).collect::<Vec<_>>()
+        );
+
+        Ok(Collection {
+            root_path,
+            previous_paths: seen_paths,
             files,
         })
     }
@@ -158,73 +163,40 @@ impl Collection {
     /// Save changes after creating the collection or the previous save to
     /// disk to path where the collection was loaded from.
     pub fn save(&mut self) -> Result<()> {
-        todo!();
-        /*
-        // Check for validity
-        {
-            // All toplevel items must define a filename.
-            let mut headlines = self
-                .current
-                .iter()
-                .map(|OldSection(h, _)| h)
-                .collect::<Vec<_>>();
+        let abs = |relative_path: &PathBuf| self.root_path.join(relative_path);
 
-            // All toplevel filenames must be unique.
-            headlines.sort();
-            let len1 = headlines.len();
-            headlines.dedup();
-            if headlines.len() < len1 {
-                panic!("Collection::save: Repeated file name in collection");
-            }
-        }
-
-        let current = self
-            .current
+        let current_paths = self
+            .files
             .iter()
-            .map(|OldSection(h, b)| (PathBuf::from(h.as_str()), b))
-            .collect::<BTreeMap<PathBuf, &Outline>>();
-
-        let loaded = self
-            .loaded
-            .iter()
-            .map(|OldSection(h, b)| (PathBuf::from(h.as_str()), b))
-            .collect::<BTreeMap<PathBuf, &Outline>>();
-
-        // Remove files that were deleted from current set.
-        let deleted_files = loaded
-            .keys()
-            .collect::<BTreeSet<_>>()
-            .difference(&current.keys().collect::<BTreeSet<_>>())
+            .map(|(p, _)| p)
             .cloned()
             .collect::<BTreeSet<_>>();
 
-        for f in &deleted_files {
-            let mut path = self.path.clone();
-            path.push(f);
-            log::info!("Deleting removed file {:?}", path);
+        // Delete files that were removed from current set.
+        for deleted in self.previous_paths.difference(&current_paths) {
+            let path = abs(deleted);
+            log::info!("Collection::save deleting removed file {:?}", path);
             fs::remove_file(path)?;
         }
 
-        for f in current.keys() {
-            let o = &current[f];
-            if let Some(o2) = loaded.get(f) {
-                if o2 == o {
-                    log::debug!("Nothing changed for {:?}", f);
-                    continue;
-                }
+        for (path, file) in self.files.iter() {
+            let do_write = if !self.previous_paths.contains(path) {
+                log::info!("Collection::save creating new file {:?}", path);
+                true
+            } else if file.section.is_dirty() {
+                log::info!("Collection::save writing changed file {:?}", path);
+                true
+            } else {
+                false
+            };
+
+            if do_write {
+                file.save(abs(path))?;
+                file.section.cleanse();
             }
-
-            let mut path = self.path.clone();
-            path.push(f);
-            log::info!("File {:?} changed, saving to {:?}", f, path);
-
-            fs::write(
-                path,
-                idm::to_string(o).expect("Failed to serialize outline"),
-            )?;
         }
 
+        self.previous_paths = current_paths;
         Ok(())
-        */
     }
 }
