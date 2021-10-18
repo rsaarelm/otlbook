@@ -38,6 +38,8 @@ enum Olt {
         #[structopt(parse(from_str), required = true)]
         tags: Vec<String>,
     },
+    #[structopt(name = "toread", about = "Save a link in the to-read queue")]
+    ToRead { uri: String },
 }
 
 fn main() {
@@ -52,6 +54,7 @@ fn main() {
         }
         Olt::Tags => tag_histogram(),
         Olt::Tagged { tags } => tag_search(tags),
+        Olt::ToRead { uri } => save_to_read(uri),
     }
 }
 
@@ -187,6 +190,10 @@ fn tag_histogram() {
     {
         println!("{}  {}", t, -n);
     }
+}
+
+fn save_to_read(uri: String) {
+    todo!();
 }
 
 /// Trait for top-level error handling.
