@@ -1,7 +1,6 @@
-use base::{Symbol, VagueDate};
+use base::{Result, Symbol, VagueDate};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
-use std::error::Error;
 
 // FIXME: Re-enable these.
 //mod goodreads;
@@ -83,7 +82,7 @@ pub enum Scrapeable {
 }
 
 impl Scrapeable {
-    pub fn load(url: impl AsRef<str>) -> Result<Scrapeable, Box<dyn Error>> {
+    pub fn load(url: impl AsRef<str>) -> Result<Scrapeable> {
         use Scrapeable::*;
         let url = url.as_ref();
 
@@ -111,9 +110,7 @@ impl Scrapeable {
         }
     }
 
-    pub fn scrape(
-        &self,
-    ) -> Result<Vec<(String, LibraryEntry)>, Box<dyn Error>> {
+    pub fn scrape(&self) -> Result<Vec<(String, LibraryEntry)>> {
         use Scrapeable::*;
 
         match self {
@@ -153,7 +150,7 @@ impl Scrapeable {
 }
 
 /*
-pub fn scrape(target: &str) -> Result<Vec<LibraryEntry>, Box<dyn Error>> {
+pub fn scrape(target: &str) -> Result<Vec<LibraryEntry>> {
     let ret = Scrapeable::get(target)?;
     if let Ok(goodreads) = goodreads::Entries::try_from(&ret) {
         Ok(goodreads.0.into_iter().map(|x| x.into()).collect())

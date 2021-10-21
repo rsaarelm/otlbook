@@ -1,4 +1,5 @@
-use base::{Collection, Section};
+use base::{Collection, Result, Section};
+use scraper::LibraryEntry;
 use std::collections::{BTreeSet, HashMap};
 use structopt::StructOpt;
 
@@ -14,14 +15,6 @@ enum Olt {
     Exists {
         #[structopt(parse(from_str))]
         uri: String,
-    },
-    #[structopt(
-        name = "scrape",
-        about = "Scrape an external resource into references"
-    )]
-    Scrape {
-        #[structopt(parse(from_str))]
-        target: String,
     },
     #[structopt(
         name = "server",
@@ -48,7 +41,6 @@ fn main() {
     match Olt::from_args() {
         Olt::Dupes => dupes(),
         Olt::Exists { uri } => exists(uri),
-        Olt::Scrape { target } => scrape(target),
         Olt::Server { port } => {
             webserver::run(port).unwrap();
         }
@@ -111,19 +103,9 @@ fn exists(uri: String) {
     std::process::exit(1);
 }
 
-fn scrape(target: String) {
-    let page = scraper::Scrapeable::load(target).expect("Invalid URL");
-    let entry = page
-        .scrape()
-        .expect("Failed to scrape")
-        .into_iter()
-        .next()
-        .expect("Failed to scrape");
-
-    print!(
-        "{}",
-        idm::to_string_styled(idm::Style::Tabs, &entry).unwrap()
-    );
+fn scrape(target: String) -> Result<(String, LibraryEntry)> {
+    let page = scraper::Scrapeable::load(target)?;
+    Ok(page.scrape()?.into_iter().next().expect("Failed to scrape"))
 }
 
 fn tag_search(tags: Vec<String>) {
@@ -193,7 +175,33 @@ fn tag_histogram() {
 }
 
 fn save_to_read(uri: String) {
-    todo!();
+    let mut col = Collection::load().or_die();
+
+    let section_data = scrape(uri).or_die();
+    let scraped_uri = &section_data.1.uri;
+
+    // TODO: Use a compact API in collection to search this.
+    log::info!("Start URI search");
+    for section in col.iter() {
+        if let Ok(Some(u)) = section.attr::<String>("uri") {
+            if &u == scraped_uri {
+                log::info!("URI search successful");
+                eprintln!(
+                    "Uri {:?} already present in collection.",
+                    scraped_uri
+                );
+                std::process::exit(1);
+            }
+        }
+    }
+
+    log::info!("URI not found, scraping new entry");
+    let entry = Section::from_data(&section_data).or_die();
+
+    let to_read = col.find_or_create("ToRead");
+    to_read.append(entry);
+
+    col.save().or_die();
 }
 
 /// Trait for top-level error handling.
@@ -203,7 +211,7 @@ pub trait OrDie {
     fn or_die(self) -> Self::Value;
 }
 
-impl<T, E: std::fmt::Display> OrDie for Result<T, E> {
+impl<T, E: std::fmt::Display> OrDie for std::result::Result<T, E> {
     type Value = T;
 
     fn or_die(self) -> Self::Value {

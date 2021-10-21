@@ -10,6 +10,9 @@ use std::{
 
 // Inspired by rctree in https://github.com/SimonSapin/rust-forest/
 
+// XXX: The dirty flag handling is a bit too manual and state-wrangly. Will
+// probably cause bugs at some point.
+
 #[derive(Default)]
 struct Node<T> {
     pub data: T,
@@ -167,6 +170,7 @@ impl<T> NodeRef<T> {
             child.parent = Some(Rc::downgrade(&self.0));
             child.sibling = self.0.borrow().child.clone();
         }
+        self.taint();
         self.0.borrow_mut().child = Some(child.0.clone());
     }
 
@@ -175,6 +179,7 @@ impl<T> NodeRef<T> {
         match self.child() {
             None => self.prepend(child),
             Some(mut node) => {
+                self.taint();
                 child.detach();
                 child.0.borrow_mut().parent = Some(Rc::downgrade(&self.0));
 

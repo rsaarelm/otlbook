@@ -60,6 +60,13 @@ impl Section {
         idm::from_str(&self.body_string()).ok()
     }
 
+    /// Try to create `Section` from arbitrary data via IDM serialization.
+    pub fn from_data<T: serde::ser::Serialize>(
+        data: &T,
+    ) -> crate::Result<Self> {
+        Ok(idm::from_str(&idm::to_string(data)?)?)
+    }
+
     /// Try to read an attribute deserialized to type.
     ///
     /// Return error if attribute value was found but could not be

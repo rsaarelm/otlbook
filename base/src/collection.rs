@@ -54,10 +54,11 @@ fn load_section(
     path: impl Into<PathBuf>,
 ) -> Result<(idm::Style, String, Vec<RawSection>)> {
     let path = path.into();
-    log::info!("load_section from {:?}", path);
+    log::debug!("load_section from {:?}", path);
     let headline = path
         .strip_prefix(root_path.as_ref())
         .unwrap()
+        .with_extension("") // Strip out the ".otl"
         .to_string_lossy()
         .to_string();
 
@@ -84,6 +85,7 @@ fn build_section(headline: String, mut body: Vec<RawSection>) -> Section {
     for child in body {
         ret.prepend(child.into());
     }
+    ret.cleanse();
     ret
 }
 
@@ -130,12 +132,6 @@ impl Collection {
             seen_paths.insert(path);
         }
 
-        println!(
-            "{:?} {:?}",
-            seen_paths,
-            files.iter().map(|(k, _)| k).collect::<Vec<_>>()
-        );
-
         Ok(Collection {
             root_path,
             previous_paths: seen_paths,
@@ -163,6 +159,7 @@ impl Collection {
     /// Save changes after creating the collection or the previous save to
     /// disk to path where the collection was loaded from.
     pub fn save(&mut self) -> Result<()> {
+        log::info!("Collection::save started");
         let abs = |relative_path: &PathBuf| self.root_path.join(relative_path);
 
         let current_paths = self
@@ -198,5 +195,34 @@ impl Collection {
 
         self.previous_paths = current_paths;
         Ok(())
+    }
+
+    /// Return a node with the given title.
+    ///
+    /// If the node isn't found in the collection, create a new toplevel item
+    /// with the title.
+    pub fn find_or_create(&mut self, title: &str) -> Section {
+        // TODO: Replace Node with a smart pointer that supports toplevel
+        // detachment.
+
+        // Look for existing section.
+        // XXX: Ineffective O(n) lookup.
+        for node in self.iter() {
+            if &node.headline() == title {
+                return node;
+            }
+        }
+
+        log::info!("Section {:?} not found, creating toplevel item", title);
+        let headline = format!("{}.otl", title);
+        let section = Section::new(headline.clone());
+        self.files.insert(
+            headline.into(),
+            File {
+                section: section.clone(),
+                style: idm::Style::Tabs,
+            },
+        );
+        section
     }
 }
