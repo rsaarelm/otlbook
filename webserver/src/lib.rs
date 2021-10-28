@@ -1,8 +1,9 @@
-use async_std::{prelude::*, task};
-use base::Result;
-use lazy_static::lazy_static;
-use tide::{prelude::*, Request};
+use rouille::{Request, Response};
 
+mod resolver;
+
+
+/*
 async fn run_server(port: u32) -> Result<()> {
     let mut app = tide::new();
 
@@ -21,8 +22,14 @@ async fn run_server(port: u32) -> Result<()> {
     app.listen(addr).await?;
     Ok(())
 }
+*/
 
-pub fn run(port: u32) -> Result<()> {
-    let fut = run_server(port);
-    task::block_on(fut)
+fn server(_request: &Request) -> Response {
+    Response::text("hello, world")
+}
+
+pub fn run(port: u32) -> ! {
+    let addr = format!("0.0.0.0:{}", port);
+    println!("Starting server at http://{}", addr);
+    rouille::start_server(addr, server)
 }
