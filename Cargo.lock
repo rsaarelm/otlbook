@@ -205,7 +205,6 @@ dependencies = [
  "idm",
  "lazy_static",
  "log",
- "nom",
  "pretty_assertions",
  "rayon",
  "regex",
@@ -1108,12 +1107,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "minimal-lexical"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c64630dcdd71f1a64c435f54885086a0de5d6a12d104d69b165fb7d5286d677"
-
-[[package]]
 name = "mio"
 version = "0.7.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1176,17 +1169,6 @@ name = "new_debug_unreachable"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4a24736216ec316047a1fc4252e27dabb04218aa4a3f37c6e7ddbf1f9782b54"
-
-[[package]]
-name = "nom"
-version = "7.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ffd9d26838a953b4af82cbeb9f1592c6798916983959be223a7124e992742c1"
-dependencies = [
- "memchr",
- "minimal-lexical",
- "version_check",
-]
 
 [[package]]
 name = "ntapi"
@@ -1284,7 +1266,6 @@ dependencies = [
  "idm",
  "log",
  "md5",
- "nom",
  "pretty_assertions",
  "ron",
  "scraper",

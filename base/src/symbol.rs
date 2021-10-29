@@ -1,12 +1,3 @@
-use nom::{
-    branch::alt,
-    bytes::complete::take_while1,
-    character::complete::{alphanumeric1, one_of},
-    combinator::{not, peek, recognize},
-    multi::many1,
-    sequence::{pair, terminated},
-    IResult,
-};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::cmp::Ordering;
 use std::error::Error;
@@ -121,24 +112,6 @@ macro_rules! sym {
     };
 }
 
-pub fn wiki_word(i: &str) -> IResult<&str, &str> {
-    fn word_segment(i: &str) -> nom::IResult<&str, &str> {
-        recognize(pair(
-            one_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
-            take_while1(|c: char| c.is_lowercase()),
-        ))(i)
-    }
-
-    fn number(i: &str) -> nom::IResult<&str, &str> {
-        take_while1(|c: char| c.is_numeric())(i)
-    }
-
-    terminated(
-        recognize(pair(word_segment, many1(alt((word_segment, number))))),
-        peek(not(alphanumeric1)),
-    )(i)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -168,20 +141,5 @@ mod tests {
         let s2: Sym<&str> = sym!("bar");
         assert_eq!(&format!("{}", s1), "foo");
         assert_eq!(&format!("{}", s2), "bar");
-    }
-
-    #[test]
-    fn test_wiki_word() {
-        assert!(wiki_word("").is_err());
-        assert!(wiki_word("word").is_err());
-        assert!(wiki_word("Word").is_err());
-        assert!(wiki_word("aWikiWord").is_err());
-        assert!(wiki_word("WikiW").is_err());
-        assert!(wiki_word("WikiWordW").is_err());
-        assert!(wiki_word("1984WikiWord").is_err());
-        assert_eq!(wiki_word("WikiWord"), Ok(("", "WikiWord")));
-        assert_eq!(wiki_word("Wiki1Word2"), Ok(("", "Wiki1Word2")));
-        assert_eq!(wiki_word("WikiWord-s"), Ok(("-s", "WikiWord")));
-        assert_eq!(wiki_word("Wiki1984Word"), Ok(("", "Wiki1984Word")));
     }
 }

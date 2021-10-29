@@ -115,7 +115,6 @@ impl Section {
     /// If this section matches IDM attribute syntax, return the attribute
     /// name.
     fn attribute_name(&self) -> Option<String> {
-        // TODO: Use nom instead of regex hacks
         // XXX: Can this be made to use str slices for performance?
         lazy_static! {
             static ref RE: regex::Regex =
@@ -132,7 +131,7 @@ impl Section {
 
     /// If headline resolves to WikiWord title, return that.
     pub fn wiki_title(&self) -> Option<String> {
-        // TODO: Use nom instead of regex hacks
+        // TODO: use parse::wiki_word
         lazy_static! {
             static ref RE: regex::Regex =
                 regex::Regex::new(r"^([A-Z][a-z]+)(([A-Z][a-z]+)|([0-9]+))+$")

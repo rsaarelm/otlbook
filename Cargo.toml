@@ -12,7 +12,6 @@ members = ["anki", "base", "cache", "scraper", "tangle", "weave", "webserver"]
 anki = { path = "anki" }
 base = { path = "base" }
 cache = { path = "cache" }
-# FIXME
 scraper = { path = "scraper" }
 tangle = { path = "tangle" }
 weave = { path = "weave" }
@@ -25,7 +24,6 @@ dialoguer = "0.8"
 env_logger = "0.9"
 log = "0.4"
 md5 = "0.7"
-nom = "7"
 ron = "0.6"
 serde = { version = "1", features = ["derive"] }
 structopt = "0.3"
