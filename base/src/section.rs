@@ -1,4 +1,5 @@
 use lazy_static::lazy_static;
+use crate::parse::{self, completely};
 use serde::{Deserialize, Serialize};
 
 pub type Section = crate::tree::NodeRef<String>;
@@ -131,16 +132,8 @@ impl Section {
 
     /// If headline resolves to WikiWord title, return that.
     pub fn wiki_title(&self) -> Option<String> {
-        // TODO: use parse::wiki_word
-        lazy_static! {
-            static ref RE: regex::Regex =
-                regex::Regex::new(r"^([A-Z][a-z]+)(([A-Z][a-z]+)|([0-9]+))+$")
-                    .unwrap();
-        }
-
-        let title = self.headline();
-        if RE.is_match(&title) {
-            Some(title)
+        if let Ok(wiki_word) = completely(parse::wiki_word)(&self.headline()) {
+            Some(wiki_word.to_string())
         } else {
             None
         }
