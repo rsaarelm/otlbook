@@ -22,4 +22,4 @@ idm = { git = "https://github.com/rsaarelm/idm" }
 
 [dev-dependencies]
 pretty_assertions = "1"
-ron = "0.6"
+ron = "0.7"

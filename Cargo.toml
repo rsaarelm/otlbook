@@ -3,7 +3,7 @@ name = "otlbook"
 version = "0.2.0"
 authors = ["Risto Saarelma"]
 license = "MIT OR Apache-2.0"
-edition = "2018"
+edition = "2021"
 
 [workspace]
 members = ["anki", "base", "cache", "scraper", "tangle", "weave", "webserver"]
@@ -20,11 +20,11 @@ webserver = { path = "webserver" }
 idm = { git = "https://github.com/rsaarelm/idm" }
 
 chrono = "0.4"
-dialoguer = "0.8"
+dialoguer = "0.10"
 env_logger = "0.9"
 log = "0.4"
 md5 = "0.7"
-ron = "0.6"
+ron = "0.7"
 serde = { version = "1", features = ["derive"] }
 structopt = "0.3"
 termion = "1"
