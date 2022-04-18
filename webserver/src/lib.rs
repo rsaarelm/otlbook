@@ -2,7 +2,6 @@ use rouille::{Request, Response};
 
 mod resolver;
 
-
 /*
 async fn run_server(port: u32) -> Result<()> {
     let mut app = tide::new();

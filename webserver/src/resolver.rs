@@ -32,7 +32,10 @@ mod tests {
         use Command::*;
 
         // Must start with upper case letter
-        assert!(Command::from_str("/somethingthatlookslikenosensiblecommandprefix").is_err());
+        assert!(Command::from_str(
+            "/somethingthatlookslikenosensiblecommandprefix"
+        )
+        .is_err());
         // Not a wiki word, only one segment
         assert!(Command::from_str("/Article").is_err());
         // Invalid segments
@@ -42,8 +45,17 @@ mod tests {
         assert!(Command::from_str("/WikiWorld-crap").is_err());
 
         // Not a wiki word, only one segment
-        assert_eq!(Command::from_str("/WikiWord"), Ok(ViewArticle("WikiWord".into())));
-        assert_eq!(Command::from_str("/Wiki1234"), Ok(ViewArticle("Wiki1234".into())));
-        assert_eq!(Command::from_str("/Wiki1234Word"), Ok(ViewArticle("Wiki1234Word".into())));
+        assert_eq!(
+            Command::from_str("/WikiWord"),
+            Ok(ViewArticle("WikiWord".into()))
+        );
+        assert_eq!(
+            Command::from_str("/Wiki1234"),
+            Ok(ViewArticle("Wiki1234".into()))
+        );
+        assert_eq!(
+            Command::from_str("/Wiki1234Word"),
+            Ok(ViewArticle("Wiki1234Word".into()))
+        );
     }
 }
