@@ -9,6 +9,8 @@ edition = "2018"
 [dependencies]
 chrono = "0.4"
 dirs = "4"
+idm = "0.3"
+indexmap = { version = "1", features = ["serde"] }
 lazy_static = "1"
 log = "0.4"
 rayon = "1"
@@ -17,8 +19,6 @@ serde = { version = "1", features = ["derive"] }
 serde_plain = "1"
 typed-arena = "2"
 walkdir = "2"
-
-idm = { git = "https://github.com/rsaarelm/idm" }
 
 [dev-dependencies]
 pretty_assertions = "1"

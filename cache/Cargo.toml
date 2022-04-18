@@ -7,5 +7,4 @@ license = "MIT OR Apache-2.0"
 edition = "2018"
 
 [dependencies]
-rusqlite = "0.26"
 xdg = "2"

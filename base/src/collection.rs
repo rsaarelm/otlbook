@@ -1,4 +1,7 @@
-use crate::{section::RawSection, Result, Section};
+use crate::{
+    section::{RawOutline, RawSection, SectionData},
+    Result, Section,
+};
 use rayon::prelude::*;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -49,12 +52,12 @@ impl File {
 ///
 /// Parallelizable helper function for file. Currently tree nodes can't be
 /// parallelized.
-fn load_section(
+fn load_outline(
     root_path: impl AsRef<Path>,
     path: impl Into<PathBuf>,
-) -> Result<(idm::Style, String, Vec<RawSection>)> {
+) -> Result<(idm::Style, String, RawOutline)> {
     let path = path.into();
-    log::debug!("load_section from {:?}", path);
+    log::debug!("load_outline from {:?}", path);
     let headline = path
         .strip_prefix(root_path.as_ref())
         .unwrap()
@@ -68,20 +71,18 @@ fn load_section(
     // eventually.
     let style = idm::infer_indent_style(&contents).unwrap_or(idm::Style::Tabs);
 
-    Ok((
-        style,
-        headline,
-        idm::from_str::<Vec<RawSection>>(&contents)?,
-    ))
+    Ok((style, headline, idm::from_str::<RawOutline>(&contents)?))
 }
 
-fn build_section(headline: String, mut body: Vec<RawSection>) -> Section {
+fn build_section(headline: String, outline: RawOutline) -> Section {
+    let (attributes, mut body) = outline.0;
+
     // XXX: Reverse-prepend optimization to get around nodes having
     // inefficient append. Nicer approach would be to fix tree node to track
     // last child pointer and have O(1) append op.
     body.reverse();
 
-    let ret = Section::new(headline);
+    let ret = Section::new(SectionData::new(headline, attributes));
     for child in body {
         ret.prepend(child.into());
     }
@@ -120,12 +121,12 @@ impl Collection {
         // Load outlines in parallel with rayon.
         for (path, res) in file_paths
             .par_iter()
-            .map(|p| (p.clone(), load_section(&root_path, p)))
+            .map(|p| (p.clone(), load_outline(&root_path, p)))
             .collect::<Vec<_>>()
             .into_iter()
         {
-            let (style, headline, raw_section) = res?;
-            let section = build_section(headline, raw_section);
+            let (style, headline, raw_outline) = res?;
+            let section = build_section(headline, raw_outline);
 
             let path = path.strip_prefix(&root_path).unwrap().to_owned();
             files.insert(path.clone(), File { style, section });
@@ -215,7 +216,10 @@ impl Collection {
 
         log::info!("Section {:?} not found, creating toplevel item", title);
         let headline = format!("{}.otl", title);
-        let section = Section::new(headline.clone());
+        let section = Section::new(SectionData::new(
+            headline.clone(),
+            Default::default(),
+        ));
         self.files.insert(
             headline.into(),
             File {

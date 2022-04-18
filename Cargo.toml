@@ -17,11 +17,10 @@ tangle = { path = "tangle" }
 weave = { path = "weave" }
 webserver = { path = "webserver" }
 
-idm = { git = "https://github.com/rsaarelm/idm" }
-
 chrono = "0.4"
 dialoguer = "0.10"
 env_logger = "0.9"
+idm = "0.3"
 log = "0.4"
 md5 = "0.7"
 ron = "0.7"

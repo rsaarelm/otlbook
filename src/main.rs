@@ -127,11 +127,7 @@ fn tag_search(tags: Vec<String>) {
 
             if search_tags.is_subset(&tags) {
                 // Found!
-                println!("{}", current);
-
-                // Don't crawl into children that might also match, we
-                // already printed them.
-                return;
+                println!("{}", current.borrow().headline);
             }
 
             for sec in current.children() {
