@@ -41,7 +41,9 @@ fn main() {
     match Olt::from_args() {
         Olt::Dupes => dupes(),
         Olt::Exists { uri } => exists(uri),
-        Olt::Server { port } => webserver::run(port),
+        Olt::Server { port } => {
+            webserver::run(port, Collection::load().or_die())
+        }
         Olt::Tags => tag_histogram(),
         Olt::Tagged { tags } => tag_search(tags),
         Olt::ToRead { uri } => save_to_read(uri),
