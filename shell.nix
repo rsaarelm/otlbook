@@ -1,12 +1,18 @@
 let
   pkgs = import <nixpkgs> {};
 
+  # Overlay for nightly rust
+  rust-overlay = import (builtins.fetchTarball "https://github.com/oxalica/rust-overlay/archive/master.tar.gz");
+  nixpkgs = import <nixpkgs> { overlays = [ rust-overlay ]; };
+
   log_level = "info";
 in
 pkgs.mkShell {
   buildInputs = with pkgs; [
-    rustc
-    cargo rustfmt rust-analyzer cargo-outdated cargo-udeps clippy
+    nixpkgs.rust-bin.nightly.latest.default
+    nixpkgs.rust-analyzer
+    nixpkgs.cargo-outdated
+    nixpkgs.cargo-udeps
 
     # Needed by cargo dependencies.
     cmake gcc zlib pkgconfig openssl
