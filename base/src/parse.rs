@@ -1,34 +1,49 @@
 //! Parsing primitives for otlbook notation
 
-use lazy_static::lazy_static;
+use nom::{
+    branch::alt,
+    bytes::complete::take_while1,
+    character::complete::{digit1, satisfy},
+    combinator::{eof, peek, recognize},
+    error::ErrorKind,
+    multi::many1,
+    sequence::{pair, tuple},
+    IResult,
+};
 
 pub type Result<'a, T> = std::result::Result<(T, &'a str), &'a str>;
 
-// NB. Probably want to always have the regexps used for word parsing start
-// with "^" so the regex engine won't skip over non-parse content looking for
-// the match.
+pub fn wiki_word(i: &str) -> IResult<&str, &str> {
+    recognize(tuple((
+        wiki_word_segment,
+        many1(alt((wiki_word_segment, digit1))),
+        peek(word_end),
+    )))(i)
+}
 
-pub fn wiki_word(i: &str) -> Result<&str> {
-    lazy_static! {
-        static ref RE: regex::Regex =
-            regex::Regex::new(r"^[A-Z][a-z]+(?:[A-Z][a-z]+|[0-9]+)+\b")
-                .unwrap();
-    }
+fn wiki_word_segment(i: &str) -> IResult<&str, &str> {
+    recognize(pair(
+        satisfy(|c: char| c.is_ascii_uppercase()),
+        take_while1(|c: char| c.is_ascii_lowercase()),
+    ))(i)
+}
 
-    if let Some(m) = RE.find(i) {
-        Ok((m.as_str(), &i[m.end()..]))
-    } else {
-        Err(i)
-    }
+fn word_end(i: &str) -> IResult<&str, &str> {
+    alt((eof, recognize(many1(satisfy(|c| !c.is_alphanumeric())))))(i)
 }
 
 /// Combinator for parsing with no trailing input left.
-pub fn completely<'a, T>(
-    p: impl Fn(&'a str) -> Result<T>,
-) -> impl FnOnce(&'a str) -> std::result::Result<T, ()> {
+pub fn only<'a, T>(
+    p: impl Fn(&'a str) -> IResult<&'a str, T>,
+) -> impl FnOnce(
+    &'a str,
+) -> std::result::Result<T, nom::Err<nom::error::Error<&'a str>>> {
     move |i| match p(i) {
-        Ok((ret, rest)) if rest.is_empty() => Ok(ret),
-        _ => Err(()),
+        Ok((rest, ret)) if rest.is_empty() => Ok(ret),
+        Ok(_) => {
+            Err(nom::Err::Error(nom::error::Error::new(i, ErrorKind::Fail)))
+        }
+        Err(e) => Err(e),
     }
 }
 
@@ -46,16 +61,16 @@ mod tests {
         assert!(wiki_word("WikiWordW").is_err());
         assert!(wiki_word("xyz WikiWord").is_err());
         assert!(wiki_word("1984WikiWord").is_err());
-        assert_eq!(wiki_word("WikiWord"), Ok(("WikiWord", "")));
-        assert_eq!(wiki_word("Wiki1Word2"), Ok(("Wiki1Word2", "")));
-        assert_eq!(wiki_word("WikiWord-s"), Ok(("WikiWord", "-s")));
-        assert_eq!(wiki_word("Wiki1984Word"), Ok(("Wiki1984Word", "")));
+        assert_eq!(wiki_word("WikiWord"), Ok(("", "WikiWord")));
+        assert_eq!(wiki_word("Wiki1Word2"), Ok(("", "Wiki1Word2")));
+        assert_eq!(wiki_word("WikiWord-s"), Ok(("-s", "WikiWord")));
+        assert_eq!(wiki_word("Wiki1984Word"), Ok(("", "Wiki1984Word")));
     }
 
     #[test]
-    fn test_completely() {
-        assert_eq!(completely(wiki_word)("WikiWord"), Ok("WikiWord"));
-        assert!(completely(wiki_word)("WikiWord junk").is_err());
-        assert!(completely(wiki_word)("WikiWord  ").is_err());
+    fn test_only() {
+        assert_eq!(only(wiki_word)("WikiWord"), Ok("WikiWord"));
+        assert!(only(wiki_word)("WikiWord junk").is_err());
+        assert!(only(wiki_word)("WikiWord ").is_err());
     }
 }

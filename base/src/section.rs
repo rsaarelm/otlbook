@@ -1,4 +1,4 @@
-use crate::parse::{self, completely};
+use crate::parse::{self, only};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
@@ -143,7 +143,7 @@ impl Section {
 
     /// If headline resolves to WikiWord title, return that.
     pub fn wiki_title(&self) -> Option<String> {
-        if let Ok(wiki_word) = completely(parse::wiki_word)(&self.headline()) {
+        if let Ok(wiki_word) = only(parse::wiki_word)(&self.headline()) {
             Some(wiki_word.to_string())
         } else {
             None
