@@ -2,16 +2,14 @@
 
 use nom::{
     branch::alt,
-    bytes::complete::take_while1,
+    bytes::complete::{tag, take_while1},
     character::complete::{digit1, satisfy},
-    combinator::{eof, peek, recognize},
+    combinator::{eof, opt, peek, recognize},
     error::ErrorKind,
     multi::many1,
-    sequence::{pair, tuple},
-    IResult,
+    sequence::{pair, terminated, tuple},
+    IResult, Parser,
 };
-
-pub type Result<'a, T> = std::result::Result<(T, &'a str), &'a str>;
 
 pub fn wiki_word(i: &str) -> IResult<&str, &str> {
     recognize(tuple((
@@ -30,6 +28,39 @@ fn wiki_word_segment(i: &str) -> IResult<&str, &str> {
 
 fn word_end(i: &str) -> IResult<&str, &str> {
     alt((eof, recognize(many1(satisfy(|c| !c.is_alphanumeric())))))(i)
+}
+
+/// Parse article titles in notes.
+/// Return (todo-state, done-percent, main text, important-item-flag) tuple.
+pub fn title(
+    mut i: &str,
+) -> IResult<&str, (Option<(bool, Option<i32>)>, &str, bool)> {
+    let todo_header: Option<(bool, Option<i32>)> =
+        if let Ok((rest, (state, percent))) =
+            // To-do box with percent indicator.
+            pair::<_, _, _, nom::error::Error<_>, _, _>(
+                    alt((
+                        tag("[_] ").map(|_| false),
+                        tag("[X] ").map(|_| true),
+                    )),
+                    opt(terminated(
+                        digit1.map(|s: &str| s.parse::<i32>().unwrap()),
+                        tag("% "),
+                    )),
+                )(i)
+        {
+            i = rest;
+            Some((state, percent))
+        } else {
+            None
+        };
+
+    let i = i.trim_end();
+    if let Some(i) = i.strip_suffix(" *") {
+        Ok(("", (todo_header, i, true)))
+    } else {
+        Ok(("", (todo_header, i, false)))
+    }
 }
 
 /// Combinator for parsing with no trailing input left.
@@ -72,5 +103,28 @@ mod tests {
         assert_eq!(only(wiki_word)("WikiWord"), Ok("WikiWord"));
         assert!(only(wiki_word)("WikiWord junk").is_err());
         assert!(only(wiki_word)("WikiWord ").is_err());
+    }
+
+    #[test]
+    fn test_title() {
+        assert_eq!(title(""), Ok(("", (None, "", false))));
+        assert_eq!(title("xyzzy"), Ok(("", (None, "xyzzy", false))));
+        assert_eq!(title("xyzzy *"), Ok(("", (None, "xyzzy", true))));
+        assert_eq!(
+            title("[_] xyzzy"),
+            Ok(("", (Some((false, None)), "xyzzy", false)))
+        );
+        assert_eq!(
+            title("[X] xyzzy"),
+            Ok(("", (Some((true, None)), "xyzzy", false)))
+        );
+        assert_eq!(
+            title("[_] 1% xyzzy"),
+            Ok(("", (Some((false, Some(1))), "xyzzy", false)))
+        );
+        assert_eq!(
+            title("[X] 100% xyzzy"),
+            Ok(("", (Some((true, Some(100))), "xyzzy", false)))
+        );
     }
 }
