@@ -1,11 +1,10 @@
 use std::{
-    cell::{self, RefCell},
     collections::VecDeque,
     convert::TryFrom,
     fmt,
     hash::Hash,
     ops::{Deref, DerefMut},
-    rc::{Rc, Weak},
+    sync::{self, Arc, RwLock, Weak},
 };
 
 // Inspired by rctree in https://github.com/SimonSapin/rust-forest/
@@ -17,9 +16,9 @@ use std::{
 struct Node<T> {
     pub data: T,
 
-    parent: Option<Weak<RefCell<Node<T>>>>,
-    child: Option<Rc<RefCell<Node<T>>>>,
-    sibling: Option<Rc<RefCell<Node<T>>>>,
+    parent: Option<Weak<RwLock<Node<T>>>>,
+    child: Option<Arc<RwLock<Node<T>>>>,
+    sibling: Option<Arc<RwLock<Node<T>>>>,
     /// Starts out false, set to true when data is first borrowed mutably.
     dirty: bool,
 }
@@ -38,7 +37,7 @@ impl<T> Node<T> {
 
 /// Reference-counted tree data structure.
 #[derive(Default)]
-pub struct NodeRef<T>(Rc<RefCell<Node<T>>>);
+pub struct NodeRef<T>(Arc<RwLock<Node<T>>>);
 
 impl<T> Clone for NodeRef<T> {
     fn clone(&self) -> Self {
@@ -46,28 +45,28 @@ impl<T> Clone for NodeRef<T> {
     }
 }
 
-impl<T> From<&Rc<RefCell<Node<T>>>> for NodeRef<T> {
-    fn from(r: &Rc<RefCell<Node<T>>>) -> Self {
+impl<T> From<&Arc<RwLock<Node<T>>>> for NodeRef<T> {
+    fn from(r: &Arc<RwLock<Node<T>>>) -> Self {
         NodeRef(r.clone())
     }
 }
 
-impl<T> From<Rc<RefCell<Node<T>>>> for NodeRef<T> {
-    fn from(r: Rc<RefCell<Node<T>>>) -> Self {
+impl<T> From<Arc<RwLock<Node<T>>>> for NodeRef<T> {
+    fn from(r: Arc<RwLock<Node<T>>>) -> Self {
         NodeRef(r)
     }
 }
 
 impl<T> From<Node<T>> for NodeRef<T> {
     fn from(n: Node<T>) -> Self {
-        NodeRef(Rc::new(RefCell::new(n)))
+        NodeRef(Arc::new(RwLock::new(n)))
     }
 }
 
-impl<T> TryFrom<&Weak<RefCell<Node<T>>>> for NodeRef<T> {
+impl<T> TryFrom<&Weak<RwLock<Node<T>>>> for NodeRef<T> {
     type Error = ();
 
-    fn try_from(w: &Weak<RefCell<Node<T>>>) -> Result<Self, Self::Error> {
+    fn try_from(w: &Weak<RwLock<Node<T>>>) -> Result<Self, Self::Error> {
         Ok(NodeRef::from(w.upgrade().ok_or(())?))
     }
 }
@@ -81,7 +80,7 @@ impl<T> NodeRef<T> {
     ///
     /// Will panic if node is already mutably borrowed.
     pub fn borrow(&self) -> Ref<T> {
-        Ref(self.0.borrow())
+        Ref(self.0.read().unwrap())
     }
 
     /// Mutable access to node data.
@@ -91,7 +90,7 @@ impl<T> NodeRef<T> {
     /// Calling this will mark the node as dirty, regardless of whether node
     /// data is actually changed.
     pub fn borrow_mut(&self) -> RefMut<T> {
-        let mut node = self.0.borrow_mut();
+        let mut node = self.0.write().unwrap();
         node.dirty = true;
         RefMut(node)
     }
@@ -103,7 +102,7 @@ impl<T> NodeRef<T> {
 
     /// Mark the tree as clean.
     pub fn cleanse(&self) {
-        self.0.borrow_mut().dirty = false;
+        self.0.write().unwrap().dirty = false;
         for c in self.children() {
             c.cleanse();
         }
@@ -112,7 +111,8 @@ impl<T> NodeRef<T> {
     /// Return parent of node, if any.
     pub fn parent(&self) -> Option<NodeRef<T>> {
         self.0
-            .borrow()
+            .read()
+            .unwrap()
             .parent
             .as_ref()
             .map(|w| NodeRef::try_from(w).ok())
@@ -121,14 +121,24 @@ impl<T> NodeRef<T> {
 
     /// Return first child of node, if any.
     pub fn child(&self) -> Option<NodeRef<T>> {
-        self.0.borrow().child.as_ref().map(|r| NodeRef::from(r))
+        self.0
+            .read()
+            .unwrap()
+            .child
+            .as_ref()
+            .map(|r| NodeRef::from(r))
     }
 
     /// Return next sibling of node, if any.
     pub fn sibling(&self) -> Option<NodeRef<T>> {
         // Only report sibling if parent is still valid.
         if self.parent().is_some() {
-            self.0.borrow().sibling.as_ref().map(|r| NodeRef::from(r))
+            self.0
+                .read()
+                .unwrap()
+                .sibling
+                .as_ref()
+                .map(|r| NodeRef::from(r))
         } else {
             None
         }
@@ -139,14 +149,15 @@ impl<T> NodeRef<T> {
         if let Some(parent) = self.parent() {
             if parent.child().expect("Invalid tree state").ptr() == self.ptr() {
                 // Detaching first child, second child is new first child.
-                parent.0.borrow_mut().child = self.0.borrow().sibling.clone();
+                parent.0.write().unwrap().child =
+                    self.0.read().unwrap().sibling.clone();
             } else {
                 let mut n = parent.child();
                 while let Some(node) = n {
                     // Detaching a sibling, cut from the chain.
                     if node.sibling().map(|n| n.ptr()) == Some(self.ptr()) {
-                        node.0.borrow_mut().sibling =
-                            self.0.borrow().sibling.clone();
+                        node.0.write().unwrap().sibling =
+                            self.0.read().unwrap().sibling.clone();
                         break;
                     } else {
                         n = node.sibling();
@@ -156,7 +167,7 @@ impl<T> NodeRef<T> {
         }
 
         {
-            let mut node = self.0.borrow_mut();
+            let mut node = self.0.write().unwrap();
             node.parent = None;
             node.sibling = None;
         }
@@ -166,12 +177,12 @@ impl<T> NodeRef<T> {
     pub fn prepend(&self, child: NodeRef<T>) {
         child.detach();
         {
-            let mut child = child.0.borrow_mut();
-            child.parent = Some(Rc::downgrade(&self.0));
-            child.sibling = self.0.borrow().child.clone();
+            let mut child = child.0.write().unwrap();
+            child.parent = Some(Arc::downgrade(&self.0));
+            child.sibling = self.0.read().unwrap().child.clone();
         }
         self.taint();
-        self.0.borrow_mut().child = Some(child.0.clone());
+        self.0.write().unwrap().child = Some(child.0.clone());
     }
 
     /// Insert node as last child.
@@ -181,12 +192,12 @@ impl<T> NodeRef<T> {
             Some(mut node) => {
                 self.taint();
                 child.detach();
-                child.0.borrow_mut().parent = Some(Rc::downgrade(&self.0));
+                child.0.write().unwrap().parent = Some(Arc::downgrade(&self.0));
 
                 while let Some(next) = node.sibling() {
                     node = next;
                 }
-                node.0.borrow_mut().sibling = Some(child.0.clone());
+                node.0.write().unwrap().sibling = Some(child.0.clone());
             }
         }
     }
@@ -216,14 +227,14 @@ impl<T> NodeRef<T> {
     ///
     /// Can be expensive to query as long as tree isn't dirty.
     pub fn is_dirty(&self) -> bool {
-        if self.0.borrow().dirty == true {
+        if self.0.write().unwrap().dirty == true {
             return true;
         }
 
         for n in self.children() {
             if n.is_dirty() {
                 // Dirtyfy this node as well, subsequent queries will be fast.
-                self.0.borrow_mut().dirty = true;
+                self.0.write().unwrap().dirty = true;
                 return true;
             }
         }
@@ -232,7 +243,7 @@ impl<T> NodeRef<T> {
     }
 
     /// Helper method for comparing by pointer identity.
-    fn ptr(&self) -> *const RefCell<Node<T>> {
+    fn ptr(&self) -> *const RwLock<Node<T>> {
         &*(self.0)
     }
 }
@@ -289,7 +300,7 @@ impl<T: fmt::Display> fmt::Display for NodeRef<T> {
 }
 
 /// Wrapper to `Deref` directly into node data.
-pub struct Ref<'a, T: 'a>(cell::Ref<'a, Node<T>>);
+pub struct Ref<'a, T: 'a>(sync::RwLockReadGuard<'a, Node<T>>);
 
 impl<'a, T> Deref for Ref<'a, T> {
     type Target = T;
@@ -300,7 +311,7 @@ impl<'a, T> Deref for Ref<'a, T> {
 }
 
 /// Wrapper to `DerefMut` directly into node data.
-pub struct RefMut<'a, T: 'a>(cell::RefMut<'a, Node<T>>);
+pub struct RefMut<'a, T: 'a>(sync::RwLockWriteGuard<'a, Node<T>>);
 
 impl<'a, T> Deref for RefMut<'a, T> {
     type Target = T;

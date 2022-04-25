@@ -6,16 +6,26 @@ use rouille::{Request, Response};
 
 mod resolver;
 
-fn server(request: &Request) -> Response {
-    if let Ok(cmd) = Command::from_str(&request.url()) {
-        Response::text(format!("{:?}", cmd))
-    } else {
-        Response::empty_404()
-    }
-}
-
 pub fn run(port: u32, collection: Collection) -> ! {
     let addr = format!("localhost:{}", port);
     println!("Starting server at http://{}", addr);
-    rouille::start_server(addr, server)
+    rouille::start_server(addr, move |request| {
+        match Command::from_str(&request.url()) {
+            Ok(Command::ViewArticle(a)) => {
+                // The crappiest selector
+                for section in collection.iter() {
+                    if section.title() == a {
+                        return Response::text(format!(
+                            "{}\n{}",
+                            a,
+                            section.body_string()
+                        ));
+                    }
+                }
+                Response::empty_404()
+            }
+            Ok(cmd) => Response::text(format!("TODO: {:?}", cmd)),
+            Err(_) => Response::empty_404(),
+        }
+    })
 }

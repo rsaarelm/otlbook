@@ -1,5 +1,7 @@
 use std::{convert::TryFrom, str::FromStr};
 
+use base::parse::{self, only};
+
 #[derive(Eq, PartialEq, Debug)]
 pub enum Command {
     ViewArticle(String),
@@ -16,8 +18,8 @@ impl FromStr for Command {
         // Special case, starting with upper case letter points directly to
         // article.
         if let Some(s) = s.strip_prefix("/") {
-            if s.chars().next().map_or(false, |c| c.is_ascii_uppercase()) {
-                return Ok(ViewArticle(s.into()));
+            if let Ok(wiki_word) = only(parse::wiki_word)(s) {
+                return Ok(ViewArticle(wiki_word.into()));
             }
         }
 

@@ -82,7 +82,7 @@ impl<'de> Deserialize<'de> for Section {
 
 impl Section {
     /// Return IDM string representation made from this section's body lines.
-    fn body_string(&self) -> String {
+    pub fn body_string(&self) -> String {
         idm::to_string(&RawSection::from(self).0 .1).expect("Shouldn't happen")
     }
 
@@ -141,9 +141,21 @@ impl Section {
         self.borrow().headline.clone()
     }
 
+    /// Extract the title part of the headline
+    ///
+    /// This omits the important item tag and any todo boxes
+    pub fn title(&self) -> String {
+        let section = self.borrow();
+        if let Ok((_, (_, title, _))) = parse::title(&section.headline) {
+            title.to_string()
+        } else {
+            Default::default()
+        }
+    }
+
     /// If headline resolves to WikiWord title, return that.
     pub fn wiki_title(&self) -> Option<String> {
-        if let Ok(wiki_word) = only(parse::wiki_word)(&self.headline()) {
+        if let Ok(wiki_word) = only(parse::wiki_word)(&self.title()) {
             Some(wiki_word.to_string())
         } else {
             None
