@@ -153,6 +153,10 @@ impl Section {
         }
     }
 
+    pub fn is_important(&self) -> bool {
+        self.borrow().headline.ends_with(" *")
+    }
+
     /// If headline resolves to WikiWord title, return that.
     pub fn wiki_title(&self) -> Option<String> {
         if let Ok(wiki_word) = only(parse::wiki_word)(&self.title()) {

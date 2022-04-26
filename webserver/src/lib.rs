@@ -1,9 +1,10 @@
 use std::str::FromStr;
 
-use crate::resolver::Command;
+use crate::{html::Html, resolver::Command};
 use base::Collection;
 use rouille::{Request, Response};
 
+mod html;
 mod resolver;
 
 pub fn run(port: u32, collection: Collection) -> ! {
@@ -15,11 +16,7 @@ pub fn run(port: u32, collection: Collection) -> ! {
                 // The crappiest selector
                 for section in collection.iter() {
                     if section.title() == a {
-                        return Response::text(format!(
-                            "{}\n{}",
-                            a,
-                            section.body_string()
-                        ));
+                        return Response::html(format!("{}", Html(section)));
                     }
                 }
                 Response::empty_404()
