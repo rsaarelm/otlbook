@@ -1,5 +1,5 @@
 use base::{Collection, Result, Section};
-use scraper::LibraryEntry;
+use scrape::LibraryEntry;
 use std::collections::{BTreeSet, HashMap};
 use structopt::StructOpt;
 
@@ -104,7 +104,7 @@ fn exists(uri: String) {
 }
 
 fn scrape(target: String) -> Result<(String, LibraryEntry)> {
-    let page = scraper::Scrapeable::load(target)?;
+    let page = scrape::Scrapeable::load(target)?;
     Ok(page.scrape()?.into_iter().next().expect("Failed to scrape"))
 }
 
