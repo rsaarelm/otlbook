@@ -1,0 +1,48 @@
+body {
+    margin: auto;
+    max-width: 50em;
+    white-space: normal !important;
+    font-family: "Noto Sans", Verdana, sans-serif !important;
+}
+
+code {
+    white-space: pre;
+}
+
+h1 {
+    text-align: center;
+}
+
+p {
+    font-family: "Times New Roman", Times, serif;
+    text-indent: 1em;
+    margin-top: 0.2em;
+    margin-bottom: 0.2em;
+    color: #333;
+}
+
+.hanging {
+    text-indent: -0.5em;
+    padding-left: 0.5em;
+}
+
+.modlink {
+    text-decoration: none;
+    color: green;
+}
+
+ul {
+    padding-left: 1em;
+    line-height: 1.5;
+    list-style-type: none;
+    list-style outside;
+}
+
+ul ul {
+    margin-left: 1em;
+    border-left: 1px solid #CCC;
+}
+
+.undefined-word  {
+    color:  Red;
+}
