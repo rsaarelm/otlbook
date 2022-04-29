@@ -10,7 +10,7 @@ mod section;
 pub use section::Section;
 
 mod symbol;
-pub use symbol::Sym;
+pub use symbol::{Sym, Uri};
 pub type Symbol = Sym<String>;
 
 pub type Result<T> =

@@ -1,8 +1,7 @@
+use std::{cmp::Ordering, error::Error, fmt, str::FromStr};
+
 use serde::{de, Deserialize, Deserializer, Serialize};
-use std::cmp::Ordering;
-use std::error::Error;
-use std::fmt;
-use std::str::FromStr;
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 /// A string-like type that's guaranteed to be a single word without whitespace.
 ///
@@ -110,6 +109,41 @@ macro_rules! sym {
     ($fmt:expr, $($arg:expr),*) => {
         $crate::Sym::new(format!($fmt, $($arg),*)).expect("Invalid symbol")
     };
+}
+
+#[derive(
+    Clone, Eq, PartialEq, Hash, Debug, DeserializeFromStr, SerializeDisplay,
+)]
+pub enum Uri {
+    Http(String),
+    Isbn(String),
+}
+
+impl FromStr for Uri {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.trim();
+        if s.is_empty() {
+            return Err(s.into());
+        }
+
+        if let Some(isbn) = s.strip_prefix("isbn:") {
+            Ok(Uri::Isbn(isbn.into()))
+        } else {
+            // TODO: Validate HTTP URIs
+            Ok(Uri::Http(s.into()))
+        }
+    }
+}
+
+impl fmt::Display for Uri {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Uri::Http(s) => write!(f, "{}", s),
+            Uri::Isbn(s) => write!(f, "isbn:{}", s),
+        }
+    }
 }
 
 #[cfg(test)]

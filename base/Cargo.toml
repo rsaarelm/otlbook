@@ -15,7 +15,7 @@ log = "0.4"
 nom = "7"
 rayon = "1"
 serde = { version = "1", features = ["derive"] }
-serde_plain = "1"
+serde_with = "1"
 walkdir = "2"
 
 [dev-dependencies]

@@ -3,6 +3,7 @@ use chrono::{
     offset::{FixedOffset, Offset, TimeZone},
     DateTime, Datelike,
 };
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 use std::cmp::Ordering;
 use std::fmt;
 use std::str::FromStr;
@@ -20,16 +21,15 @@ use std::str::FromStr;
 /// * YearMonth: `"2006-01"`
 /// * Date: `"2006-01-02"`
 /// * DateTime: `"2006-01-02T15:04:05-0700"`
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
+#[derive(
+    Eq, PartialEq, Copy, Clone, Debug, SerializeDisplay, DeserializeFromStr,
+)]
 pub enum VagueDate {
     Year(i32),
     YearMonth(i32, u32),
     Date(NaiveDate),
     DateTime(DateTime<FixedOffset>),
 }
-
-serde_plain::derive_deserialize_from_fromstr!(VagueDate, "date value");
-serde_plain::derive_serialize_from_display!(VagueDate);
 
 use VagueDate::*;
 
@@ -105,7 +105,7 @@ impl PartialOrd for VagueDate {
 // No plan to handle BCE years sensibly if those are ever needed.
 
 impl FromStr for VagueDate {
-    type Err = ();
+    type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(dt) = DateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%z") {
@@ -121,7 +121,7 @@ impl FromStr for VagueDate {
         {
             Ok(Year(dt.year()))
         } else {
-            Err(())
+            Err(s.into())
         }
     }
 }
