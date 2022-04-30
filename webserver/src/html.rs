@@ -101,8 +101,16 @@ impl HtmlFmt for Section {
 impl HtmlFmt for Uri {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Uri::Http(s) => write!(f,
-                "<a href='{s}'>{s}</a>"),
+            Uri::Http(s) => {
+                const MAX_DISPLAYED_URL_LEN: usize = 75;
+                write!(f, "<a href='{s}'>")?;
+                if s.len() > MAX_DISPLAYED_URL_LEN {
+                    write!(f, "{}...", &s[..MAX_DISPLAYED_URL_LEN])?;
+                } else {
+                    write!(f, "{s}")?;
+                    }
+                write!(f, "</a>")
+            }
             Uri::Isbn(s) => write!(f,
                 "<a href='https://openlibrary.org/search?isbn={s}'>isbn:{s}</a>")
         }
