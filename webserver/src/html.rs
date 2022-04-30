@@ -17,6 +17,22 @@ impl<T: HtmlFmt> fmt::Display for Html<T> {
     }
 }
 
+impl HtmlFmt for String {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+impl<T: HtmlFmt> HtmlFmt for Vec<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for i in self {
+            write!(f, " ")?;
+            i.fmt(f)?;
+        }
+        Ok(())
+    }
+}
+
 impl HtmlFmt for Section {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fn write(
