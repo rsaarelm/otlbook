@@ -103,7 +103,7 @@ fn exists(uri: String) {
     std::process::exit(1);
 }
 
-fn scrape(target: String) -> Result<(String, LibraryEntry)> {
+fn scrape(target: String) -> Result<(String, (LibraryEntry, Vec<()>))> {
     let page = scrape::Scrapeable::load(target)?;
     Ok(page.scrape()?.into_iter().next().expect("Failed to scrape"))
 }
@@ -174,7 +174,7 @@ fn save_to_read(uri: String) {
     let mut col = Collection::load().or_die();
 
     let section_data = scrape(uri).or_die();
-    let scraped_uri = &section_data.1.uri;
+    let scraped_uri = &section_data.1 .0.uri;
 
     // TODO: Use a compact API in collection to search this.
     log::info!("Start URI search");

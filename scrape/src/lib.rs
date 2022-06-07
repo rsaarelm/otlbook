@@ -16,16 +16,25 @@ pub type Uri = String;
 /// Data for bookmarks and bibliography.
 ///
 /// ```
-/// let outline: (String, scrape::LibraryEntry) = idm::from_str("\
+/// const ENTRY: &str = "\
 /// Feynman Lectures on Physics
 ///   :uri https://www.feynmanlectures.caltech.edu/
 ///   :title The Feynman Lectures on Physics
-///   :published 1964
 ///   :tags physics
-///   :read 2006-01-02").unwrap();
+///   :published 1964
+///   :read 2006-01-02
+/// ";
+///
+/// // XXX: Have the dummy `Vec<()>` parameter to coax LibraryEntry to use
+/// // colon-prefixed syntax on reserialize.
+///
+/// let outline: (String, (scrape::LibraryEntry, Vec<()>)) = idm::from_str(ENTRY).unwrap();
 ///
 /// assert_eq!(outline.0, "Feynman Lectures on Physics");
-/// assert_eq!(outline.1.uri, "https://www.feynmanlectures.caltech.edu/");
+/// assert_eq!(outline.1.0.uri, "https://www.feynmanlectures.caltech.edu/");
+///
+/// let re_entry = idm::to_string(&outline).unwrap();
+/// assert_eq!(re_entry, ENTRY);
 /// ```
 #[derive(Default, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub struct LibraryEntry {
@@ -110,7 +119,7 @@ impl Scrapeable {
         }
     }
 
-    pub fn scrape(&self) -> Result<Vec<(String, LibraryEntry)>> {
+    pub fn scrape(&self) -> Result<Vec<(String, (LibraryEntry, Vec<()>))>> {
         use Scrapeable::*;
 
         match self {
@@ -138,11 +147,14 @@ impl Scrapeable {
 
                 Ok(vec![(
                     title,
-                    LibraryEntry {
-                        uri: url.to_string(),
-                        added: Some(VagueDate::now()),
-                        ..Default::default()
-                    },
+                    (
+                        LibraryEntry {
+                            uri: url.to_string(),
+                            added: Some(VagueDate::now()),
+                            ..Default::default()
+                        },
+                        Default::default(),
+                    ),
                 )])
             }
         }
