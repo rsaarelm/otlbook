@@ -6,12 +6,12 @@ license = "MIT OR Apache-2.0"
 edition = "2021"
 
 [workspace]
-members = ["anki", "base", "cache", "scrape", "tangle", "weave", "webserver"]
+members = ["anki", "base", "persist", "scrape", "tangle", "weave", "webserver"]
 
 [dependencies]
 anki = { path = "anki" }
 base = { path = "base" }
-cache = { path = "cache" }
+persist = { path = "persist" }
 scrape = { path = "scrape" }
 tangle = { path = "tangle" }
 weave = { path = "weave" }
