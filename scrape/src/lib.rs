@@ -16,15 +16,15 @@ pub type Uri = String;
 /// Data for bookmarks and bibliography.
 ///
 /// ```
-/// let outline: (idm::Raw<String>, scraper::LibraryEntry) = idm::from_str("\
+/// let outline: (String, scrape::LibraryEntry) = idm::from_str("\
 /// Feynman Lectures on Physics
-///   uri: https://www.feynmanlectures.caltech.edu/
-///   title: The Feynman Lectures on Physics
-///   published: 1964
-///   tags: physics
-///   read: 2006-01-02").unwrap();
+///   :uri https://www.feynmanlectures.caltech.edu/
+///   :title The Feynman Lectures on Physics
+///   :published 1964
+///   :tags physics
+///   :read 2006-01-02").unwrap();
 ///
-/// assert_eq!(outline.0.0, "Feynman Lectures on Physics");
+/// assert_eq!(outline.0, "Feynman Lectures on Physics");
 /// assert_eq!(outline.1.uri, "https://www.feynmanlectures.caltech.edu/");
 /// ```
 #[derive(Default, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
