@@ -1,0 +1,5 @@
+Do
+
+    git config --local corehooksPath githooks/
+
+in project root directory to activate these.

@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+
+# Don't allow unformatted commits
+set -e
+cargo fmt --all -- --check
