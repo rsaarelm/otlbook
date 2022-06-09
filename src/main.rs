@@ -17,10 +17,10 @@ enum Olt {
         uri: String,
     },
     #[structopt(
-        name = "server",
+        name = "webserver",
         about = "Run the otlbook web server for the current collection"
     )]
-    Server {
+    Webserver {
         #[structopt(default_value = "8080")]
         port: u32,
     },
@@ -41,7 +41,7 @@ fn main() {
     match Olt::from_args() {
         Olt::Dupes => dupes(),
         Olt::Exists { uri } => exists(uri),
-        Olt::Server { port } => {
+        Olt::Webserver { port } => {
             webserver::run(port, Collection::load().or_die())
         }
         Olt::Tags => tag_histogram(),
