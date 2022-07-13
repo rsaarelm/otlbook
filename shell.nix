@@ -14,6 +14,8 @@ pkgs.mkShell {
     nixpkgs.cargo-outdated
     nixpkgs.cargo-udeps
 
+    sccache
+
     # Needed by cargo dependencies.
     cmake gcc zlib pkgconfig openssl
 
