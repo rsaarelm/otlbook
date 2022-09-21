@@ -6,7 +6,7 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 /// A string-like type that's guaranteed to be a single word without whitespace.
 ///
 /// Used in outline data declarations, inline lists must consist of symbol-like values.
-#[derive(Clone, Eq, PartialEq, Serialize, Debug)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Debug)]
 pub struct Sym<T: AsRef<str>>(T);
 
 impl<T: AsRef<str>> std::ops::Deref for Sym<T> {
@@ -19,8 +19,8 @@ impl<T: AsRef<str>> std::ops::Deref for Sym<T> {
 
 impl Default for Sym<String> {
     fn default() -> Self {
-        // This has to be somewhat arbitrary, since `Symbol` can't be an empty
-        // string, but we want it so we can derive `Default` for
+        // XXX This has to be somewhat arbitrary, since `Symbol` can't be an
+        // empty string, but we want it so we can derive `Default` for
         // symbol-carrying structs. Currently leaning towards a general
         // convention of using "-" to mean empty/missing in a symbol-expecting
         // context.
@@ -57,25 +57,6 @@ impl<'a, T: AsRef<str> + FromStr<Err = E>, E: Error + 'static> FromStr
                 return Ok(ok);
             }
         }
-    }
-}
-
-impl<T: AsRef<str> + Ord> Ord for Sym<T> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        // Special case "*" to always sort last so that tag lists containing a "*" tag get it at
-        // the end of the list and show up as important lines in outline syntax highlighting
-        match (&self.0, &other.0) {
-            (x, y) if x == y => Ordering::Equal,
-            (_, y) if y.as_ref() == "*" => Ordering::Less,
-            (x, _) if x.as_ref() == "*" => Ordering::Greater,
-            (x, y) => x.cmp(y),
-        }
-    }
-}
-
-impl<T: AsRef<str> + Ord> PartialOrd for Sym<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
     }
 }
 
@@ -162,11 +143,11 @@ mod tests {
         assert!(Symbol::new("foo\nbar").is_err());
         assert!(Symbol::new("foobar\n").is_err());
 
-        let mut tags: Vec<Symbol> = vec![sym!("b"), sym!("*"), sym!("a")];
+        let mut tags: Vec<Symbol> = vec![sym!("b"), sym!("c"), sym!("a")];
         tags.sort();
         let tags: Vec<String> =
             tags.into_iter().map(|c| c.to_string()).collect();
-        assert_eq!(tags.join(" "), "a b *");
+        assert_eq!(tags.join(" "), "a b c");
     }
 
     #[test]
