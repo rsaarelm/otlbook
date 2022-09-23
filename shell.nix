@@ -14,6 +14,10 @@ pkgs.mkShell {
     nixpkgs.cargo-outdated
     nixpkgs.cargo-udeps
 
+    # NB. sccache may cause build errors. If cargo build starts complaining
+    # about packages built with different rustc versions even after a
+    # cargo clean, delete ~/.cache/sccache, do another cargo clean and try
+    # again.
     sccache
 
     # Needed by cargo dependencies.
