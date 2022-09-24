@@ -802,6 +802,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "import"
+version = "0.1.0"
+dependencies = [
+ "base",
+ "csv",
+ "idm",
+ "log",
+ "select",
+ "serde",
+]
+
+[[package]]
 name = "indexmap"
 version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1126,6 +1138,7 @@ dependencies = [
  "dialoguer",
  "env_logger",
  "idm",
+ "import",
  "log",
  "md5",
  "persist",

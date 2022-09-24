@@ -1,0 +1,18 @@
+[package]
+name = "import"
+version = "0.1.0"
+authors = ["Risto Saarelma <risto.saarelma@iki.fi>"]
+description = "Convert other formats to reference entries"
+edition = "2018"
+
+[dependencies]
+csv = "1"
+log = "0.4"
+select = "0.5"
+serde = "1"
+
+base = { path = "../base" }
+
+[dev-dependencies]
+idm = "0.3"
+

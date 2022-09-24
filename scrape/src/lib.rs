@@ -2,11 +2,8 @@ use base::{Result, Symbol, VagueDate};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
-// FIXME: Re-enable these.
-//mod goodreads;
-//mod google_reader;
-//mod netscape_bookmarks;
-//mod pocket;
+// TODO 2022-09-24 Rewrite this whole crate to mostly just handle HTTP
+// queries, leave parsing to import crate.
 
 mod wayback;
 pub use wayback::check_wayback;
@@ -58,7 +55,6 @@ pub struct LibraryEntry {
     pub links: Vec<Uri>,
     /// Where was this imported from
     pub via: Option<String>,
-    pub _contents: Option<String>,
 }
 
 impl LibraryEntry {

@@ -140,6 +140,7 @@ impl From<GoodreadsEntry> for LibraryEntry {
         }
 
         if !e.notes.is_empty() {
+            // TODO: Use pair-based IDM v0.3 thing
             ret._contents = Some(e.notes);
         }
 

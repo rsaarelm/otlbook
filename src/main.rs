@@ -1,6 +1,10 @@
 use base::{Collection, Result, Section};
 use scrape::LibraryEntry;
-use std::collections::{BTreeSet, HashMap};
+use std::{
+    collections::{BTreeSet, HashMap},
+    fs,
+    path::{Path, PathBuf},
+};
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -12,10 +16,31 @@ enum Olt {
         name = "uri-exists",
         about = "Check if URI is saved in collection"
     )]
+    #[structopt(
+        name = "exists",
+        about = "Check if a given entity already exists in the notebook"
+    )]
     Exists {
         #[structopt(parse(from_str))]
         uri: String,
     },
+    #[structopt(
+        name = "import",
+        about = "Import entries from other formats and print to stdout"
+    )]
+    Import {
+        #[structopt(parse(from_str), required = true)]
+        path: PathBuf,
+    },
+    #[structopt(name = "tagged", about = "List items with given tags")]
+    Tagged {
+        #[structopt(parse(from_str), required = true)]
+        tags: Vec<String>,
+    },
+    #[structopt(name = "tags", about = "Show tag cloud")]
+    Tags,
+    #[structopt(name = "toread", about = "Save a link in the to-read queue")]
+    ToRead { uri: String },
     #[structopt(
         name = "webserver",
         about = "Run the otlbook web server for the current collection"
@@ -24,15 +49,6 @@ enum Olt {
         #[structopt(default_value = "8080")]
         port: u32,
     },
-    #[structopt(name = "tags", about = "Show tag cloud")]
-    Tags,
-    #[structopt(name = "tagged", about = "List items with given tags")]
-    Tagged {
-        #[structopt(parse(from_str), required = true)]
-        tags: Vec<String>,
-    },
-    #[structopt(name = "toread", about = "Save a link in the to-read queue")]
-    ToRead { uri: String },
 }
 
 fn main() {
@@ -41,12 +57,13 @@ fn main() {
     match Olt::from_args() {
         Olt::Dupes => dupes(),
         Olt::Exists { uri } => exists(uri),
+        Olt::Import { path } => import(path),
+        Olt::Tagged { tags } => tag_search(tags),
+        Olt::Tags => tag_histogram(),
+        Olt::ToRead { uri } => save_to_read(uri),
         Olt::Webserver { port } => {
             webserver::run(port, Collection::load().or_die())
         }
-        Olt::Tags => tag_histogram(),
-        Olt::Tagged { tags } => tag_search(tags),
-        Olt::ToRead { uri } => save_to_read(uri),
     }
 }
 
@@ -101,6 +118,13 @@ fn exists(uri: String) {
     log::info!("Failed URI search");
     println!("Not found");
     std::process::exit(1);
+}
+
+fn import(path: impl AsRef<Path>) {
+    let text = fs::read_to_string(path).or_die();
+    if let Ok(collection) = text.parse::<import::pocket::Collection>() {
+        println!("{}", idm::to_string(&collection).or_die());
+    }
 }
 
 fn scrape(target: String) -> Result<(String, (LibraryEntry, Vec<()>))> {
