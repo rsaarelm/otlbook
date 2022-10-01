@@ -2,6 +2,18 @@ use crate::parse::{self, only};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
+/// Optional identifier for sections.
+///
+/// Sections that have an `:uri` field use the uri string as identifier. If
+/// there is no uri, but the section title is formatted as a WikiWord, the
+/// title WikiWord is used. If a section has neither, it does not have an
+/// entity identifier and is not considered identical to any other section.
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub enum EntityIdentifier {
+    WikiTitle(String),
+    Uri(String),
+}
+
 #[derive(Clone, Default)]
 pub struct SectionData {
     pub headline: String,
@@ -168,6 +180,16 @@ impl Section {
 
     pub fn is_article(&self) -> bool {
         self.wiki_title().is_some() || self.has_attributes()
+    }
+
+    pub fn entity_identifier(&self) -> Option<EntityIdentifier> {
+        if let Ok(Some(uri)) = self.attr("uri") {
+            Some(EntityIdentifier::Uri(uri))
+        } else if let Some(wiki_title) = self.wiki_title() {
+            Some(EntityIdentifier::WikiTitle(wiki_title))
+        } else {
+            None
+        }
     }
 
     pub fn has_attributes(&self) -> bool {

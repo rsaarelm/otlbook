@@ -7,7 +7,7 @@ pub use date::VagueDate;
 pub mod parse;
 
 mod section;
-pub use section::Section;
+pub use section::{EntityIdentifier, Section};
 
 mod symbol;
 pub use symbol::{Sym, Uri};

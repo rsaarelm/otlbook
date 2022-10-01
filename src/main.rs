@@ -1,10 +1,12 @@
-use base::{Collection, Result, Section};
-use scrape::LibraryEntry;
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::{BTreeSet, HashMap, HashSet},
     fs,
+    io::{prelude::*, stdin},
     path::{Path, PathBuf},
 };
+
+use base::{Collection, Result, Section};
+use scrape::LibraryEntry;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -31,7 +33,22 @@ enum Olt {
     Import {
         #[structopt(parse(from_str), required = true)]
         path: PathBuf,
+        #[structopt(
+            about = "Import to-read items instead of already read items",
+            long = "to-read"
+        )]
+        to_read: bool,
     },
+    #[structopt(
+        name = "insert",
+        about = "Insert items read from stdin to notebook if they're not entities already in it"
+    )]
+    Insert,
+    #[structopt(
+        name = "reinsert",
+        about = "Rewrite existing entities in notebook read from stdin, insert other items that are not existing entities"
+    )]
+    Reinsert,
     #[structopt(name = "tagged", about = "List items with given tags")]
     Tagged {
         #[structopt(parse(from_str), required = true)]
@@ -57,7 +74,12 @@ fn main() {
     match Olt::from_args() {
         Olt::Dupes => dupes(),
         Olt::Exists { uri } => exists(uri),
-        Olt::Import { path } => import(path),
+        Olt::Import {
+            path,
+            to_read: to_reads,
+        } => import(path, to_reads),
+        Olt::Insert => insert(),
+        Olt::Reinsert => reinsert(),
         Olt::Tagged { tags } => tag_search(tags),
         Olt::Tags => tag_histogram(),
         Olt::ToRead { uri } => save_to_read(uri),
@@ -120,11 +142,56 @@ fn exists(uri: String) {
     std::process::exit(1);
 }
 
-fn import(path: impl AsRef<Path>) {
+fn import(path: impl AsRef<Path>, import_to_reads: bool) {
     let text = fs::read_to_string(path).or_die();
-    if let Ok(collection) = text.parse::<import::pocket::Collection>() {
-        println!("{}", idm::to_string(&collection).or_die());
+    // TODO 2022-10-01 Support other types than Pocket (eg. Goodreads)
+
+    let collection = if import_to_reads {
+        import::pocket::import_to_read(&text).or_die()
+    } else {
+        import::pocket::import_read(&text).or_die()
+    };
+
+    print!("{}", idm::to_string(&collection).or_die());
+}
+
+fn insert() {
+    let mut col = Collection::load().or_die();
+
+    let mut buf = String::new();
+    stdin().read_to_string(&mut buf).or_die();
+    // XXX: Need to trim the buf or I'll end up with a blank section in the
+    // end.
+    let items: Vec<Section> = idm::from_str(buf.trim_end()).or_die();
+
+    let existing_entities = col
+        .iter()
+        .filter_map(|s| s.entity_identifier())
+        .collect::<HashSet<_>>();
+
+    let inbox = col.find_or_create("InBox");
+
+    let mut count = 0;
+    for sec in &items {
+        if let Some(id) = sec.entity_identifier() {
+            if existing_entities.contains(&id) {
+                eprintln!("{:?} already present, skipping", id);
+                continue;
+            }
+        }
+        count += 1;
+        inbox.append(sec.clone());
     }
+
+    col.save().or_die();
+
+    if count > 0 {
+        eprintln!("Inserted {} new items", count);
+    }
+}
+
+fn reinsert() {
+    todo!();
 }
 
 fn scrape(target: String) -> Result<(String, (LibraryEntry, Vec<()>))> {
@@ -200,7 +267,7 @@ fn save_to_read(uri: String) {
     let section_data = scrape(uri).or_die();
     let scraped_uri = &section_data.1 .0.uri;
 
-    // TODO: Use a compact API in collection to search this.
+    // TODO 2022-10-01 See insert for a more up to date way to do this...
     log::info!("Start URI search");
     for section in col.iter() {
         if let Ok(Some(u)) = section.attr::<String>("uri") {
