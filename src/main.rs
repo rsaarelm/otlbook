@@ -6,7 +6,6 @@ use std::{
 };
 
 use base::{Collection, Result, Section};
-use scrape::LibraryEntry;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -194,11 +193,6 @@ fn reinsert() {
     todo!();
 }
 
-fn scrape(target: String) -> Result<(String, (LibraryEntry, Vec<()>))> {
-    let page = scrape::Scrapeable::load(target)?;
-    Ok(page.scrape()?.into_iter().next().expect("Failed to scrape"))
-}
-
 fn tag_search(tags: Vec<String>) {
     let tags = tags.into_iter().collect::<BTreeSet<_>>();
     let col = Collection::load().or_die();
@@ -262,6 +256,8 @@ fn tag_histogram() {
 }
 
 fn save_to_read(uri: String) {
+    todo!();
+    /*
     let mut col = Collection::load().or_die();
 
     let section_data = scrape(uri).or_die();
@@ -289,6 +285,7 @@ fn save_to_read(uri: String) {
     to_read.append(entry);
 
     col.save().or_die();
+    */
 }
 
 /// Trait for top-level error handling.

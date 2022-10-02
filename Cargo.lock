@@ -1643,13 +1643,8 @@ name = "scrape"
 version = "0.1.0"
 dependencies = [
  "base",
- "chrono",
- "csv",
- "idm",
- "log",
  "select",
  "serde",
- "serde_json",
  "ureq",
  "url",
 ]
@@ -2180,6 +2175,8 @@ dependencies = [
  "log",
  "once_cell",
  "rustls",
+ "serde",
+ "serde_json",
  "url",
  "webpki",
  "webpki-roots",
