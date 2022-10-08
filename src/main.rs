@@ -255,6 +255,68 @@ fn tag_histogram() {
     }
 }
 
+fn retitle() {
+    let mut col = Collection::load().or_die();
+
+    for mut item in col.iter() {
+        if let Ok(Some(uri)) = item.attr::<String>("uri") {
+            let title = item.title();
+            if title == uri {
+                if let Ok(Some(title)) = scrape::web_page_title(uri.clone()) {
+                    eprintln!("{} -> {}", uri, title);
+                    item.set_title(title);
+                } else {
+                    eprintln!("\x1b[1;31mFailed to improve {}\x1b[0m", uri);
+                }
+            }
+        }
+    }
+
+    col.save().or_die();
+}
+
+fn reurl() {
+    let mut col = Collection::load().or_die();
+
+    for mut item in col.iter() {
+        if let Ok(Some(_)) = item.attr::<String>("mirror") {
+            // Assume items with a mirror attribute are known to be dead.
+            continue;
+        }
+
+        if let Ok(Some(tags)) = item.attr::<BTreeSet<String>>("tags") {
+            if tags.contains(&"dead-link".to_owned()) {
+                // Assume link is known to be dead and mirror-less.
+                continue;
+            }
+        }
+
+        if let Ok(Some(uri)) = item.attr::<String>("uri") {
+            // TODO 2022-10-02 More principled HTML URI detector
+            if !uri.starts_with("http") {
+                // Not HTML, skip.
+                continue;
+            }
+
+            if uri.starts_with("https://doi.org/") {
+                // DOI links need to stay as they are, skip.
+                continue;
+            }
+
+            if let Ok(new_url) = scrape::final_url(uri.clone()) {
+                if new_url != uri {
+                    eprintln!("{:?} -> {:?}", uri, new_url);
+                    item.set_attr("uri", &new_url).or_die();
+                }
+            } else {
+                eprintln!("\x1b[1;31mFailed to scan {}\x1b[0m", uri);
+            }
+        }
+    }
+
+    col.save().or_die();
+}
+
 fn save_to_read(uri: String) {
     todo!();
     /*

@@ -16,10 +16,19 @@ pub fn download_web_page(url: impl AsRef<str>) -> Result<String> {
     Ok(agent.get(url.as_str()).call()?.into_string()?)
 }
 
+/// Get possibly redirected url.
+pub fn final_url(url: impl AsRef<str>) -> Result<String> {
+    let url: url::Url = url.as_ref().parse()?;
+    let agent = ureq::AgentBuilder::new()
+        .timeout_read(REQUEST_TIMEOUT)
+        .build();
+    Ok(agent.get(url.as_str()).call()?.get_url().into())
+}
+
 /// Helper function for parsing the title only.
 ///
 /// A lot of the time you only want this.
-pub fn web_page_title(url: impl AsRef<str>) -> Result<String> {
+pub fn web_page_title(url: impl AsRef<str>) -> Result<Option<String>> {
     use select::{document::Document, predicate::Name};
 
     let content = download_web_page(url)?;
@@ -40,7 +49,11 @@ pub fn web_page_title(url: impl AsRef<str>) -> Result<String> {
         .map(|s| s.to_string())
         .unwrap_or_else(Default::default);
 
-    Ok(title)
+    if title.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(title))
+    }
 }
 
 pub fn is_archived_on_wayback(url: impl AsRef<str>) -> Result<bool> {

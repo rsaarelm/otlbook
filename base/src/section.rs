@@ -165,6 +165,17 @@ impl Section {
         }
     }
 
+    pub fn set_title(&mut self, new_title: impl Into<String>) {
+        let is_important = self.is_important();
+        let mut title: String = new_title.into();
+
+        if is_important {
+            title.push_str(" *");
+        }
+
+        self.borrow_mut().headline = title;
+    }
+
     pub fn is_important(&self) -> bool {
         self.borrow().headline.ends_with(" *")
     }
