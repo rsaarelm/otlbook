@@ -37,6 +37,7 @@
               pre-commit
               rust-analyzer
               rustPackages.clippy
+              cargo-outdated
 
               # Needed by cargo dependencies.
               openssl
