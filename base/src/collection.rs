@@ -65,13 +65,20 @@ fn load_outline(
         .to_string_lossy()
         .to_string();
 
-    let contents = fs::read_to_string(path)?;
+    let contents = fs::read_to_string(path.clone())?;
     // NB. Currently using tabs as the default otlbook style to go with
     // VimOutliner conventions. This should be made customizable somewhere
     // eventually.
     let style = idm::infer_indent_style(&contents).unwrap_or(idm::Style::Tabs);
 
-    Ok((style, headline, idm::from_str::<RawOutline>(&contents)?))
+    Ok((
+        style,
+        headline,
+        // FIXME: Remove the final .to_string() when IDM is updated to version with more generic file name setter.
+        idm::from_str::<RawOutline>(&contents).map_err(|e| {
+            e.with_file_name(path.to_string_lossy().to_string())
+        })?,
+    ))
 }
 
 fn build_section(headline: String, outline: RawOutline) -> Section {
