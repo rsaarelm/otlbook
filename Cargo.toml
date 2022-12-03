@@ -8,6 +8,13 @@ edition = "2021"
 [workspace]
 members = ["anki", "base", "import", "persist", "scrape", "tangle", "weave", "webserver"]
 
+[profile.release-lto]
+inherits = "release"
+strip = true
+opt-level = 's'
+lto = true
+codegen-units = 1
+
 [dependencies]
 anki = { path = "anki" }
 base = { path = "base" }
@@ -20,7 +27,7 @@ webserver = { path = "webserver" }
 
 chrono = "0.4"
 dialoguer = "0.10"
-env_logger = "0.9"
+env_logger = "0.10"
 idm = "0.3"
 log = "0.4"
 md5 = "0.7"
