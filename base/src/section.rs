@@ -50,6 +50,12 @@ pub(crate) struct RawOutline(
 #[derive(Serialize, Deserialize)]
 pub(crate) struct RawSection((String, RawOutline));
 
+impl RawSection {
+    pub fn outline(self) -> RawOutline {
+        (self.0).1
+    }
+}
+
 impl From<&Section> for RawSection {
     fn from(sec: &Section) -> Self {
         RawSection((

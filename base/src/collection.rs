@@ -31,11 +31,7 @@ struct File {
 
 impl File {
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
-        let outline = self
-            .section
-            .children()
-            .map(|n| RawSection::from(&n))
-            .collect::<Vec<_>>();
+        let outline = RawSection::from(&self.section).outline();
 
         fs::write(
             path,
