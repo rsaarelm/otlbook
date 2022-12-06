@@ -51,7 +51,7 @@
               # anki
             ];
             RUST_SRC_PATH = rustPlatform.rustLibSrc;
-            RUST_BACKTRACK = "1";
+            RUST_BACKTRACE = "1";
           };
       });
 }
