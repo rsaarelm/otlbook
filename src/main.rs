@@ -47,6 +47,11 @@ enum Olt {
         name = "reinsert",
         about = "Rewrite existing entities in notebook read from stdin, insert other items that are not existing entities"
     )]
+    #[structopt(
+        name = "normalize",
+        about = "Load and rewrite entire notebook in normal form"
+    )]
+    Normalize,
     Reinsert,
     #[structopt(name = "tagged", about = "List items with given tags")]
     Tagged {
@@ -56,7 +61,9 @@ enum Olt {
     #[structopt(name = "tags", about = "Show tag cloud")]
     Tags,
     #[structopt(name = "toread", about = "Save a link in the to-read queue")]
-    ToRead { uri: String },
+    ToRead {
+        uri: String,
+    },
     #[structopt(
         name = "webserver",
         about = "Run the otlbook web server for the current collection"
@@ -78,6 +85,7 @@ fn main() {
             to_read: to_reads,
         } => import(path, to_reads),
         Olt::Insert => insert(),
+        Olt::Normalize => normalize(),
         Olt::Reinsert => reinsert(),
         Olt::Tagged { tags } => tag_search(tags),
         Olt::Tags => tag_histogram(),
@@ -187,6 +195,14 @@ fn insert() {
     if count > 0 {
         eprintln!("Inserted {} new items", count);
     }
+}
+
+fn normalize() {
+    let mut col = Collection::load().or_die();
+    for root in col.roots() {
+        root.taint();
+    }
+    col.save().or_die();
 }
 
 fn reinsert() {
