@@ -95,7 +95,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "dirs",
- "idm",
+ "idm 0.4.0-dev",
  "indexmap",
  "log",
  "nom",
@@ -919,6 +919,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "idm"
+version = "0.4.0-dev"
+source = "git+https://github.com/rsaarelm/idm#1576800cd85e793cde2def9f0d49312a86e51f4e"
+dependencies = [
+ "serde",
+ "take_mut",
+]
+
+[[package]]
 name = "idna"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -934,7 +943,6 @@ version = "0.1.0"
 dependencies = [
  "base",
  "csv",
- "idm",
  "log",
  "select",
  "serde",
@@ -1301,7 +1309,7 @@ dependencies = [
  "chrono",
  "dialoguer",
  "env_logger",
- "idm",
+ "idm 0.3.2",
  "import",
  "log",
  "md5",

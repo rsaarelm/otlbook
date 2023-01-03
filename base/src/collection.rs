@@ -1,15 +1,18 @@
-use crate::{
-    section::{RawOutline, RawSection, SectionData},
-    Result, Section,
-};
-use rayon::prelude::*;
 use std::{
     collections::{BTreeMap, BTreeSet},
     ffi::OsStr,
     fs,
     path::{Path, PathBuf},
 };
+
+use idm::Indentation;
+use rayon::prelude::*;
 use walkdir::WalkDir;
+
+use crate::{
+    section::{RawOutline, RawSection, SectionData},
+    Result, Section,
+};
 
 /// Representation of a collection of otl files that makes up the knowledge
 /// base.
@@ -26,7 +29,7 @@ pub struct Collection {
 /// Metadata and contents for a single file in the collection.
 struct File {
     section: Section,
-    style: idm::Style,
+    style: Indentation,
 }
 
 impl File {
@@ -51,7 +54,7 @@ impl File {
 fn load_outline(
     root_path: impl AsRef<Path>,
     path: impl Into<PathBuf>,
-) -> Result<(idm::Style, String, RawOutline)> {
+) -> Result<(idm::Indentation, String, RawOutline)> {
     let path = path.into();
     log::debug!("load_outline from {:?}", path);
     let headline = path
@@ -65,7 +68,7 @@ fn load_outline(
     // NB. Currently using tabs as the default otlbook style to go with
     // VimOutliner conventions. This should be made customizable somewhere
     // eventually.
-    let style = idm::infer_indent_style(&contents).unwrap_or(idm::Style::Tabs);
+    let style = Indentation::infer(&contents).unwrap_or(Indentation::Tabs);
 
     Ok((
         style,
@@ -78,7 +81,7 @@ fn load_outline(
 }
 
 fn build_section(headline: String, outline: RawOutline) -> Section {
-    let (attributes, mut body) = outline.0;
+    let RawOutline((attributes,), mut body) = outline;
 
     // XXX: Reverse-prepend optimization to get around nodes having
     // inefficient append. Nicer approach would be to fix tree node to track
@@ -227,7 +230,7 @@ impl Collection {
             headline.into(),
             File {
                 section: section.clone(),
-                style: idm::Style::Tabs,
+                style: Indentation::Tabs,
             },
         );
         section
