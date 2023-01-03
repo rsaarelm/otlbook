@@ -40,7 +40,8 @@ pub type Section = crate::tree::NodeRef<SectionData>;
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct RawOutline(
-    pub(crate) (IndexMap<String, String>, Vec<RawSection>),
+    pub(crate) (IndexMap<String, String>,),
+    pub(crate) Vec<RawSection>,
 );
 
 /// IDM type for sections.
@@ -48,30 +49,30 @@ pub(crate) struct RawOutline(
 /// The runtime section type made of `NodeRef`s doesn't serialize cleanly on
 /// its own.
 #[derive(Serialize, Deserialize)]
-pub(crate) struct RawSection((String, RawOutline));
+pub(crate) struct RawSection((String,), RawOutline);
 
 impl RawSection {
     pub fn outline(self) -> RawOutline {
-        (self.0).1
+        self.1
     }
 }
 
 impl From<&Section> for RawSection {
     fn from(sec: &Section) -> Self {
-        RawSection((
-            sec.borrow().headline.clone(),
-            RawOutline((
-                sec.borrow().attributes.clone(),
+        RawSection(
+            (sec.borrow().headline.clone(),),
+            RawOutline(
+                (sec.borrow().attributes.clone(),),
                 sec.children().map(|c| RawSection::from(&c)).collect(),
-            )),
-        ))
+            ),
+        )
     }
 }
 
 impl From<RawSection> for Section {
     fn from(sec: RawSection) -> Self {
-        let root = Section::new(SectionData::new(sec.0 .0, sec.0 .1 .0 .0));
-        for s in sec.0 .1 .0 .1.into_iter() {
+        let root = Section::new(SectionData::new(sec.0 .0, sec.1 .0 .0));
+        for s in sec.1 .1.into_iter() {
             root.append(Section::from(s));
         }
         root
@@ -101,7 +102,7 @@ impl<'de> Deserialize<'de> for Section {
 impl Section {
     /// Return IDM string representation made from this section's body lines.
     pub fn body_string(&self) -> String {
-        idm::to_string(&RawSection::from(self).0 .1).expect("Shouldn't happen")
+        idm::to_string(&RawSection::from(self).1).expect("Shouldn't happen")
     }
 
     /// Try to deserialize the body of this section into given type.

@@ -28,7 +28,7 @@ webserver = { path = "webserver" }
 chrono = "0.4"
 dialoguer = "0.10"
 env_logger = "0.10"
-idm = "0.3"
+idm = "0.4"
 log = "0.4"
 md5 = "0.7"
 serde = { version = "1", features = ["derive"] }
