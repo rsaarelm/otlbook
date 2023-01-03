@@ -36,7 +36,7 @@
               rustfmt
               pre-commit
               rust-analyzer
-              rustPackages.clippy
+              clippy
               cargo-outdated
 
               # Needed by cargo dependencies.
