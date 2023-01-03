@@ -6,7 +6,7 @@ description = "Scraping web resources"
 edition = "2018"
 
 [dependencies]
-select = "0.5"
+select = "0.6"
 serde = { version = "1", features = ["derive"] }
 ureq = { version = "2", features = ["json"] }
 url = "2"

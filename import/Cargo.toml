@@ -8,7 +8,7 @@ edition = "2018"
 [dependencies]
 csv = "1"
 log = "0.4"
-select = "0.5"
+select = "0.6"
 serde = "1"
 
 base = { path = "../base" }
