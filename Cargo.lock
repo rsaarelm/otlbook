@@ -1308,6 +1308,7 @@ dependencies = [
  "pretty_assertions",
  "scrape",
  "serde",
+ "serde_json",
  "structopt",
  "tangle",
  "url",

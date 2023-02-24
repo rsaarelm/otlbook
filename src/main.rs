@@ -11,6 +11,11 @@ use structopt::StructOpt;
 #[derive(StructOpt, Debug)]
 #[structopt(name = "olt", about = "Outline file processing tool")]
 enum Olt {
+    #[structopt(
+        name = "dump",
+        about = "Dump all articles in JSON for externasl tools"
+    )]
+    Dump,
     #[structopt(name = "dupes", about = "List duplicate entries")]
     Dupes,
     #[structopt(
@@ -53,6 +58,10 @@ enum Olt {
     )]
     Normalize,
     Reinsert,
+    #[structopt(name = "save", about = "Save a link in the bookmarks list")]
+    Save {
+        uri: String,
+    },
     #[structopt(name = "tagged", about = "List items with given tags")]
     Tagged {
         #[structopt(parse(from_str), required = true)]
@@ -78,6 +87,7 @@ fn main() {
     env_logger::init();
 
     match Olt::from_args() {
+        Olt::Dump => dump(),
         Olt::Dupes => dupes(),
         Olt::Exists { uri } => exists(uri),
         Olt::Import {
@@ -87,6 +97,7 @@ fn main() {
         Olt::Insert => insert(),
         Olt::Normalize => normalize(),
         Olt::Reinsert => reinsert(),
+        Olt::Save { uri } => save_bookmark(uri),
         Olt::Tagged { tags } => tag_search(tags),
         Olt::Tags => tag_histogram(),
         Olt::ToRead { uri } => save_to_read(uri),
@@ -94,6 +105,42 @@ fn main() {
             webserver::run(port, Collection::load().or_die())
         }
     }
+}
+
+fn dump() {
+    use serde_json::{Map, Value};
+
+    let col = Collection::load().or_die();
+
+    let mut array = Vec::new();
+    for article in col.iter().filter(|a| a.is_article()) {
+        let mut entry = Map::default();
+        // Initially override title with the headline.
+        //
+        // Currently headline will just be thrown out if the title is
+        // redefined, might put it in a separate field in the future in the
+        // case the values redefine title.
+        entry.insert("title".into(), article.title().into());
+        for (key, val) in article.borrow().attributes.iter() {
+            // TODO 2023-02-24 Common system for parsing specific attributes.
+            if key == "tags" {
+                if let Ok(val) = idm::from_str::<Vec<String>>(val) {
+                    let val: Vec<Value> =
+                        val.into_iter().map(|a| a.into()).collect();
+                    entry.insert(key.into(), Value::Array(val));
+                } else {
+                    // Malformed tags, just plop it out as is.
+                    entry.insert(key.into(), val.clone().into());
+                }
+            } else {
+                // TODO: if key == tags, turn val into list.
+                entry.insert(key.into(), val.clone().into());
+            }
+        }
+        array.push(entry);
+    }
+
+    print!("{}", serde_json::to_string_pretty(&array).or_die());
 }
 
 fn dupes() {
@@ -331,6 +378,10 @@ fn reurl() {
     }
 
     col.save().or_die();
+}
+
+fn save_bookmark(uri: String) {
+    todo!();
 }
 
 fn save_to_read(uri: String) {
