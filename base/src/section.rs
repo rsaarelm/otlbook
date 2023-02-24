@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use crate::parse::{self, only};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -170,6 +172,20 @@ impl Section {
         } else {
             Default::default()
         }
+    }
+
+    /// Get tags of current node, inheriting parent tags.
+    pub fn tags(&self) -> BTreeSet<String> {
+        let mut tags: BTreeSet<String> = match self.attr("tags") {
+            Ok(Some(tags)) => tags,
+            _ => Default::default()
+        };
+
+        if let Some(parent) = self.parent() {
+            tags.append(&mut parent.tags());
+        }
+
+        tags
     }
 
     pub fn set_title(&mut self, new_title: impl Into<String>) {

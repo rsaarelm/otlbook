@@ -121,19 +121,20 @@ fn dump() {
         // redefined, might put it in a separate field in the future in the
         // case the values redefine title.
         entry.insert("title".into(), article.title().into());
+
+        // Tags can be inherited from parent nodes, so add them explicitly.
+        entry.insert(
+            "tags".into(),
+            Value::Array(
+                article.tags().into_iter().map(|a| a.into()).collect(),
+            ),
+        );
+
         for (key, val) in article.borrow().attributes.iter() {
-            // TODO 2023-02-24 Common system for parsing specific attributes.
             if key == "tags" {
-                if let Ok(val) = idm::from_str::<Vec<String>>(val) {
-                    let val: Vec<Value> =
-                        val.into_iter().map(|a| a.into()).collect();
-                    entry.insert(key.into(), Value::Array(val));
-                } else {
-                    // Malformed tags, just plop it out as is.
-                    entry.insert(key.into(), val.clone().into());
-                }
+                // Skip tags when processing the remaining attrs
+                continue;
             } else {
-                // TODO: if key == tags, turn val into list.
                 entry.insert(key.into(), val.clone().into());
             }
         }
