@@ -213,7 +213,8 @@ impl Section {
     }
 
     pub fn is_article(&self) -> bool {
-        self.wiki_title().is_some() || self.has_attributes()
+        self.wiki_title().is_some()
+            || self.borrow().attributes.contains_key("uri")
     }
 
     pub fn entity_identifier(&self) -> Option<EntityIdentifier> {
