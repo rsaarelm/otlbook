@@ -1296,6 +1296,7 @@ dependencies = [
  "env_logger",
  "idm",
  "import",
+ "indexmap",
  "log",
  "md5",
  "persist",

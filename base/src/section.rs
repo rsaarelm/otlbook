@@ -73,7 +73,7 @@ impl From<&Section> for RawSection {
 
 impl From<RawSection> for Section {
     fn from(sec: RawSection) -> Self {
-        let root = Section::new(SectionData::new(sec.0 .0, sec.1 .0 .0));
+        let root = Section::from(SectionData::new(sec.0 .0, sec.1 .0 .0));
         for s in sec.1 .1.into_iter() {
             root.append(Section::from(s));
         }
@@ -102,6 +102,10 @@ impl<'de> Deserialize<'de> for Section {
 }
 
 impl Section {
+    pub fn new(headline: String, attributes: IndexMap<String, String>) -> Self {
+        Self::from(SectionData::new(headline, attributes))
+    }
+
     /// Return IDM string representation made from this section's body lines.
     pub fn body_string(&self) -> String {
         idm::to_string(&RawSection::from(self).1).expect("Shouldn't happen")
@@ -178,7 +182,7 @@ impl Section {
     pub fn tags(&self) -> BTreeSet<String> {
         let mut tags: BTreeSet<String> = match self.attr("tags") {
             Ok(Some(tags)) => tags,
-            _ => Default::default()
+            _ => Default::default(),
         };
 
         if let Some(parent) = self.parent() {

@@ -5,7 +5,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use base::{Collection, Result, Section};
+use base::{Collection, Section, VagueDate};
+use indexmap::IndexMap;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -47,7 +48,13 @@ enum Olt {
         name = "insert",
         about = "Insert items read from stdin to notebook if they're not entities already in it"
     )]
-    Insert,
+    Insert {
+        #[structopt(
+            about = "Folder path to insert the items under",
+            long = "under"
+        )]
+        under: Option<String>,
+    },
     #[structopt(
         name = "reinsert",
         about = "Rewrite existing entities in notebook read from stdin, insert other items that are not existing entities"
@@ -58,9 +65,12 @@ enum Olt {
     )]
     Normalize,
     Reinsert,
-    #[structopt(name = "save", about = "Save a link in the bookmarks list")]
-    Save {
-        uri: String,
+    #[structopt(
+        name = "scrape",
+        about = "Fetch data from URL and print IDM entry to stdout"
+    )]
+    Scrape {
+        url: String,
     },
     #[structopt(name = "tagged", about = "List items with given tags")]
     Tagged {
@@ -94,10 +104,10 @@ fn main() {
             path,
             to_read: to_reads,
         } => import(path, to_reads),
-        Olt::Insert => insert(),
+        Olt::Insert { under } => insert(under),
         Olt::Normalize => normalize(),
         Olt::Reinsert => reinsert(),
-        Olt::Save { uri } => save_bookmark(uri),
+        Olt::Scrape { url } => scrape(url),
         Olt::Tagged { tags } => tag_search(tags),
         Olt::Tags => tag_histogram(),
         Olt::ToRead { uri } => save_to_read(uri),
@@ -210,7 +220,7 @@ fn import(path: impl AsRef<Path>, import_to_reads: bool) {
     print!("{}", idm::to_string(&collection).or_die());
 }
 
-fn insert() {
+fn insert(under: Option<String>) {
     let mut col = Collection::load().or_die();
 
     let mut buf = String::new();
@@ -224,6 +234,7 @@ fn insert() {
         .filter_map(|s| s.entity_identifier())
         .collect::<HashSet<_>>();
 
+    // TODO: If `under` is specified, use it instead of InBox.
     let inbox = col.find_or_create("InBox");
 
     let mut count = 0;
@@ -379,6 +390,28 @@ fn reurl() {
     }
 
     col.save().or_die();
+}
+
+fn scrape(uri: String) {
+    if uri.starts_with("isbn:") {
+        todo!("Book scraping");
+    }
+
+    let mut title = uri.clone();
+
+    if let Some(page_title) = scrape::web_page_title(title.clone()).or_die() {
+        title = page_title;
+    }
+
+    let node = Section::new(
+        title,
+        IndexMap::from([
+            ("uri".to_string(), uri),
+            ("added".to_string(), VagueDate::now().to_string()),
+        ]),
+    );
+
+    print!("{}", idm::to_string(&node).or_die());
 }
 
 fn save_bookmark(uri: String) {

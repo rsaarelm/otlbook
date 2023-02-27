@@ -88,7 +88,7 @@ fn build_section(headline: String, outline: RawOutline) -> Section {
     // last child pointer and have O(1) append op.
     body.reverse();
 
-    let ret = Section::new(SectionData::new(headline, attributes));
+    let ret = Section::from(SectionData::new(headline, attributes));
     for child in body {
         ret.prepend(child.into());
     }
@@ -222,7 +222,7 @@ impl Collection {
 
         log::info!("Section {:?} not found, creating toplevel item", title);
         let headline = format!("{}.otl", title);
-        let section = Section::new(SectionData::new(
+        let section = Section::from(SectionData::new(
             headline.clone(),
             Default::default(),
         ));

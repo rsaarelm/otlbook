@@ -23,8 +23,8 @@ struct Node<T> {
     dirty: bool,
 }
 
-impl<T> Node<T> {
-    pub fn new(data: T) -> Node<T> {
+impl<T> From<T> for Node<T> {
+    fn from(data: T) -> Self {
         Node {
             data,
             parent: Default::default(),
@@ -71,11 +71,13 @@ impl<T> TryFrom<&Weak<RwLock<Node<T>>>> for NodeRef<T> {
     }
 }
 
-impl<T> NodeRef<T> {
-    pub fn new(data: T) -> NodeRef<T> {
-        Node::new(data).into()
+impl<T> From<T> for NodeRef<T> {
+    fn from(data: T) -> Self {
+        Node::from(data).into()
     }
+}
 
+impl<T> NodeRef<T> {
     /// Immutable access to node data.
     ///
     /// Will panic if node is already mutably borrowed.
@@ -252,7 +254,7 @@ impl<T: Clone> NodeRef<T> {
     /// Return a detached deep copy of the current node.
     pub fn deep_clone(&self) -> Self {
         let data: T = self.borrow().clone();
-        let ret = NodeRef::new(data);
+        let ret = NodeRef::from(data);
         for child in self.children() {
             ret.append(child.deep_clone());
         }
