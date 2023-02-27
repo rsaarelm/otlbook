@@ -225,17 +225,29 @@ fn insert(under: Option<String>) {
 
     let mut buf = String::new();
     stdin().read_to_string(&mut buf).or_die();
-    // XXX: Need to trim the buf or I'll end up with a blank section in the
-    // end.
-    let items: Vec<Section> = idm::from_str(buf.trim_end()).or_die();
+    // TODO: Trim-if-multiple-lines helper function
+    //
+    // Multiline input needs to be trimmed so I won't get an empty element.
+    // Single-line input needs to keep a trailing newline
+    let buf = if buf.trim_end().contains('\n') {
+        buf.trim_end()
+    } else {
+        &buf
+    };
+    let items: Vec<Section> = idm::from_str(buf).or_die();
 
     let existing_entities = col
         .iter()
         .filter_map(|s| s.entity_identifier())
         .collect::<HashSet<_>>();
 
-    // TODO: If `under` is specified, use it instead of InBox.
-    let inbox = col.find_or_create("InBox");
+    let path = if let Some(path) = under {
+        path
+    } else {
+        "InBox".to_string()
+    };
+
+    let parent = col.find_or_create(&path).or_die();
 
     let mut count = 0;
     for sec in &items {
@@ -246,7 +258,7 @@ fn insert(under: Option<String>) {
             }
         }
         count += 1;
-        inbox.append(sec.clone());
+        parent.append(sec.clone());
     }
 
     col.save().or_die();

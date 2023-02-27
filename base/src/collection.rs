@@ -208,31 +208,61 @@ impl Collection {
     ///
     /// If the node isn't found in the collection, create a new toplevel item
     /// with the title.
-    pub fn find_or_create(&mut self, title: &str) -> Section {
+    pub fn find_or_create(&mut self, path: &str) -> Result<Section> {
         // TODO: Replace Node with a smart pointer that supports toplevel
         // detachment.
+
+        let elts: Vec<_> = path.split('/').collect();
+
+        if elts.is_empty() {
+            return Err("find_or_create: Bad path")?;
+        }
+
+        let mut root = None;
 
         // Look for existing section.
         // XXX: Ineffective O(n) lookup.
         for node in self.iter() {
-            if &node.headline() == title {
-                return node;
+            if &node.headline() == elts[0] {
+                root = Some(node);
+                break;
             }
         }
 
-        log::info!("Section {:?} not found, creating toplevel item", title);
-        let headline = format!("{}.otl", title);
-        let section = Section::from(SectionData::new(
-            headline.clone(),
-            Default::default(),
-        ));
-        self.files.insert(
-            headline.into(),
-            File {
-                section: section.clone(),
-                style: Indentation::Tabs,
-            },
-        );
-        section
+        let mut node = if let Some(root) = root {
+            root
+        } else {
+            log::info!("Section {:?} not found, creating toplevel item", path);
+
+            let headline = format!("{}.otl", path);
+            let section = Section::from(SectionData::new(
+                headline.clone(),
+                Default::default(),
+            ));
+            self.files.insert(
+                headline.into(),
+                File {
+                    section: section.clone(),
+                    style: Indentation::Tabs,
+                },
+            );
+            section
+        };
+
+        'path: for headline in elts[1..].iter() {
+            for c in node.children() {
+                if &c.headline() == headline {
+                    node = c;
+                    continue 'path;
+                }
+            }
+
+            log::info!("Section {:?} not found, appending to node", headline);
+            let child = Section::new(headline.to_string(), Default::default());
+            node.append(child.clone());
+            node = child;
+        }
+
+        Ok(node)
     }
 }
