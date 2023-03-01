@@ -56,22 +56,26 @@ enum Olt {
         under: Option<String>,
     },
     #[structopt(
-        name = "reinsert",
-        about = "Rewrite existing entities in notebook read from stdin, insert other items that are not existing entities"
-    )]
-    #[structopt(
         name = "normalize",
         about = "Load and rewrite entire notebook in normal form"
     )]
     Normalize,
-    Reinsert,
+    #[structopt(
+        name = "reinsert",
+        about = "Rewrite existing entities in notebook read from stdin, insert other items that are not existing entities"
+    )]
+    Reinsert {
+        #[structopt(
+            about = "Folder path to insert new items under",
+            long = "under"
+        )]
+        under: Option<String>,
+    },
     #[structopt(
         name = "scrape",
         about = "Fetch data from URL and print IDM entry to stdout"
     )]
-    Scrape {
-        url: String,
-    },
+    Scrape { url: String },
     #[structopt(name = "tagged", about = "List items with given tags")]
     Tagged {
         #[structopt(parse(from_str), required = true)]
@@ -80,9 +84,7 @@ enum Olt {
     #[structopt(name = "tags", about = "Show tag cloud")]
     Tags,
     #[structopt(name = "toread", about = "Save a link in the to-read queue")]
-    ToRead {
-        uri: String,
-    },
+    ToRead { uri: String },
     #[structopt(
         name = "webserver",
         about = "Run the otlbook web server for the current collection"
@@ -106,7 +108,7 @@ fn main() {
         } => import(path, to_reads),
         Olt::Insert { under } => insert(under),
         Olt::Normalize => normalize(),
-        Olt::Reinsert => reinsert(),
+        Olt::Reinsert { under } => reinsert(under),
         Olt::Scrape { url } => scrape(url),
         Olt::Tagged { tags } => tag_search(tags),
         Olt::Tags => tag_histogram(),
@@ -276,7 +278,7 @@ fn normalize() {
     col.save().or_die();
 }
 
-fn reinsert() {
+fn reinsert(under: Option<String>) {
     todo!();
 }
 
