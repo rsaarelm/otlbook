@@ -14,7 +14,7 @@ use structopt::StructOpt;
 enum Olt {
     #[structopt(
         name = "dump",
-        about = "Dump all articles in JSON for externasl tools"
+        about = "Dump all articles in JSON for external tools"
     )]
     Dump,
     #[structopt(name = "dupes", about = "List duplicate entries")]
