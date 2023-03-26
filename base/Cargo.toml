@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 chrono = "0.4"
-dirs = "4"
+dirs = "5"
 idm = "0.4"
 indexmap = { version = "1", features = ["serde"] }
 log = "0.4"
