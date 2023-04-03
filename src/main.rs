@@ -303,7 +303,7 @@ fn tag_search(tags: Vec<String>) {
 
             if search_tags.is_subset(&tags) {
                 // Found!
-                println!("{}", current.borrow().headline);
+                print!("{}", idm::to_string(&current).or_die());
             }
 
             for sec in current.children() {
