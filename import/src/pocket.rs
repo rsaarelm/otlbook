@@ -22,7 +22,7 @@ pub struct Entry {
     pub via: &'static str,
 }
 
-type Section = (String, (Entry, Vec<()>));
+type Section = ((String,), ((Entry,), ()));
 
 pub fn import_to_read(s: &str) -> Result<Vec<Section>> {
     import(s, "Unread")
@@ -60,7 +60,7 @@ fn parse_section(doc: &Document, title: &str) -> Result<Vec<Section>> {
     }
 
     // Sort by date
-    ret.sort_by_key(|(_, (Entry { read, added, .. }, _))| {
+    ret.sort_by_key(|(_, ((Entry { read, added, .. },), _))| {
         read.unwrap_or_else(|| added.unwrap_or(VagueDate::Year(0)))
     });
 
@@ -99,16 +99,16 @@ fn parse_entry(item: Node, to_read: bool) -> Result<Section> {
     }
 
     Ok((
-        title,
+        (title,),
         (
-            Entry {
+            (Entry {
                 uri,
                 added: if to_read { Some(added) } else { None },
                 read: if !to_read { Some(added) } else { None },
                 tags,
                 via: "getpocket.com",
-            },
-            Vec::new(),
+            },),
+            (),
         ),
     ))
 }
