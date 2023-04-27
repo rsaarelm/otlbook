@@ -171,7 +171,7 @@ impl Section {
     /// This omits the important item tag and any todo boxes
     pub fn title(&self) -> String {
         let section = self.borrow();
-        if let Ok((_, (_, title, _))) = parse::title(&section.headline) {
+        if let Ok((_, (title, _))) = parse::title(&section.headline) {
             title.to_string()
         } else {
             Default::default()

@@ -31,35 +31,13 @@ fn word_end(i: &str) -> IResult<&str, &str> {
 }
 
 /// Parse article titles in notes.
-/// Return (todo-state, done-percent, main text, important-item-flag) tuple.
-pub fn title(
-    mut i: &str,
-) -> IResult<&str, (Option<(bool, Option<i32>)>, &str, bool)> {
-    let todo_header: Option<(bool, Option<i32>)> =
-        if let Ok((rest, (state, percent))) =
-            // To-do box with percent indicator.
-            pair::<_, _, _, nom::error::Error<_>, _, _>(
-                    alt((
-                        tag("[_] ").map(|_| false),
-                        tag("[X] ").map(|_| true),
-                    )),
-                    opt(terminated(
-                        digit1.map(|s: &str| s.parse::<i32>().unwrap()),
-                        tag("% "),
-                    )),
-                )(i)
-        {
-            i = rest;
-            Some((state, percent))
-        } else {
-            None
-        };
-
+/// Return (title text, important-item-flag) tuple.
+pub fn title(i: &str) -> IResult<&str, (&str, bool)> {
     let i = i.trim_end();
     if let Some(i) = i.strip_suffix(" *") {
-        Ok(("", (todo_header, i, true)))
+        Ok(("", (i, true)))
     } else {
-        Ok(("", (todo_header, i, false)))
+        Ok(("", (i, false)))
     }
 }
 
