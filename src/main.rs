@@ -238,7 +238,7 @@ fn insert(under: Option<String>) {
     };
     let items: Vec<Section> = idm::from_str(buf).or_die();
 
-    let existing_entities = col
+    let mut existing_entities = col
         .iter()
         .filter_map(|s| s.entity_identifier())
         .collect::<HashSet<_>>();
@@ -258,6 +258,7 @@ fn insert(under: Option<String>) {
                 eprintln!("{:?} already present, skipping", id);
                 continue;
             }
+            existing_entities.insert(id);
         }
         count += 1;
         parent.append(sec.clone());
