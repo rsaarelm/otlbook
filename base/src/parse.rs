@@ -2,16 +2,28 @@
 
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_while1},
+    bytes::complete::take_while1,
     character::complete::{digit1, satisfy},
-    combinator::{eof, opt, peek, recognize},
+    combinator::{eof, peek, recognize},
     error::ErrorKind,
     multi::many1,
-    sequence::{pair, terminated, tuple},
-    IResult, Parser,
+    sequence::{pair, tuple},
+    IResult,
 };
+use url::Url;
 
 pub fn wiki_word(i: &str) -> IResult<&str, &str> {
+    fn word_end(i: &str) -> IResult<&str, &str> {
+        alt((eof, recognize(many1(satisfy(|c| !c.is_alphanumeric())))))(i)
+    }
+
+    fn wiki_word_segment(i: &str) -> IResult<&str, &str> {
+        recognize(pair(
+            satisfy(|c: char| c.is_ascii_uppercase()),
+            take_while1(|c: char| c.is_ascii_lowercase()),
+        ))(i)
+    }
+
     recognize(tuple((
         wiki_word_segment,
         many1(alt((wiki_word_segment, digit1))),
@@ -19,15 +31,9 @@ pub fn wiki_word(i: &str) -> IResult<&str, &str> {
     )))(i)
 }
 
-fn wiki_word_segment(i: &str) -> IResult<&str, &str> {
-    recognize(pair(
-        satisfy(|c: char| c.is_ascii_uppercase()),
-        take_while1(|c: char| c.is_ascii_lowercase()),
-    ))(i)
-}
-
-fn word_end(i: &str) -> IResult<&str, &str> {
-    alt((eof, recognize(many1(satisfy(|c| !c.is_alphanumeric())))))(i)
+/// Any whitespace-separated word
+fn word(i: &str) -> IResult<&str, &str> {
+    recognize(many1(satisfy(|c| !c.is_whitespace())))(i)
 }
 
 /// Parse article titles in notes.
@@ -41,6 +47,22 @@ pub fn title(i: &str) -> IResult<&str, (&str, bool)> {
     }
 }
 
+/// Recognize URLs.
+pub fn url(i: &str) -> IResult<&str, Url> {
+    let (rest, word) = word(i)?;
+
+    // XXX: Url::parse is a bit too lenient, can skip prefixes etc.
+    if !word.starts_with("https:") && !word.starts_with("http:") {
+        return Err(err(i));
+    }
+
+    let Ok(url) = Url::parse(word) else {
+        return Err(err(i));
+    };
+
+    Ok((rest, url))
+}
+
 /// Combinator for parsing with no trailing input left.
 pub fn only<'a, T>(
     p: impl Fn(&'a str) -> IResult<&'a str, T>,
@@ -49,11 +71,13 @@ pub fn only<'a, T>(
 ) -> std::result::Result<T, nom::Err<nom::error::Error<&'a str>>> {
     move |i| match p(i) {
         Ok((rest, ret)) if rest.is_empty() => Ok(ret),
-        Ok(_) => {
-            Err(nom::Err::Error(nom::error::Error::new(i, ErrorKind::Fail)))
-        }
+        Ok(_) => Err(err(i)),
         Err(e) => Err(e),
     }
+}
+
+fn err(s: &str) -> nom::Err<nom::error::Error<&str>> {
+    nom::Err::Error(nom::error::Error::new(s, ErrorKind::Fail))
 }
 
 #[cfg(test)]
@@ -77,6 +101,12 @@ mod tests {
     }
 
     #[test]
+    fn test_word() {
+        assert_eq!(word("foo"), Ok(("", "foo")));
+        assert_eq!(word("foo bar baz"), Ok((" bar baz", "foo")));
+    }
+
+    #[test]
     fn test_only() {
         assert_eq!(only(wiki_word)("WikiWord"), Ok("WikiWord"));
         assert!(only(wiki_word)("WikiWord junk").is_err());
@@ -85,24 +115,8 @@ mod tests {
 
     #[test]
     fn test_title() {
-        assert_eq!(title(""), Ok(("", (None, "", false))));
-        assert_eq!(title("xyzzy"), Ok(("", (None, "xyzzy", false))));
-        assert_eq!(title("xyzzy *"), Ok(("", (None, "xyzzy", true))));
-        assert_eq!(
-            title("[_] xyzzy"),
-            Ok(("", (Some((false, None)), "xyzzy", false)))
-        );
-        assert_eq!(
-            title("[X] xyzzy"),
-            Ok(("", (Some((true, None)), "xyzzy", false)))
-        );
-        assert_eq!(
-            title("[_] 1% xyzzy"),
-            Ok(("", (Some((false, Some(1))), "xyzzy", false)))
-        );
-        assert_eq!(
-            title("[X] 100% xyzzy"),
-            Ok(("", (Some((true, Some(100))), "xyzzy", false)))
-        );
+        assert_eq!(title(""), Ok(("", ("", false))));
+        assert_eq!(title("xyzzy"), Ok(("", ("xyzzy", false))));
+        assert_eq!(title("xyzzy *"), Ok(("", ("xyzzy", true))));
     }
 }

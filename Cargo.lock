@@ -115,6 +115,7 @@ dependencies = [
  "ron",
  "serde",
  "serde_with",
+ "url",
  "walkdir",
 ]
 

@@ -177,7 +177,7 @@ fn dupes() {
     log::info!("Start uri crawl");
     let mut count = HashMap::new();
     for section in col.iter() {
-        if let Ok(Some(uri)) = section.attr::<String>("uri") {
+        if let Some(uri) = section.uri() {
             *count.entry(uri).or_insert(0) += 1;
         }
     }

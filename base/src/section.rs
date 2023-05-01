@@ -168,7 +168,7 @@ impl Section {
 
     /// Extract the title part of the headline
     ///
-    /// This omits the important item tag and any todo boxes
+    /// This omits the important item tag.
     pub fn title(&self) -> String {
         let section = self.borrow();
         if let Ok((_, (title, _))) = parse::title(&section.headline) {
@@ -216,14 +216,36 @@ impl Section {
         }
     }
 
+    /// If headline resolves to URL, return that.
+    pub fn url_title(&self) -> Option<String> {
+        if let Ok(url) = only(parse::url)(&self.title()) {
+            Some(url.to_string())
+        } else {
+            None
+        }
+    }
+
     pub fn is_article(&self) -> bool {
         self.wiki_title().is_some()
             || self.borrow().attributes.contains_key("uri")
     }
 
+    /// Extract an URI either from attribute or from the headline.
+    pub fn uri(&self) -> Option<String> {
+        if let Ok(Some(uri)) = self.attr::<String>("uri") {
+            Some(uri)
+        } else if let Some(uri) = self.url_title() {
+            Some(uri)
+        } else {
+            None
+        }
+    }
+
     pub fn entity_identifier(&self) -> Option<EntityIdentifier> {
         if let Ok(Some(uri)) = self.attr("uri") {
             Some(EntityIdentifier::Uri(uri))
+        } else if let Some(url_title) = self.url_title() {
+            Some(EntityIdentifier::Uri(url_title))
         } else if let Some(wiki_title) = self.wiki_title() {
             Some(EntityIdentifier::WikiTitle(wiki_title))
         } else {
