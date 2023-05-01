@@ -157,7 +157,7 @@ fn dump() {
 }
 
 fn dupes() {
-    let mut col = Collection::load().or_die();
+    let col = Collection::load().or_die();
     let mut count = HashMap::new();
 
     log::info!("Start WikiTitle crawl");
@@ -183,26 +183,11 @@ fn dupes() {
     }
     log::info!("Finished uri crawl, {} items;", count.len());
 
-    let mut dupes: HashSet<String> = HashSet::new();
     for (t, &n) in &count {
         if n > 1 {
             println!("uri dupes: {}", t);
-            dupes.insert(t.to_owned());
         }
     }
-
-    for section in col.iter() {
-        if let Some(uri) = section.uri() {
-            if dupes.contains(&uri) {
-                if section.body_string().is_empty() {
-                    let new_headline = format!("* {}", section.headline());
-                    section.set_headline(new_headline);
-                }
-            }
-        }
-    }
-
-    col.save().or_die();
 }
 
 fn exists(uri: String) {
