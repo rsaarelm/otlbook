@@ -166,6 +166,10 @@ impl Section {
         self.borrow().headline.clone()
     }
 
+    pub fn set_headline(&self, input: impl Into<String>) {
+        self.borrow_mut().headline = input.into();
+    }
+
     /// Extract the title part of the headline
     ///
     /// This omits the important item tag.
