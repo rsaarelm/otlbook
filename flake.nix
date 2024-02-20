@@ -1,7 +1,7 @@
 {
   inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     naersk.url = "github:nmattia/naersk/master";
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
     utils.url = "github:numtide/flake-utils";
   };
@@ -49,6 +49,9 @@
 
               # For anki SRS crate
               # anki
+
+              # For importers in Python
+              python3Packages.pandas
             ];
             RUST_SRC_PATH = rustPlatform.rustLibSrc;
             RUST_BACKTRACE = "1";

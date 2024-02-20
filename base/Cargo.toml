@@ -10,12 +10,12 @@ edition = "2018"
 chrono = "0.4"
 dirs = "5"
 idm = "0.4"
-indexmap = { version = "1", features = ["serde"] }
+indexmap = { version = "2", features = ["serde"] }
 log = "0.4"
 nom = "7"
 rayon = "1"
 serde = { version = "1", features = ["derive"] }
-serde_with = "2"
+serde_with = "3"
 url = "2"
 walkdir = "2"
 
