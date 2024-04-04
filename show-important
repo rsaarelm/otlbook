@@ -1,0 +1,41 @@
+#!/usr/bin/env rust-script
+
+//! Extract important (starred) items from an IDM outline from stdin
+//!
+//! ```cargo
+//! [dependencies]
+//! anyhow = "1"
+//! idm = "0.4"
+//! indexmap = { version = "2", features = ["serde"] }
+//! serde = { version = "1", features = ["derive"] }
+//! ```
+
+use std::io::{self, Read};
+
+use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct Outline((IndexMap<String, String>,), Vec<((String,), Outline)>);
+
+impl Outline {
+    fn print_important(&self) {
+        for ((head,), body) in &self.1 {
+            if head.trim().ends_with(" *") {
+                print!("{}", idm::to_string(&((head,), body)).unwrap());
+            } else {
+                body.print_important();
+            }
+        }
+    }
+}
+
+fn main() -> anyhow::Result<()> {
+    let mut stdin = String::new();
+    io::stdin().read_to_string(&mut stdin)?;
+    let outline: Outline = idm::from_str(&stdin)?;
+
+    outline.print_important();
+
+    Ok(())
+}
