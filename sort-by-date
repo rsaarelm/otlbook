@@ -1,0 +1,46 @@
+#!/usr/bin/env rust-script
+
+//! Sort items in stdin by :date value.
+//!
+//! ```cargo
+//! [dependencies]
+//! anyhow = "1"
+//! idm = "0.4"
+//! indexmap = { version = "2", features = ["serde"] }
+//! serde = { version = "1", features = ["derive"] }
+//! ```
+
+use std::{
+    cmp::Ordering,
+    io::{self, Read},
+};
+
+use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct Outline((IndexMap<String, String>,), Vec<((String,), Outline)>);
+
+fn ord(
+    ((_,), a): &((String,), Outline),
+    ((_,), b): &((String,), Outline),
+) -> Ordering {
+    if let (Some(a), Some(b)) = (a.0.0.get("date"), b.0.0.get("date")) {
+        a.cmp(b)
+    } else {
+        // Always report they're in order if either has no date.
+        Ordering::Greater
+    }
+}
+
+fn main() -> anyhow::Result<()> {
+    let mut stdin = String::new();
+    io::stdin().read_to_string(&mut stdin)?;
+    let mut outline: Outline = idm::from_str(&stdin)?;
+
+    outline.1.sort_by(ord);
+
+    print!("{}", idm::to_string(&outline).unwrap());
+
+    Ok(())
+}
