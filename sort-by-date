@@ -25,12 +25,8 @@ fn ord(
     ((_,), a): &((String,), Outline),
     ((_,), b): &((String,), Outline),
 ) -> Ordering {
-    if let (Some(a), Some(b)) = (a.0.0.get("date"), b.0.0.get("date")) {
-        a.cmp(b)
-    } else {
-        // Always report they're in order if either has no date.
-        Ordering::Greater
-    }
+    let blank = String::new();
+    a.0.0.get("date").unwrap_or(&blank).cmp(b.0.0.get("date").unwrap_or(&blank))
 }
 
 fn main() -> anyhow::Result<()> {
@@ -40,7 +36,7 @@ fn main() -> anyhow::Result<()> {
 
     outline.1.sort_by(ord);
 
-    print!("{}", idm::to_string(&outline).unwrap());
+    print!("{}", idm::to_string_styled_like(&stdin, &outline).unwrap());
 
     Ok(())
 }
