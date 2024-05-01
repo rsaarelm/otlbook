@@ -3,11 +3,9 @@ test:
     @cargo check
     @cargo test --all
 
-# Update Nix flake and Cargo dependencies.
-update-dependencies:
+update-flake:
+    rm -rf .direnv/
     nix flake update
-    cargo update
-    @echo "Updates performed, any changed lockfiles will need to be committed to git."
 
 install-ankiconnect:
     #!/usr/bin/env sh
