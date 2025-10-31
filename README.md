@@ -1,5 +1,7 @@
 # otlbook
 
+**This project is abandoned in favor of [ont](https://github.com/rsaarelm/ont)**
+
 Personal information management system built on top of
 [VimOutliner](https://github.com/vimoutliner/vimoutliner) files.
 
